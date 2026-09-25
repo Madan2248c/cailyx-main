@@ -8,6 +8,7 @@ function buildRawPrismaMock() {
       findMany: vi.fn(),
       update: vi.fn(),
       create: vi.fn(),
+      count: vi.fn(),
     },
     refreshToken: {
       findFirst: vi.fn(),

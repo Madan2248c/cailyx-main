@@ -9,6 +9,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CreateClientDto } from '../dto/create-client.dto.js';
 import { InviteTeamMemberDto } from '../dto/invite-team-member.dto.js';
+import { UpdateSeatLimitDto } from '../dto/update-seat-limit.dto.js';
 import { TeamService } from '../services/team.service.js';
 
 /**
@@ -57,6 +58,14 @@ export class TeamController {
   @HttpCode(HttpStatus.OK)
   activateClient(@Param('id') id: string) {
     return this.teamService.activateClient(id);
+  }
+
+  /** PATCH /team/clients/:id/seats — change a client's seat limit. Admin-only. */
+  @Patch('clients/:id/seats')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  updateSeatLimit(@Param('id') id: string, @Body() dto: UpdateSeatLimitDto) {
+    return this.teamService.updateSeatLimit(id, dto);
   }
 
   /** POST /team/invite — invite a team member into the caller's own client. */

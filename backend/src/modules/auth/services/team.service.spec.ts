@@ -50,27 +50,33 @@ describe('TeamService', () => {
   });
 
   describe('listClients', () => {
-    it('maps the active POC onto each client', async () => {
+    it('maps the active POC and seat usage onto each client', async () => {
       prisma.client.findMany.mockResolvedValue([
         {
           id: 'client-1',
           name: 'Acme',
           status: ClientStatus.ACTIVE,
+          seatLimit: 5,
           createdAt: new Date(),
           users: [{ email: 'poc@acme.com', status: UserStatus.ACTIVE }],
+          _count: { users: 3 },
         },
         {
           id: 'client-2',
           name: 'No POC Co',
           status: ClientStatus.ACTIVE,
+          seatLimit: 1,
           createdAt: new Date(),
           users: [],
+          _count: { users: 0 },
         },
       ]);
 
       const result = await service.listClients();
 
       expect(result[0].poc).toEqual({ email: 'poc@acme.com', status: UserStatus.ACTIVE });
+      expect(result[0].seatLimit).toBe(5);
+      expect(result[0].seatsUsed).toBe(3);
       expect(result[1].poc).toBeNull();
     });
   });
@@ -80,29 +86,39 @@ describe('TeamService', () => {
       await expect(service.listMembers(admin)).rejects.toThrow(BadRequestException);
     });
 
-    it('lists users scoped to the caller\'s own client', async () => {
-      prisma.user.findMany.mockResolvedValue([buildTargetUser({ id: 'poc-1', role: Role.CLIENT_POC })]);
+    it('lists users scoped to the caller\'s own client, with seat usage', async () => {
+      prisma.client.findFirst.mockResolvedValue({ id: 'client-1', seatLimit: 5 });
+      prisma.user.findMany.mockResolvedValue([
+        buildTargetUser({ id: 'poc-1', role: Role.CLIENT_POC, status: UserStatus.ACTIVE }),
+        buildTargetUser({ id: 'target-1', status: UserStatus.DISABLED }),
+      ]);
 
-      await service.listMembers(poc);
+      const result = await service.listMembers(poc);
 
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: { clientId: 'client-1', deletedAt: null },
         orderBy: { createdAt: 'asc' },
       });
+      expect(result.seatLimit).toBe(5);
+      // Only the ACTIVE user occupies a seat; the DISABLED one doesn't.
+      expect(result.seatsUsed).toBe(1);
+      expect(result.members).toHaveLength(2);
     });
   });
 
   describe('createClientWithPoc', () => {
-    it('creates the client, the POC user, and issues an invite', async () => {
-      prisma.client.create.mockResolvedValue({ id: 'client-1', name: 'Acme' });
+    it('creates the client (with the given seat limit), the POC user, and issues an invite', async () => {
+      prisma.client.create.mockResolvedValue({ id: 'client-1', name: 'Acme', seatLimit: 3 });
       prisma.user.create.mockResolvedValue(buildTargetUser({ id: 'poc-1', role: Role.CLIENT_POC }));
 
       const result = await service.createClientWithPoc(
-        { name: 'Acme', pocEmail: 'POC@Acme.com' },
+        { name: 'Acme', pocEmail: 'POC@Acme.com', seatLimit: 3 },
         'admin-1',
       );
 
-      expect(prisma.client.create).toHaveBeenCalledWith({ data: { name: 'Acme', createdBy: 'admin-1' } });
+      expect(prisma.client.create).toHaveBeenCalledWith({
+        data: { name: 'Acme', createdBy: 'admin-1', seatLimit: 3 },
+      });
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           email: 'poc@acme.com',
@@ -115,6 +131,38 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(result.poc.email).toBe('target@test.com');
     });
+
+    it('passes seatLimit through as undefined when omitted, letting the DB default apply', async () => {
+      prisma.client.create.mockResolvedValue({ id: 'client-1', name: 'Acme', seatLimit: 1 });
+      prisma.user.create.mockResolvedValue(buildTargetUser({ id: 'poc-1', role: Role.CLIENT_POC }));
+
+      await service.createClientWithPoc({ name: 'Acme', pocEmail: 'poc@acme.com' }, 'admin-1');
+
+      expect(prisma.client.create).toHaveBeenCalledWith({
+        data: { name: 'Acme', createdBy: 'admin-1', seatLimit: undefined },
+      });
+    });
+  });
+
+  describe('updateSeatLimit', () => {
+    it('throws NotFound for an unknown client', async () => {
+      prisma.client.findFirst.mockResolvedValue(null);
+      await expect(service.updateSeatLimit('missing', { seatLimit: 5 })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('updates the seat limit', async () => {
+      prisma.client.findFirst.mockResolvedValue({ id: 'client-1', seatLimit: 1 });
+
+      const result = await service.updateSeatLimit('client-1', { seatLimit: 10 });
+
+      expect(prisma.client.update).toHaveBeenCalledWith({
+        where: { id: 'client-1' },
+        data: { seatLimit: 10 },
+      });
+      expect(result).toEqual({ success: true });
+    });
   });
 
   describe('inviteTeamMember', () => {
@@ -124,11 +172,30 @@ describe('TeamService', () => {
       );
     });
 
-    it('creates a CLIENT_MEMBER in the caller\'s client and issues an invite', async () => {
+    it('throws BadRequest when the client has no free seats', async () => {
+      prisma.client.findFirst.mockResolvedValue({ id: 'client-1', seatLimit: 2 });
+      prisma.user.count.mockResolvedValue(2);
+
+      await expect(service.inviteTeamMember({ email: 'a@b.com' }, poc)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a CLIENT_MEMBER when a seat is free, and issues an invite', async () => {
+      prisma.client.findFirst.mockResolvedValue({ id: 'client-1', seatLimit: 5 });
+      prisma.user.count.mockResolvedValue(2);
       prisma.user.create.mockResolvedValue(buildTargetUser());
 
       await service.inviteTeamMember({ email: 'Member@Acme.com' }, poc);
 
+      expect(prisma.user.count).toHaveBeenCalledWith({
+        where: {
+          clientId: 'client-1',
+          deletedAt: null,
+          status: { in: [UserStatus.INVITED, UserStatus.ACTIVE] },
+        },
+      });
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           email: 'member@acme.com',

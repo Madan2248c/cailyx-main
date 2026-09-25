@@ -4,7 +4,11 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import type { CreateClientDto } from '../dto/create-client.dto.js';
 import type { InviteTeamMemberDto } from '../dto/invite-team-member.dto.js';
+import type { UpdateSeatLimitDto } from '../dto/update-seat-limit.dto.js';
 import { TokenService } from './token.service.js';
+
+/** Statuses that occupy a seat. A DISABLED or soft-deleted user frees theirs up. */
+const SEAT_OCCUPYING_STATUSES: UserStatus[] = [UserStatus.INVITED, UserStatus.ACTIVE];
 
 @Injectable()
 export class TeamService {
@@ -15,7 +19,7 @@ export class TeamService {
     private readonly tokenService: TokenService,
   ) {}
 
-  /** Lists all non-deleted clients with their active POC's email/status, newest first. Admin-only (enforced by the controller's guard). */
+  /** Lists all non-deleted clients with their active POC and seat usage, newest first. Admin-only (enforced by the controller's guard). */
   async listClients() {
     const clients = await this.prisma.client.findMany({
       where: { deletedAt: null },
@@ -25,6 +29,11 @@ export class TeamService {
           where: { role: Role.CLIENT_POC, deletedAt: null },
           select: { email: true, status: true },
         },
+        _count: {
+          select: {
+            users: { where: { deletedAt: null, status: { in: SEAT_OCCUPYING_STATUSES } } },
+          },
+        },
       },
     });
 
@@ -32,21 +41,28 @@ export class TeamService {
       id: client.id,
       name: client.name,
       status: client.status,
+      seatLimit: client.seatLimit,
+      seatsUsed: client._count.users,
       createdAt: client.createdAt,
       poc: client.users[0] ?? null,
     }));
   }
 
-  /** Lists every non-deleted user in the caller's own client, including the caller. */
+  /** Lists every non-deleted user in the caller's own client (including the caller), plus seat usage. */
   async listMembers(caller: AccessTokenPayload) {
     this.assertHasClientContext(caller);
 
+    const client = await this.getClientOrThrow(caller.clientId!);
     const members = await this.prisma.user.findMany({
       where: { clientId: caller.clientId, deletedAt: null },
       orderBy: { createdAt: 'asc' },
     });
 
-    return members.map((member) => this.publicUser(member));
+    return {
+      seatLimit: client.seatLimit,
+      seatsUsed: members.filter((m) => SEAT_OCCUPYING_STATUSES.includes(m.status)).length,
+      members: members.map((member) => this.publicUser(member)),
+    };
   }
 
   /** Creates a new client and its POC (INVITED status), then issues the POC's initial invite. */
@@ -54,7 +70,7 @@ export class TeamService {
     const email = this.normalizeEmail(dto.pocEmail);
 
     const client = await this.prisma.client.create({
-      data: { name: dto.name, createdBy: adminId },
+      data: { name: dto.name, createdBy: adminId, seatLimit: dto.seatLimit },
     });
 
     const poc = await this.prisma.user.create({
@@ -72,9 +88,37 @@ export class TeamService {
     return { client, poc: this.publicUser(poc) };
   }
 
-  /** Invites a CLIENT_MEMBER into the caller's own client. Requires the caller to have a client context (i.e. not an ADMIN). */
+  /** Updates a client's seat limit. Admin-only; doesn't retroactively touch existing users even if now over the new limit. */
+  async updateSeatLimit(clientId: string, dto: UpdateSeatLimitDto) {
+    await this.getClientOrThrow(clientId);
+
+    await this.prisma.client.update({
+      where: { id: clientId },
+      data: { seatLimit: dto.seatLimit },
+    });
+
+    return { success: true };
+  }
+
+  /** Invites a CLIENT_MEMBER into the caller's own client. Requires the caller to have a client context (i.e. not an ADMIN), and a free seat. */
   async inviteTeamMember(dto: InviteTeamMemberDto, caller: AccessTokenPayload) {
     this.assertHasClientContext(caller);
+
+    const client = await this.getClientOrThrow(caller.clientId!);
+    const seatsUsed = await this.prisma.user.count({
+      where: {
+        clientId: caller.clientId,
+        deletedAt: null,
+        status: { in: SEAT_OCCUPYING_STATUSES },
+      },
+    });
+
+    if (seatsUsed >= client.seatLimit) {
+      throw new BadRequestException(
+        `Seat limit reached (${client.seatLimit}). Free up a seat or ask an admin to increase it.`,
+      );
+    }
+
     const email = this.normalizeEmail(dto.email);
 
     const member = await this.prisma.user.create({

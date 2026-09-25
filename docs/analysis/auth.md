@@ -69,6 +69,7 @@ provider, actual feature list.
 | id | uuid pk | |
 | name | text | |
 | status | enum `ClientStatus` (`ACTIVE`, `SUSPENDED`) | admin flips this to fully cut off a client, independent of any single user's status |
+| seat_limit | integer, default 1, `CHECK (seat_limit >= 1)` | added 2026-09-25. Total seats including the POC — an admin config for the auth module itself, not a product feature flag. Enforced in `TeamService.inviteTeamMember`; admin changes it via `PATCH /team/clients/:id/seats`. Lowering it below current usage doesn't retroactively remove anyone. |
 | created_by | uuid fk → users.id | the admin who created it |
 | created_at / updated_at / deleted_at | timestamptz | |
 
@@ -112,6 +113,14 @@ provider, actual feature list.
 | enabled | boolean, default true | |
 | updated_by | uuid fk → users.id, nullable | admin who last toggled it |
 | created_at / updated_at / deleted_at | timestamptz | partial-unique on `(client_id, feature_key)` where `deleted_at IS NULL` |
+
+> **Superseded, 2026-09-25** — see `docs/context.md`'s "every feature is a
+> plugin, with per-client config" note. This table's plain boolean is
+> almost certainly not the final shape once real feature modules exist
+> (clients need per-feature *configuration*, not just on/off). No API/UI
+> was built against this table for that reason — don't build one until a
+> real feature module needs it, and reconsider this schema at that point
+> rather than assuming it's settled.
 
 ### `auth_tokens` (invite / resend / password-reset — the "magic link")
 | column | type | notes |

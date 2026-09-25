@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateClientDto {
   @IsString()
@@ -7,4 +7,10 @@ export class CreateClientDto {
 
   @IsEmail()
   pocEmail!: string;
+
+  /** Total seats (POC + members) for this client. Defaults to 1 if omitted. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  seatLimit?: number;
 }

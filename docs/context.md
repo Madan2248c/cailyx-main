@@ -24,6 +24,36 @@ its own `backend/src/modules/<module>/` folder once it's done.
 - `backend/src/modules/<name>/README.md` — per-module detail: architecture,
   dependencies, env vars, testing notes.
 
+## Feature architecture: every feature is a plugin, with per-client config
+
+Decided 2026-09-25, before building any real feature module. Product
+features (content calendar, blog generation, email marketing, AEO audits,
+Day-1 report, etc.) are **not just on/off switches per client** — different
+clients pay for different subsets and configurations of the same feature.
+Example: a content-calendar feature might have one client on blogs only,
+another on blogs + email, each possibly with different settings within
+that (posting frequency, channels, etc.).
+
+**What this means for how features get built:**
+
+- Each feature module owns its own configuration shape — don't assume a
+  single boolean is ever enough. A feature's "is this on for this client"
+  question and "how is it configured for this client" question are the
+  same concern, not two separate ones.
+- The `client_feature_flags` table from the login module (`clientId`,
+  `featureKey`, `enabled`) was designed as a simple on/off placeholder
+  *before* this principle was articulated. It's almost certainly not the
+  final shape — expect it to evolve into something that can carry a
+  per-client config payload (e.g. a JSON column) per feature, not just a
+  boolean. Revisit its design when the first real feature module needs
+  per-client configuration, rather than guessing the shape now.
+- Don't build generic "feature flag management" UI/API ahead of an actual
+  feature needing it (this is why we're not building it right now, even
+  though the table already exists) — each feature module should bring its
+  own configuration screen/endpoints when it's built, following this
+  plugin-shaped pattern, rather than a separate central toggle-everything
+  admin panel.
+
 ## Stack
 
 - **Backend**: NestJS 12, Prisma 7 (`@prisma/adapter-pg`), Postgres via

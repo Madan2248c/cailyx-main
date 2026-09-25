@@ -3,6 +3,28 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-25 — Auth module: per-client seat limits
+
+`clients.seat_limit` (integer, default 1, `CHECK >= 1`), counting the POC as
+a seat. Enforced in `TeamService.inviteTeamMember` (rejects with `400` when
+`seatsUsed >= seatLimit`); admin-adjustable via `PATCH /team/clients/:id/seats`.
+`GET /team/clients` and `GET /team/members` now both report `seatLimit` +
+`seatsUsed`. This is auth-module *configuration*, deliberately distinct from
+the deferred per-client product-feature toggles (see "every feature is a
+plugin" in `docs/context.md`, added the same day) — seats are an auth-module
+concern, not a feature flag.
+
+Frontend: `CreateClientDialog` gained a seat-limit input (default 1); new
+`EditSeatsDialog` for admins to change it later; `/admin/clients` shows
+"X / Y seats" per client; `/team` shows the POC's own usage and hides the
+invite button once at the limit.
+
+5 new/updated unit tests (87 total). Verified live end-to-end through the
+actual `/api/team/*` Next.js proxy (not just the backend directly): created
+a client at `seatLimit=1`, confirmed the 1st team-member invite succeeds and
+the 2nd is rejected, confirmed an admin raising the limit immediately
+unblocks further invites, confirmed `seatLimit=0` is rejected by validation.
+
 ## 2026-09-25 — Login module complete
 
 **DB**: 7 tables (`clients`, `users`, `permissions`, `role_permissions`,

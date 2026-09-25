@@ -1,4 +1,4 @@
-import type { ClientSummary, TeamMember } from '@/types/team';
+import type { ClientSummary, TeamMember, TeamMembers } from '@/types/team';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,13 +21,27 @@ export async function createClient(
   accessToken: string,
   name: string,
   pocEmail: string,
+  seatLimit?: number,
 ): Promise<{ client: ClientSummary }> {
   const response = await fetch('/api/team/clients', {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, pocEmail }),
+    body: JSON.stringify({ name, pocEmail, seatLimit }),
   });
   return parseOrThrow<{ client: ClientSummary }>(response);
+}
+
+export async function updateSeatLimit(
+  accessToken: string,
+  id: string,
+  seatLimit: number,
+): Promise<{ success: true }> {
+  const response = await fetch(`/api/team/clients/${id}/seats`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ seatLimit }),
+  });
+  return parseOrThrow<{ success: true }>(response);
 }
 
 export async function suspendClient(accessToken: string, id: string): Promise<{ success: true }> {
@@ -46,9 +60,9 @@ export async function activateClient(accessToken: string, id: string): Promise<{
   return parseOrThrow<{ success: true }>(response);
 }
 
-export async function listMembers(accessToken: string): Promise<TeamMember[]> {
+export async function listMembers(accessToken: string): Promise<TeamMembers> {
   const response = await fetch('/api/team/members', { headers: authHeaders(accessToken) });
-  return parseOrThrow<TeamMember[]>(response);
+  return parseOrThrow<TeamMembers>(response);
 }
 
 export async function inviteMember(accessToken: string, email: string): Promise<TeamMember> {

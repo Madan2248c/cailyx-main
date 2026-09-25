@@ -60,8 +60,9 @@ See `docs/Readme.md` for full request/response shapes. Summary:
 | GET | `/team/clients` | access token, ADMIN | |
 | POST | `/team/clients` | access token, ADMIN | creates client + invites POC |
 | PATCH | `/team/clients/:id/suspend` \| `/activate` | access token, ADMIN | |
-| GET | `/team/members` | access token, `manage_team` | scoped to caller's client |
-| POST | `/team/invite` | access token, `manage_team` | |
+| PATCH | `/team/clients/:id/seats` | access token, ADMIN | changes seat_limit |
+| GET | `/team/members` | access token, `manage_team` | scoped to caller's client, includes seat usage |
+| POST | `/team/invite` | access token, `manage_team` | rejected with 400 if the client has no free seats |
 | POST | `/team/users/:id/resend-invite` | access token, `manage_team` | |
 | PATCH | `/team/users/:id/disable` \| `/enable` | access token, `manage_team` | |
 
@@ -99,16 +100,17 @@ know who's logged in will depend on `JwtAuthGuard` / `CurrentUser` from
 | Shared login screen, role/permission-gated | ✅ | `POST /auth/login` is role-agnostic; `RolesGuard`/`PermissionsGuard` gate everything downstream. |
 | Admin can toggle a client's feature access | ⚠️ | `client_feature_flags` table exists in the DB design; no read/write endpoints built yet — deferred until an actual feature list exists. |
 | Admin can fully suspend a client | ✅ | `PATCH /team/clients/:id/suspend`, bulk-revokes sessions. |
+| Per-client seat limit (POC + members) | ✅ | Added 2026-09-25. `clients.seat_limit` (default 1, includes the POC), enforced in `inviteTeamMember`, admin-adjustable via `PATCH /team/clients/:id/seats`. This is auth-module *configuration*, distinct from the deferred product-feature toggles — see `docs/context.md`. |
 | Admins only addable via DB access | ✅ | No admin-creation endpoint exists; bootstrapped by direct insert. |
 | Admin adds client POC, sends magic link | ✅ | `POST /team/clients`; link delivery itself is logged, not emailed — email module doesn't exist yet. |
 | POC can add their own team | ✅ | `POST /team/invite`, permission-gated. |
-| Admin can resend links | ✅ | `POST /team/users/:id/resend-invite` (also usable by POC for their own team). |
+| Admin can resend links ̦| ✅ | `POST /team/users/:id/resend-invite` (also usable by POC for their own team). |
 | Soft deletes throughout | ✅ | Every table has `deleted_at`; nothing is hard-deleted. |
 | Swagger/OpenAPI decorators | ❌ | Not wired up yet — deferred, `docs/Readme.md` is the source of truth for now. |
 
 ## Testing notes
 
-**Automated (unit) tests**: `npm run test` — 82 tests across 10 spec files,
+**Automated (unit) tests**: `npm run test` — 87 tests across 10 spec files,
 using `@nestjs/testing`'s `Test.createTestingModule` with mocked
 `PrismaService`/`PasswordService`/`TokenService`/`ConfigService` (see
 `test/mocks/prisma.mock.ts`). Covers every branch of `AuthService` and
@@ -136,6 +138,12 @@ real Postgres behavior, the actual frontend):
   old password stops working, new one works, prior sessions revoked.
 - Cross-tenant isolation: one client's POC gets 403 acting on another
   client's user, and 403 hitting admin-only routes.
+- Seat limits: created a client with `seatLimit=2`, confirmed the 2nd
+  invite (POC + 1 member) succeeds and the 3rd is rejected with `400`;
+  confirmed an admin raising the limit via `PATCH .../seats` immediately
+  unblocks further invites; confirmed `0` is rejected by DTO validation.
+  Verified through the actual Next.js `/api/team/*` proxy layer too, not
+  just the backend directly.
 - Invite/reset link reuse: confirmed the backend rejects a second use
   (`400`), and that the frontend now pre-checks validity via
   `/validate` before rendering the form, instead of only failing on submit.

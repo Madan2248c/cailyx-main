@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InviteMemberDialog } from '@/components/team/invite-member-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { disableMember, enableMember, listMembers, resendInvite } from '@/lib/team-api';
-import type { TeamMember } from '@/types/team';
+import type { TeamMember, TeamMembers } from '@/types/team';
 
 const STATUS_VARIANT: Record<TeamMember['status'], 'default' | 'secondary' | 'destructive'> = {
   ACTIVE: 'default',
@@ -19,14 +19,14 @@ const STATUS_VARIANT: Record<TeamMember['status'], 'default' | 'secondary' | 'de
 export default function TeamPage() {
   const { user, accessToken, isLoading } = useAuth();
   const router = useRouter();
-  const [members, setMembers] = useState<TeamMember[] | null>(null);
+  const [team, setTeam] = useState<TeamMembers | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!accessToken) return;
     try {
-      setMembers(await listMembers(accessToken));
+      setTeam(await listMembers(accessToken));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load team');
     }
@@ -44,7 +44,7 @@ export default function TeamPage() {
 
     listMembers(accessToken)
       .then((data) => {
-        if (!cancelled) setMembers(data);
+        if (!cancelled) setTeam(data);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load team');
@@ -83,24 +83,39 @@ export default function TeamPage() {
     );
   }
 
+  const atSeatLimit = team ? team.seatsUsed >= team.seatLimit : false;
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Your team</h1>
-        {accessToken ? <InviteMemberDialog accessToken={accessToken} onInvited={refresh} /> : null}
+        {accessToken && !atSeatLimit ? (
+          <InviteMemberDialog accessToken={accessToken} onInvited={refresh} />
+        ) : null}
       </div>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {members === null ? (
+      {team === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Members</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Members</CardTitle>
+              <span className="text-sm text-muted-foreground">
+                {team.seatsUsed} / {team.seatLimit} seats used
+              </span>
+            </div>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            {members.map((member) => {
+            {atSeatLimit ? (
+              <p className="text-sm text-muted-foreground">
+                You&apos;ve used all your available seats. Ask an admin to increase your seat limit
+                to invite more people.
+              </p>
+            ) : null}
+            {team.members.map((member) => {
               const isSelf = member.id === user.id;
               return (
                 <div

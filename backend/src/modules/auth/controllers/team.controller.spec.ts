@@ -21,6 +21,7 @@ describe('TeamController', () => {
       createClientWithPoc: vi.fn().mockResolvedValue({ client: {}, poc: {} }),
       suspendClient: vi.fn().mockResolvedValue({ success: true }),
       activateClient: vi.fn().mockResolvedValue({ success: true }),
+      updateSeatLimit: vi.fn().mockResolvedValue({ success: true }),
       inviteTeamMember: vi.fn().mockResolvedValue({ id: 'member-1' }),
       resendInvite: vi.fn().mockResolvedValue({ success: true }),
       disableUser: vi.fn().mockResolvedValue({ success: true }),
@@ -71,6 +72,12 @@ describe('TeamController', () => {
 
     await controller.activateClient('client-1');
     expect(teamService.activateClient).toHaveBeenCalledWith('client-1');
+  });
+
+  it('updateSeatLimit delegates the client id and DTO', async () => {
+    const dto = { seatLimit: 10 };
+    await controller.updateSeatLimit('client-1', dto);
+    expect(teamService.updateSeatLimit).toHaveBeenCalledWith('client-1', dto);
   });
 
   it('invite delegates the DTO and caller', async () => {

@@ -13,19 +13,20 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createClient } from '@/lib/team-api';
+import { updateSeatLimit } from '@/lib/team-api';
+import type { ClientSummary } from '@/types/team';
 
-export function CreateClientDialog({
+export function EditSeatsDialog({
   accessToken,
-  onCreated,
+  client,
+  onUpdated,
 }: {
   accessToken: string;
-  onCreated: () => void;
+  client: ClientSummary;
+  onUpdated: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [pocEmail, setPocEmail] = useState('');
-  const [seatLimit, setSeatLimit] = useState('1');
+  const [seatLimit, setSeatLimit] = useState(String(client.seatLimit));
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,12 +35,9 @@ export function CreateClientDialog({
     setError(null);
     setIsSubmitting(true);
     try {
-      await createClient(accessToken, name, pocEmail, Number(seatLimit));
-      setName('');
-      setPocEmail('');
-      setSeatLimit('1');
+      await updateSeatLimit(accessToken, client.id, Number(seatLimit));
       setOpen(false);
-      onCreated();
+      onUpdated();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -48,34 +46,27 @@ export function CreateClientDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button>New client</Button>} />
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) setSeatLimit(String(client.seatLimit));
+      }}
+    >
+      <DialogTrigger render={<Button size="sm" variant="outline">Edit seats</Button>} />
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create a new client</DialogTitle>
+          <DialogTitle>Seats for {client.name}</DialogTitle>
           <DialogDescription>
-            Their POC will get an invite link to set up their password and onboard.
+            Currently using {client.seatsUsed} of {client.seatLimit}. Lowering the limit below
+            what&apos;s in use won&apos;t remove anyone already onboarded.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="clientName">Client name</Label>
-            <Input id="clientName" required value={name} onChange={(e) => setName(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="pocEmail">POC email</Label>
+            <Label htmlFor="editSeatLimit">Seat limit</Label>
             <Input
-              id="pocEmail"
-              type="email"
-              required
-              value={pocEmail}
-              onChange={(e) => setPocEmail(e.target.value)}
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="seatLimit">Seats (includes the POC)</Label>
-            <Input
-              id="seatLimit"
+              id="editSeatLimit"
               type="number"
               min={1}
               required
@@ -86,7 +77,7 @@ export function CreateClientDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Creating…' : 'Create client'}
+              {isSubmitting ? 'Saving…' : 'Save'}
             </Button>
           </DialogFooter>
         </form>

@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CreateClientDialog } from '@/components/admin/create-client-dialog';
+import { EditSeatsDialog } from '@/components/admin/edit-seats-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,19 +101,29 @@ export default function AdminClientsPage() {
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
+              <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
                 <span>
                   POC:{' '}
                   {client.poc ? `${client.poc.email} (${client.poc.status})` : 'None invited yet'}
                 </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pendingId === client.id}
-                  onClick={() => handleToggle(client)}
-                >
-                  {client.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
-                </Button>
+                <div className="flex items-center justify-between">
+                  <span>
+                    Seats: {client.seatsUsed} / {client.seatLimit}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {accessToken ? (
+                      <EditSeatsDialog accessToken={accessToken} client={client} onUpdated={refresh} />
+                    ) : null}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pendingId === client.id}
+                      onClick={() => handleToggle(client)}
+                    >
+                      {client.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ))}

@@ -37,6 +37,7 @@ model Client {
   id        String       @id @default(uuid()) @db.Uuid
   name      String
   status    ClientStatus @default(ACTIVE)
+  seatLimit Int          @default(1) @map("seat_limit")
   createdBy String?      @map("created_by") @db.Uuid
 
   createdAt DateTime  @default(now()) @map("created_at")
