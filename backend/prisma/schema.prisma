@@ -47,8 +47,29 @@ model Client {
   creator      User?               @relation("ClientCreatedBy", fields: [createdBy], references: [id])
   users        User[]              @relation("ClientUsers")
   featureFlags ClientFeatureFlag[]
+  projects     Project[]
 
   @@map("clients")
+}
+
+model Project {
+  id        String  @id @default(uuid()) @db.Uuid
+  clientId  String  @map("client_id") @db.Uuid
+  name      String
+  domain    String
+  createdBy String? @map("created_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  client  Client @relation(fields: [clientId], references: [id])
+  creator User?  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
+
+  // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
+  // added in the follow-up migration. Plain index here just backs lookups.
+  @@index([clientId, domain])
+  @@map("projects")
 }
 
 model Permission {
@@ -103,6 +124,7 @@ model User {
   authTokens          AuthToken[]         @relation("AuthTokenUser")
   createdAuthTokens   AuthToken[]         @relation("AuthTokenCreatedBy")
   refreshTokens       RefreshToken[]
+  createdProjects     Project[]           @relation("ProjectCreatedBy")
 
   // email uniqueness WHERE deleted_at IS NULL, and the "one active POC per
   // client" rule, are both added as partial indexes in the follow-up

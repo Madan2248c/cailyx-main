@@ -7,7 +7,8 @@ before the next one starts, per AGENTS.md.
 | Module | Status | DB | Backend | Frontend | Notes |
 |---|---|---|---|---|---|
 | Login / access control | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/auth/README.md` for full detail. |
-| Day-1 report | Not started | — | — | — | Explicitly deferred while building login. |
+| Projects | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/projects/README.md`. Foundational — a client can have multiple projects; the Day-1 report pipeline keys off a project, not a client. |
+| Day-1 report | Not started | — | — | — | Explicitly deferred while building login and projects. |
 | Per-client feature config | Not started | ⚠️ (placeholder table) | ❌ | ❌ | Intentionally not building generic toggle infra ahead of a real feature — see "every feature is a plugin" in `docs/context.md`. The existing `client_feature_flags` table is a simple boolean placeholder from the login module and will likely be redesigned (per-feature config, not just on/off) once the first real feature module needs it. |
 | Email delivery | Not started | — | — | — | Plunk credentials added to `.env` but unused — sending fails without a verified sender domain configured in the Plunk dashboard. Invite/reset links are logged to the console in the meantime. |
 
@@ -29,6 +30,16 @@ before the next one starts, per AGENTS.md.
 | Soft deletes everywhere | ✅ | |
 | Email actually sent (vs. logged) | ❌ | blocked on Plunk sender verification |
 
+## Projects module — requirement-level detail
+
+| Requirement | Status | Notes |
+|---|---|---|
+| Client can have multiple projects (domains/brands) | ✅ | `Project.clientId`, no cardinality limit |
+| Admin creates project with name + domain only | ✅ | `POST /team/clients/:clientId/projects` |
+| One active domain per client | ✅ | Partial unique index, domain normalized at the app layer |
+| POC/member can view their own client's projects | ✅ | New `view_projects` permission |
+| Soft deletes | ✅ | "Archive" = `deletedAt` |
+
 ## Known deferred items
 
 - Swagger/OpenAPI decorators on the auth/team controllers.
@@ -41,6 +52,8 @@ before the next one starts, per AGENTS.md.
 
 ## Automated test coverage
 
-Added 2026-09-25: 87 unit tests across 10 spec files for the auth module
-(`npm run test`), using `@nestjs/testing` with mocked `PrismaService` — see
-`backend/src/modules/auth/README.md` for what's covered.
+Added 2026-09-25: 87 unit tests across 10 spec files for the auth module,
+plus 11 more (98 total, 12 spec files) added the same day for the projects
+module (`npm run test`), using `@nestjs/testing` with mocked
+`PrismaService` — see `backend/src/modules/auth/README.md` and
+`backend/src/modules/projects/README.md` for what's covered.

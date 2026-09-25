@@ -13,11 +13,12 @@ const prisma = new PrismaClient({ adapter });
 const PERMISSIONS = [
   { key: 'manage_team', description: "Invite, resend, and disable/enable a client's team members." },
   { key: 'manage_client_settings', description: "Manage the client's own account settings." },
+  { key: 'view_projects', description: "View the caller's own client's projects." },
 ] as const;
 
 const ROLE_GRANTS: Record<string, string[]> = {
-  [Role.CLIENT_POC]: ['manage_team', 'manage_client_settings'],
-  [Role.CLIENT_MEMBER]: [],
+  [Role.CLIENT_POC]: ['manage_team', 'manage_client_settings', 'view_projects'],
+  [Role.CLIENT_MEMBER]: ['view_projects'],
 };
 
 async function main() {

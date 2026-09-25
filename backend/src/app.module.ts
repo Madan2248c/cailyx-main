@@ -7,6 +7,7 @@ import { GlobalJwtModule } from './common/jwt/global-jwt.module.js';
 import configuration from './config/configuration.js';
 import { validationSchema } from './config/validation.schema.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ProjectsModule } from './modules/projects/projects.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
@@ -17,6 +18,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     PrismaModule,
     GlobalJwtModule,
     AuthModule,
+    ProjectsModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ObserveModule.forRoot({

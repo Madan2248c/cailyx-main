@@ -131,13 +131,41 @@ Errors: `400` if the target isn't currently disabled.
 
 ---
 
+## Projects (`/team/clients/:clientId/projects`) — requires `Authorization` header
+
+See `docs/analysis/projects.md` for design rationale. A project belongs to
+exactly one client; everything about it beyond name/domain is inferred by
+later pipeline modules, not this one.
+
+### `POST /team/clients/:clientId/projects` — **ADMIN only**
+Creates a project under a client.
+Request: `{ "name": string, "domain": string }`
+Response `201`: `{ id, clientId, name, domain: "<normalized>", createdAt }`
+Domain is normalized before storage/lookup: lowercase, strip `http(s)://`
+and `www.`, keep only the hostname, drop a trailing `.`/`/`.
+Errors: `404` client not found; `400` domain already active for this client
+(one client can't have two active projects on the same normalized domain).
+
+### `GET /team/clients/:clientId/projects` — ADMIN, or requires `view_projects` permission scoped to own client
+Lists the client's non-deleted projects, newest first.
+Response `200`: `[{ id, clientId, name, domain, createdAt }]`
+Errors: `404` client not found; `403` caller's `clientId` doesn't match (non-admin only).
+
+### `PATCH /team/clients/:clientId/projects/:id/archive` — **ADMIN only**
+Soft-deletes a project. No body. Response `200`: `{ "success": true }`.
+Its domain becomes reusable for a new project under the same client.
+Errors: `404` project not found (wrong client, already archived, or doesn't exist).
+
+---
+
 ## Roles & permissions
 
 Fixed enum: `ADMIN`, `CLIENT_POC`, `CLIENT_MEMBER`. `ADMIN` implicitly has every
 permission (bypasses the permission check entirely). Everyone else's grants
 live in the `role_permissions` table — see `docs/analysis/auth.md` and
-`backend/prisma/seed.ts`. Currently seeded: `CLIENT_POC` has `manage_team`
-and `manage_client_settings`.
+`backend/prisma/seed.ts`. Currently seeded: `CLIENT_POC` has `manage_team`,
+`manage_client_settings`, and `view_projects`; `CLIENT_MEMBER` has
+`view_projects`.
 
 ## Not yet built
 

@@ -111,6 +111,9 @@ export default function AdminClientsPage() {
                     Seats: {client.seatsUsed} / {client.seatLimit}
                   </span>
                   <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" onClick={() => router.push(`/admin/clients/${client.id}`)}>
+                      Projects
+                    </Button>
                     {accessToken ? (
                       <EditSeatsDialog accessToken={accessToken} client={client} onUpdated={refresh} />
                     ) : null}

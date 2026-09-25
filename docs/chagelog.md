@@ -3,6 +3,38 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-25 — Projects module
+
+New foundational module: a client can have multiple projects
+(domains/brands). The Day-1 report pipeline and every module after it will
+key off a project, not a client directly — see `docs/analysis/projects.md`
+for full rationale.
+
+**DB**: new `projects` table (`client_id`, `name`, `domain`, `created_by`,
+soft-deletable), a partial unique index on `(client_id, domain)` WHERE
+`deleted_at IS NULL`, and a new `view_projects` permission seeded onto
+`CLIENT_POC` and `CLIENT_MEMBER`.
+
+**Backend**: `ProjectsController` nested under
+`/team/clients/:clientId/projects` (`POST`/`GET`/`PATCH .../:id/archive`),
+reusing the auth module's `JwtAuthGuard`/`RolesGuard`/`PermissionsGuard`.
+Creation is admin-only (matches the product diagram); listing is admin, or
+that client's own POC/members via the new permission, scoped to their own
+`clientId`. Domain is normalized before every insert/lookup (lowercase,
+strip protocol/`www.`, hostname only, drop trailing `.`/`/`) so
+`https://WWW.Acme.com/pricing` and `acme.com` collide as the same domain.
+Archiving (soft delete) frees the domain up for reuse.
+
+**Frontend**: new `/admin/clients/:id` page listing a client's projects
+with a create dialog (name + domain) and an archive action; `/admin/clients`
+gained a "Projects" button linking to it.
+
+11 new unit tests (98 total across 12 spec files). Verified live end-to-end
+against the Supabase instance (temporary test client/admin rows, deleted
+afterward): domain normalization on create, duplicate-active-domain
+rejection, cross-tenant isolation (a second client's POC gets `403` both
+listing and creating), archive + domain-reuse-after-archive.
+
 ## 2026-09-25 — Auth module: per-client seat limits
 
 `clients.seat_limit` (integer, default 1, `CHECK >= 1`), counting the POC as
