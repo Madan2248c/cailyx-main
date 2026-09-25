@@ -17,17 +17,15 @@ import {
   fingerprint,
   internalNavLinks,
   isHomepageUrl,
-  isSitemapFile,
   looksLike404,
   originOf,
-  parseRobotsSitemaps,
-  parseSitemapLocs,
   urlKey,
   asJson,
 } from '../pipeline-utils.js';
 import { readPageSignals } from './inspect.stage.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { FetcherService } from '../../../fetcher/fetcher.service.js';
+import { discoverSitemapTree } from '../../../fetcher/sitemap-tree.js';
 
 /**
  * Discover — the crawl.
@@ -250,63 +248,24 @@ export class DiscoverStage {
 
   /**
    * Pull URLs out of the sitemap (§3: robots.txt `Sitemap:` directives first,
-   * then common fallback paths). Index-aware to a bounded depth — a sitemap
-   * index can point at many child sitemaps, and a child can itself be another
-   * index, so the whole tree is walked (capped at MAX_SITEMAP_FILES /
-   * MAX_SITEMAP_DEPTH) rather than just the first few files — counting every
-   * read against the shared request budget.
+   * then common fallback paths). The discovery/index-walk itself is shared
+   * crawl infrastructure — see `fetcher/sitemap-tree.ts` — because Technical
+   * Audit needs the identical work. What's specific to Discovery is
+   * everything below this call: same-origin filtering, per-template
+   * sampling, and the high-signal-first cap to a small representative page
+   * set (Technical Audit wants the full tree; Discovery deliberately narrows
+   * it).
    */
   private async sitemapCandidates(ctx: DiscoveryRunContext, origin: string): Promise<string[]> {
     const urls: string[] = [];
 
-    const readRaw = async (url: string): Promise<string | null> => {
-      if (ctx.budget.requestsLeft() <= 0) return null;
-      ctx.budget.spendRequests(1);
-      try {
-        const res = await this.fetcher.fetch({ url, timeout: 20000 }, 'discovery', ctx.runId);
-        return res.status === 200 && res.body ? res.body : null;
-      } catch {
-        return null;
-      }
-    };
-    const readSitemap = async (url: string): Promise<string[]> => {
-      const body = await readRaw(url);
-      return body ? parseSitemapLocs(body) : [];
-    };
-
-    // §3.1 — robots.txt Sitemap: directives take priority over guessed paths.
-    const robotsBody = await readRaw(origin + '/robots.txt');
-    const fromRobots = robotsBody ? parseRobotsSitemaps(robotsBody) : [];
-
-    // §3.2 — common fallback paths, tried only when robots.txt named nothing.
-    const sitemapEntryPoints = fromRobots.length > 0 ? fromRobots : SITEMAP_ENTRY_POINTS.map((p) => origin + p);
-
-    const top: string[] = [];
-    for (const entry of sitemapEntryPoints) {
-      if (ctx.budget.requestsLeft() <= 0) break;
-      top.push(...(await readSitemap(entry)));
-      if (top.length > 0) break; // first entry point that yields anything wins — avoid re-reading every fallback path
-    }
-
-    // A sitemap index can point at any number of child sitemaps (large sites
-    // often split by type: pages, products, blog, ...), and a child can itself
-    // be another index. Walk the whole tree within the request budget instead
-    // of only reading the first few — otherwise most of the site's real URLs
-    // never even get considered.
-    const flat: string[] = top.filter((u) => !isSitemapFile(u));
-    let frontier = top.filter((u) => isSitemapFile(u));
-    let filesRead = 0;
-    for (let depth = 0; depth < MAX_SITEMAP_DEPTH && frontier.length > 0 && filesRead < MAX_SITEMAP_FILES; depth++) {
-      const nextFrontier: string[] = [];
-      for (const child of frontier) {
-        if (ctx.budget.requestsLeft() <= 0 || filesRead >= MAX_SITEMAP_FILES) break;
-        filesRead++;
-        const entries = await readSitemap(child);
-        flat.push(...entries.filter((u) => !isSitemapFile(u)));
-        nextFrontier.push(...entries.filter((u) => isSitemapFile(u)));
-      }
-      frontier = nextFrontier;
-    }
+    const tree = await discoverSitemapTree(this.fetcher, origin, ctx.budget, ctx.runId, {
+      maxDepth: MAX_SITEMAP_DEPTH,
+      maxFiles: MAX_SITEMAP_FILES,
+      fallbackPaths: SITEMAP_ENTRY_POINTS,
+      calledBy: 'discovery',
+    });
+    const flat = tree.entries.map((e) => e.url);
 
     const sameOrigin = flat.filter((u) => u.startsWith(origin)); // own host only
 

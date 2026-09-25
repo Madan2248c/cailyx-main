@@ -9,6 +9,7 @@ import configuration from './config/configuration.js';
 import { validationSchema } from './config/validation.schema.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
+import { TechnicalAuditModule } from './modules/technical-audit/technical-audit.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
@@ -16,9 +17,9 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
-    // Discovery module's job queue. Shares the same Redis instance the
-    // fetcher module's cache/rate-limiter use — one Redis config, two
-    // independent consumers of it. See docs/analysis/discovery.md.
+    // Module job queues (Discovery, Technical Audit). They share the same
+    // Redis instance the fetcher module's cache/rate-limiter use — one Redis
+    // config, independent consumers of it. See docs/analysis/discovery.md.
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -29,6 +30,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     GlobalJwtModule,
     AuthModule,
     ProjectsModule,
+    TechnicalAuditModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ObserveModule.forRoot({

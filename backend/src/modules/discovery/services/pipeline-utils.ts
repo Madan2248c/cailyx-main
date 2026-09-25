@@ -9,6 +9,14 @@
  * differently from its neighbour.
  *
  * No DI, no I/O — these are testable in isolation.
+ *
+ * `fingerprint`, `parseSitemapLocs`, `parseRobotsSitemaps` and
+ * `isSitemapFile` are re-exported here, not defined here — Technical Audit
+ * needs the identical implementations, so they live in `fetcher/` (crawl
+ * infrastructure both modules share) and this file just re-exports them so
+ * existing imports from `pipeline-utils.js` keep working. See
+ * `fetcher/sitemap-tree.ts` and `fetcher/content-fingerprint.ts`, and
+ * docs/analysis/technical-audit.md "Sitemap check" for why.
  */
 
 import * as cheerio from 'cheerio';
@@ -76,14 +84,7 @@ export function normalizeDomain(domain: string): string {
  * trade-off still holds, because the alternative (hashing the whole page) makes
  * the check meaningless on any page with a dynamic element.
  */
-export function fingerprint(content: string): string {
-  const normalized = content.replace(/\s+/g, ' ').trim().slice(0, 4000);
-  let hash = 5381;
-  for (let i = 0; i < normalized.length; i++) {
-    hash = (Math.imul(hash, 33) ^ normalized.charCodeAt(i)) >>> 0;
-  }
-  return String(hash) + ':' + normalized.length;
-}
+export { fingerprint } from '../../fetcher/content-fingerprint.js';
 
 /**
  * Cheap heuristic for a soft-404 (HTTP 200 with an error-page body) or a
@@ -134,19 +135,11 @@ export function internalLinksFrom(html: string, origin: string, selector: string
  * everything found — the caller decides which entries are child sitemaps to
  * walk (by extension) and which are real pages.
  */
-export function parseSitemapLocs(body: string): string[] {
-  return [...body.matchAll(/<loc>\s*([^<]+?)\s*<\/loc>/gi)].map((m) => m[1]!);
-}
+export { parseSitemapLocs } from '../../fetcher/sitemap-tree.js';
 
-/** Sitemap URLs named by `robots.txt` `Sitemap:` directives, in order. */
-export function parseRobotsSitemaps(robotsBody: string): string[] {
-  return [...robotsBody.matchAll(/^\s*Sitemap:\s*(\S+)/gim)].map((m) => m[1]!.trim());
-}
+export { parseRobotsSitemaps } from '../../fetcher/sitemap-tree.js';
 
-/** A sitemap tree node that is itself a sitemap file (possibly gzipped), not a page. */
-export function isSitemapFile(url: string): boolean {
-  return /\.xml(\.gz)?$/i.test(url);
-}
+export { isSitemapFile } from '../../fetcher/sitemap-tree.js';
 
 // ─── Page classification ────────────────────────────────────────────────────
 

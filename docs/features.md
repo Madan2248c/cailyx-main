@@ -9,6 +9,7 @@ before the next one starts, per AGENTS.md.
 | Login / access control | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/auth/README.md` for full detail. |
 | Projects | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/projects/README.md`. Foundational — a client can have multiple projects; the Day-1 report pipeline keys off a project, not a client. |
 | Discovery / company context | ✅ Done | ✅ | ✅ | n/a | Stage 1 of the Day-1 pipeline. `backend/src/modules/discovery/README.md` + `docs/analysis/discovery.md`. Backend-only by design: it has no client-facing trigger or UI — a run starts when an admin creates a project, and the client sees nothing until the report module exists. |
+| Technical Audit | ✅ Done (live run open) | ✅ | ✅ | n/a | Stage 2 of the Day-1 pipeline. `backend/src/modules/technical-audit/README.md` + `docs/analysis/technical-audit.md`. 8 checks → composite → deltas → narrative; BullMQ queue (concurrency 1) + WEEKLY/MONTHLY schedules. Backend-only like Discovery: no UI until the report module exists. Live end-to-end run against a real domain still open. |
 | Day-1 report | Not started | — | — | — | Explicitly deferred while building login and projects. |
 | Per-client feature config | Not started | ⚠️ (placeholder table) | ❌ | ❌ | Intentionally not building generic toggle infra ahead of a real feature — see "every feature is a plugin" in `docs/context.md`. The existing `client_feature_flags` table is a simple boolean placeholder from the login module and will likely be redesigned (per-feature config, not just on/off) once the first real feature module needs it. |
 | Email delivery | Not started | — | — | — | Plunk credentials added to `.env` but unused — sending fails without a verified sender domain configured in the Plunk dashboard. Invite/reset links are logged to the console in the meantime. |
@@ -54,6 +55,20 @@ before the next one starts, per AGENTS.md.
 | Paid search cannot be spent by accident | ✅ | `SWARM_ALLOW_LIVE` must be `1`; `PRESENCE_SERP_MAX_QUERIES` caps a sweep; all caps cumulative across re-enqueues |
 | Definition-of-Done gates | ✅ | Identity confidence < 0.80 → `MANUAL_REVIEW_REQUIRED`; < 80% of fetched pages analyzed → `COMPLETE_WITH_GAPS` |
 | Client-facing UI / trigger | n/a by design | Nothing is shown to the client until the Day-1 report module exists |
+
+## Technical Audit module — requirement-level detail
+
+| Requirement | Status | Notes |
+|---|---|---|
+| 8 checks sequential (robots → cdn → sitemap → js-render → cwv → schema → agent-readiness → page-inventory) | ✅ | Per-check isolation: a throw becomes an `error` finding, never aborts the run |
+| Page inventory skipped (not-run) with no sitemap | ✅ | "Cannot enumerate" is not "pages are bad" — no double-counting the sitemap finding |
+| Composite 0-100, renormalized over what ran | ✅ | Missing components dropped, not zeroed; `null` when nothing scoreable ran |
+| Run-over-run deltas (16 metrics) + page churn | ✅ | Pure functions; previous resolved before persist; failed priors never baseline |
+| LLM narrative via shared LlmService | ✅ | After persistence, never throws, never touches the score |
+| BullMQ queue, one job per run, concurrency 1 | ✅ | `technical-audit` queue; terminal rows no-op on retry |
+| WEEKLY/MONTHLY schedules, manual trigger | ✅ | `upsertJobScheduler` with `every` interval; `MANUAL_ONLY` removes the recurrence; no concurrent runs per project |
+| Client-facing UI / trigger | n/a by design | Nothing is shown to the client until the Day-1 report module exists |
+| Live end-to-end run against a real domain | ❌ | Open: run once, confirm scheduler re-schedule semantics, delete temp rows after |
 
 ## Known deferred items
 

@@ -220,6 +220,67 @@ Errors: `404` project not found.
 
 ---
 
+## Technical Audit — requires `Authorization` header
+
+See `docs/analysis/technical-audit.md` for the design and
+`backend/src/modules/technical-audit/README.md` for operational notes. Given
+a project, this module crawls its site and runs eight technical/SEO checks
+(robots.txt, CDN/bot-block probing, JS-render dependency, Core Web Vitals
+via PSI, schema.org, sitemap, agent-readiness, per-page inventory), rolls
+them into one 0-100 composite, diffs against the previous audit, and writes
+an LLM narrative. It is **stage 2 of the Day-1 pipeline**. Runs execute on
+the background `technical-audit` queue (concurrency 1), never inside the
+HTTP call.
+
+### `POST /team/clients/:clientId/projects/:projectId/technical-audit-runs` — **ADMIN only**
+Queues an audit for the project. No body — the target URL comes from the
+project's own domain. Returns the active run instead of starting a second
+one when a run is already `QUEUED`/`RUNNING` for the project (a concurrent
+run would corrupt the previous-run diff chain).
+Response `202`: the run row (`{ id, projectId, status, triggeredBy,
+previousAuditId, score, … }`). If the job queue is unreachable the row is
+left `FAILED` with the reason.
+Errors: `404` project not found (wrong client, archived, or doesn't exist).
+
+### `GET /team/clients/:clientId/projects/:projectId/technical-audit-runs` — requires `view_projects`
+This project's run history, newest first (max 20).
+Response `200`: `[{ id, projectId, status, triggeredBy, previousAuditId,
+score, findingSummary: [{ type, status, severity }], findings, deltas,
+narrative, narrativeModel, startedAt, completedAt, createdAt }]`
+`status` is one of `QUEUED`, `RUNNING`, `COMPLETE`, `FAILED`.
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/projects/:projectId/technical-audit-trend` — requires `view_projects`
+Score history, oldest first (max 200, default 30).
+Response `200`: `[{ auditId, at, score, triggeredBy, failures }]`
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/technical-audit-runs/:runId` — requires `view_projects`
+One run, plus its worst 100 pages by score.
+Response `200`: the run row above, plus `pages: [{ id, url, statusCode,
+score, issues, signals, createdAt }]`.
+Errors: `404` run not found, or it belongs to another client's project.
+
+### `GET /team/clients/:clientId/technical-audit-runs/:runId/comparison` — requires `view_projects`
+Previous-vs-current comparison for one run.
+Response `200`: `{ currentAuditId, previousAuditId, currentAt, previousAt,
+deltas: [{ metric, label, previous, current, change, direction,
+higherIsBetter }], pageChanges: { added, removed, improved: [{ url, from,
+to }], regressed } }`
+Errors: `404` run not found, or it belongs to another client's project.
+
+### `PUT /team/clients/:clientId/projects/:projectId/technical-audit-schedule` — **ADMIN only**
+Sets the recurring cadence. `MANUAL_ONLY` removes the recurrence.
+Request: `{ "cadence": "WEEKLY"|"MONTHLY"|"MANUAL_ONLY" }`
+Response `200`: `{ id, projectId, cadence, active, createdAt, updatedAt }`
+Errors: `404` project not found; `400` invalid cadence.
+
+### `GET /team/clients/:clientId/projects/:projectId/technical-audit-schedule` — requires `view_projects`
+Current schedule, or `null` when none was ever set.
+Errors: `404` project not found.
+
+---
+
 ## Roles & permissions
 
 Fixed enum: `ADMIN`, `CLIENT_POC`, `CLIENT_MEMBER`. `ADMIN` implicitly has every

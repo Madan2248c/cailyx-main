@@ -30,4 +30,14 @@ export const validationSchema = Joi.object({
   DISCOVERY_MAX_CHARS: Joi.number().positive().optional(),
   DISCOVERY_MAX_ELAPSED_MS: Joi.number().positive().optional(),
   DISCOVERY_MAX_RETRIES_PER_PAGE: Joi.number().positive().optional(),
+
+  // Technical Audit module. Optional — the checks that read these fail
+  // closed (a `not-run`/`error` finding, never a guess) when unset, per
+  // docs/analysis/technical-audit.md.
+  PSI_API_KEY: Joi.string().optional(),
+  AGENT_READINESS_CLI: Joi.string().valid('true', 'false').default('true'),
+  AGENT_READINESS_TIMEOUT_MS: Joi.number().positive().optional(),
+  TECHNICAL_AUDIT_PAGE_CRAWL_BUDGET: Joi.number().positive().optional(),
+  TECHNICAL_AUDIT_PAGE_CRAWL_CONCURRENCY: Joi.number().positive().optional(),
+  TECHNICAL_AUDIT_MAX_COST_PER_RUN_USD: Joi.number().positive().optional(),
 });

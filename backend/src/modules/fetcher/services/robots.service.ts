@@ -8,6 +8,15 @@
  * Deterministic, in-repo, no new dependency, over data `FetcherService`
  * already retrieves.
  *
+ * `parseRobotsTxt`/`selectGroup`/`RobotsGroup` are exported (not just used
+ * internally) so Technical Audit's robots-analysis check can build its
+ * per-bot display data (which paths a specific AI crawler is named in) from
+ * the same parse this service already gets right — longest-match
+ * Allow/Disallow precedence, and an empty `Disallow:` value correctly
+ * matching nothing rather than being read as "block everything." The old
+ * repo's technical-audit module had its own, separate robots.txt parser that
+ * got both of those wrong; this service does not duplicate that mistake.
+ *
  * @module robots.service
  */
 
@@ -15,7 +24,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { FetcherService } from '../fetcher.service.js';
 
 /** One `User-agent:` group: the agent tokens it applies to, and its rules. */
-interface RobotsGroup {
+export interface RobotsGroup {
   /** Lowercased product tokens, e.g. ['*'] or ['googlebot', 'googlebot-image']. */
   userAgents: string[];
   allow: string[];
@@ -142,7 +151,7 @@ export class RobotsService {
  * line seen AFTER a rule has already started a new group, per the spec every
  * major crawler implements.
  */
-function parseRobotsTxt(text: string): { groups: RobotsGroup[]; sitemaps: string[] } {
+export function parseRobotsTxt(text: string): { groups: RobotsGroup[]; sitemaps: string[] } {
   const groups: RobotsGroup[] = [];
   const sitemaps: string[] = [];
   let current: RobotsGroup | null = null;
@@ -197,7 +206,7 @@ function parseRobotsTxt(text: string): { groups: RobotsGroup[]; sitemaps: string
  * `userAgent` wins (more specific beats less specific); `*` is the fallback
  * used only when nothing more specific matched.
  */
-function selectGroup(groups: RobotsGroup[], userAgent: string): RobotsGroup | null {
+export function selectGroup(groups: RobotsGroup[], userAgent: string): RobotsGroup | null {
   const ua = userAgent.toLowerCase();
   let best: RobotsGroup | null = null;
   let bestLen = -1;

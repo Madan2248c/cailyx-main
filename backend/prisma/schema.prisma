@@ -70,6 +70,9 @@ model Project {
   discoveredPages        DiscoveredPage[]
   socialProfiles         SocialProfile[]
   companyContextProfiles CompanyContextProfile[]
+  technicalAuditRuns     TechnicalAuditRun[]
+  auditPages             AuditPage[]
+  technicalAuditSchedule TechnicalAuditSchedule?
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -380,4 +383,117 @@ model CompanyContextProfile {
   @@index([projectId])
   @@index([discoveryRunId])
   @@map("company_context_profiles")
+}
+
+// --- Technical Audit module ---
+// See docs/analysis/technical-audit.md for the full design. Crawl-based
+// technical/SEO checks: robots.txt, CDN/bot-block probing, JS-render
+// dependency, Core Web Vitals (PSI), schema.org analysis, sitemap analysis,
+// agent-readiness (is-agentic), per-page SEO issues, a composite score, and
+// run-over-run deltas. 3 tables, append-only (no deleted_at — same
+// reasoning as Discovery's tables: a schedule being off is `active: false`,
+// never a delete, and a run is never edited after it completes).
+
+enum TechnicalAuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum AuditTrigger {
+  MANUAL
+  SCHEDULED
+}
+
+enum AuditCadence {
+  WEEKLY
+  MONTHLY
+  MANUAL_ONLY
+}
+
+model TechnicalAuditRun {
+  id              String               @id @default(uuid()) @db.Uuid
+  projectId       String               @map("project_id") @db.Uuid
+  status          TechnicalAuditStatus @default(QUEUED)
+  triggeredBy     AuditTrigger         @map("triggered_by")
+  /// The run this one is diffed against — resolved *before* this row is
+  /// created (most recent sibling run with a non-null score), so the chain
+  /// is unambiguous even with overlapping runs. Null on a project's first
+  /// scored audit.
+  previousAuditId String?              @map("previous_audit_id") @db.Uuid
+  /// 0-100 composite, renormalized over whichever check components actually
+  /// ran (see docs/analysis/technical-audit.md "Composite score"). Null
+  /// until compile, or if nothing scoreable ran at all.
+  score           Int?
+  /// robots/cdn/js-render/cwv/schema/sitemap/agent-readiness analyses + page
+  /// metadata + observability — one blob, same pattern as
+  /// company_context_profiles.profile_json.
+  result          Json                 @default("{}")
+  /// Normalized AuditFinding[] — one entry per check, `status: error` for a
+  /// check that threw rather than aborting the whole run.
+  findings        Json                 @default("[]")
+  /// Computed once at compile time against previousAuditId, never
+  /// recomputed later even if the referenced previous run's own data changes.
+  deltas          Json                 @default("[]")
+  narrative       String?
+  narrativeModel  String?              @map("narrative_model")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  project       Project             @relation(fields: [projectId], references: [id])
+  previousAudit TechnicalAuditRun?  @relation("AuditChain", fields: [previousAuditId], references: [id])
+  succeededBy   TechnicalAuditRun[] @relation("AuditChain")
+  pages         AuditPage[]
+
+  @@index([projectId])
+  @@index([previousAuditId])
+  @@map("technical_audit_runs")
+}
+
+model AuditPage {
+  id                  String @id @default(uuid()) @db.Uuid
+  technicalAuditRunId String @map("technical_audit_run_id") @db.Uuid
+  /// Denormalized, same pattern as discovered_pages — backs project-scoped
+  /// queries without a join through the run.
+  projectId           String @map("project_id") @db.Uuid
+  url                 String
+  statusCode          Int    @map("status_code")
+  /// 0-100 from the SEO rubric, after the cross-page duplicate-content pass
+  /// re-scores it (see "SEO rubric" — duplicate-content is a two-pass design).
+  score               Int
+  /// PageIssueCode[] — a real column (not buried in `signals`) because
+  /// "worst pages" and per-issue-code filtering both sort/filter on it.
+  issues              Json   @default("[]")
+  /// title/meta/h1/canonical/word-count/image-counts/jsonLd — detail nothing
+  /// queries independently, so it stays one blob.
+  signals             Json   @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  technicalAuditRun TechnicalAuditRun @relation(fields: [technicalAuditRunId], references: [id])
+  project           Project           @relation(fields: [projectId], references: [id])
+
+  @@index([technicalAuditRunId])
+  @@index([projectId])
+  @@index([url])
+  @@map("audit_pages")
+}
+
+model TechnicalAuditSchedule {
+  id        String       @id @default(uuid()) @db.Uuid
+  projectId String       @unique @map("project_id") @db.Uuid
+  cadence   AuditCadence @default(MANUAL_ONLY)
+  /// Off is `active: false`, never a delete. No `next_run_at` here — BullMQ's
+  /// job scheduler tracks that; not duplicated in Postgres.
+  active    Boolean      @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("technical_audit_schedules")
 }

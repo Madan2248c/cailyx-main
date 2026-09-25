@@ -3,6 +3,28 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-25 — Technical Audit module: orchestrator, queue, API, staff UI
+
+Resumed from the rate-limited `builder` session (`4090ece8`), which had
+finished the eight checks, the SEO rubric, deltas, PSI/narrative services
+and the DB schema but stalled with two check-building forks unfinished and
+no orchestrator, queue, controller, module, or frontend.
+
+**What was built**: `TechnicalAuditService` (sequential checks, per-check
+isolation, sitemap-gated page-inventory, renormalizing composite, previous-
+run diff chain, chunked `audit_pages` writes, post-persist narrative),
+BullMQ `technical-audit` queue (concurrency 1, one job per run) +
+`TechnicalAuditScheduler` (`upsertJobScheduler` with `every` intervals for
+WEEKLY/MONTHLY, `MANUAL_ONLY` removes), staff controllers nested under
+client/project, `TechnicalAuditModule` wired into `AppModule`, module README, API
+reference, status tables.
+
+**Verified**: `tsc` clean both projects, backend 436 tests green (103 in
+technical-audit, incl. 13 new for orchestrator/controller/scheduler),
+frontend lint + `tsc` clean. **Open**: one live end-to-end run against a
+real domain (temp rows deleted afterward), including confirming the
+scheduler's completion-time semantics across a real re-schedule.
+
 ## 2026-09-25 — Discovery module: cleaned-up offerings/positioning values
 
 Follow-up to the module below, after the user reviewed the live profile and

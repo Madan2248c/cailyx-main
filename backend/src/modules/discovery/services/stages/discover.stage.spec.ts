@@ -183,20 +183,32 @@ describe('DiscoverStage', () => {
     expect(fetched).not.toContain(`${ORIGIN}/sitemap.xml`);
   });
 
-  it('stops at the first sitemap entry point that yields anything', async () => {
+  // Regression test for a real gap fixed when the sitemap-discovery logic
+  // moved into the shared `fetcher/sitemap-tree.ts` (Technical Audit needs
+  // full coverage, not just a representative sample): a site can legitimately
+  // declare two `Sitemap:` lines for two disjoint sections, and both must be
+  // read — stopping at the first one that resolves would silently drop
+  // everything the second one names, which is wrong for any caller that
+  // needs the whole site, and was already an honest bug even for Discovery's
+  // narrower needs. See docs/analysis/technical-audit.md "Sitemap check".
+  it('reads every declared sitemap entry point, not just the first that resolves', async () => {
     site = {
       [`${ORIGIN}/`]: { title: 'Acme', text: 'Acme' },
-      // Two entry points named by robots.txt, tried in order.
       [`${ORIGIN}/robots.txt`]: { body: `Sitemap: ${ORIGIN}/first.xml\nSitemap: ${ORIGIN}/second.xml` },
       [`${ORIGIN}/first.xml`]: { body: sitemap(`${ORIGIN}/about`) },
+      [`${ORIGIN}/second.xml`]: { body: sitemap(`${ORIGIN}/pricing`) },
       [`${ORIGIN}/about`]: { title: 'About', text: 'We are Acme.' },
+      [`${ORIGIN}/pricing`]: { title: 'Pricing', text: 'Plans and pricing.' },
     };
     serve();
 
     await stage.run(context());
 
-    expect(fetchedUrls(fetcher.fetch)).toContain(`${ORIGIN}/first.xml`);
-    expect(fetchedUrls(fetcher.fetch)).not.toContain(`${ORIGIN}/second.xml`);
+    const fetched = fetchedUrls(fetcher.fetch);
+    expect(fetched).toContain(`${ORIGIN}/first.xml`);
+    expect(fetched).toContain(`${ORIGIN}/second.xml`);
+    expect(fetched).toContain(`${ORIGIN}/about`);
+    expect(fetched).toContain(`${ORIGIN}/pricing`);
   });
 
   it('walks a sitemap index into its children but caps how many files it reads', async () => {

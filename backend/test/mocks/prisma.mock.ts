@@ -80,6 +80,22 @@ function buildRawPrismaMock() {
       deleteMany: vi.fn(),
       count: vi.fn(),
     },
+    // --- Technical Audit module ---
+    technicalAuditRun: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    auditPage: {
+      findMany: vi.fn(),
+      createMany: vi.fn(),
+    },
+    technicalAuditSchedule: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
   };
 }
 
