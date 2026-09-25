@@ -1,0 +1,178 @@
+// Prisma schema for the auth/login module.
+// See docs/analysis/auth.md for the full design rationale.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  CLIENT_POC
+  CLIENT_MEMBER
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  DISABLED
+}
+
+enum ClientStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AuthTokenType {
+  INITIAL_INVITE
+  RESEND_INVITE
+  PASSWORD_RESET
+}
+
+model Client {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  status    ClientStatus @default(ACTIVE)
+  createdBy String?      @map("created_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  creator      User?               @relation("ClientCreatedBy", fields: [createdBy], references: [id])
+  users        User[]              @relation("ClientUsers")
+  featureFlags ClientFeatureFlag[]
+
+  @@map("clients")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  description String
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String    @id @default(uuid()) @db.Uuid
+  role         Role
+  permissionId String    @map("permission_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  // Uniqueness on (role, permissionId) WHERE deleted_at IS NULL is added as a
+  // partial index in the follow-up hand-written migration (Prisma's schema
+  // DSL can't express partial unique indexes). This plain index just backs
+  // lookups.
+  @@index([role, permissionId])
+  @@map("role_permissions")
+}
+
+model User {
+  id             String     @id @default(uuid()) @db.Uuid
+  email          String
+  passwordHash   String?    @map("password_hash")
+  role           Role
+  clientId       String?    @map("client_id") @db.Uuid
+  status         UserStatus @default(INVITED)
+  invitedBy      String?    @map("invited_by") @db.Uuid
+  failedAttempts Int        @default(0) @map("failed_attempts")
+  lockedUntil    DateTime?  @map("locked_until")
+  lastLoginAt    DateTime?  @map("last_login_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  client              Client?             @relation("ClientUsers", fields: [clientId], references: [id])
+  inviter             User?               @relation("UserInvitedBy", fields: [invitedBy], references: [id])
+  invitedUsers        User[]              @relation("UserInvitedBy")
+  createdClients      Client[]            @relation("ClientCreatedBy")
+  updatedFeatureFlags ClientFeatureFlag[] @relation("FeatureFlagUpdatedBy")
+  authTokens          AuthToken[]         @relation("AuthTokenUser")
+  createdAuthTokens   AuthToken[]         @relation("AuthTokenCreatedBy")
+  refreshTokens       RefreshToken[]
+
+  // email uniqueness WHERE deleted_at IS NULL, and the "one active POC per
+  // client" rule, are both added as partial indexes in the follow-up
+  // migration. Plain indexes here just back lookups.
+  @@index([email])
+  @@index([clientId])
+  @@map("users")
+}
+
+model ClientFeatureFlag {
+  id         String  @id @default(uuid()) @db.Uuid
+  clientId   String  @map("client_id") @db.Uuid
+  featureKey String  @map("feature_key")
+  enabled    Boolean @default(true)
+  updatedBy  String? @map("updated_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  client  Client @relation(fields: [clientId], references: [id])
+  updater User?  @relation("FeatureFlagUpdatedBy", fields: [updatedBy], references: [id])
+
+  // (clientId, featureKey) WHERE deleted_at IS NULL is a partial index,
+  // added in the follow-up migration.
+  @@index([clientId, featureKey])
+  @@map("client_feature_flags")
+}
+
+model AuthToken {
+  id         String        @id @default(uuid()) @db.Uuid
+  userId     String        @map("user_id") @db.Uuid
+  tokenHash  String        @map("token_hash")
+  type       AuthTokenType
+  expiresAt  DateTime      @map("expires_at")
+  consumedAt DateTime?     @map("consumed_at")
+  createdBy  String?       @map("created_by") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user    User  @relation("AuthTokenUser", fields: [userId], references: [id])
+  creator User? @relation("AuthTokenCreatedBy", fields: [createdBy], references: [id])
+
+  // tokenHash uniqueness WHERE deleted_at IS NULL is a partial index, added
+  // in the follow-up migration.
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("auth_tokens")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @map("token_hash")
+  userAgent    String?   @map("user_agent")
+  ipAddress    String?   @map("ip_address")
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user       User           @relation(fields: [userId], references: [id])
+  replacedBy RefreshToken?  @relation("RefreshTokenChain", fields: [replacedById], references: [id])
+  replaces   RefreshToken[] @relation("RefreshTokenChain")
+
+  // tokenHash uniqueness WHERE deleted_at IS NULL is a partial index, added
+  // in the follow-up migration.
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
