@@ -27,7 +27,7 @@ import { Injectable } from '@nestjs/common';
 import { EXTERNAL_ENRICHMENT_FIELDS, RESULTS_PER_SEARCH, SEARCHES_PER_FIELD } from '../../discovery.constants.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
 import { BoundedSearchService } from '../bounded-search.service.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 
 @Injectable()
 export class ExternalEnrichStage {

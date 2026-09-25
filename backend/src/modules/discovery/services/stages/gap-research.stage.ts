@@ -29,7 +29,7 @@ import type { FactField } from '../../discovery.types.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
 import { BoundedSearchService } from '../bounded-search.service.js';
 import { ConsolidateStage } from './consolidate.stage.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 
 @Injectable()
 export class GapResearchStage {

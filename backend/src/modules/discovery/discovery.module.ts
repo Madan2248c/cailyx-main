@@ -14,13 +14,13 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { FetcherModule } from '../fetcher/fetcher.module.js';
+import { LlmModule } from '../llm/llm.module.js';
 import { DiscoveryController, DiscoveryRunController } from './controllers/discovery.controller.js';
 import { DISCOVERY_QUEUE } from './queue/discovery.queue.js';
 import { DiscoveryProcessor } from './queue/discovery.processor.js';
 import { BoundedSearchService } from './services/bounded-search.service.js';
 import { DataForSeoSerpService } from './services/dataforseo-serp.service.js';
 import { DiscoveryService } from './services/discovery.service.js';
-import { LlmService } from './services/llm.service.js';
 import { PresenceDiscoveryService } from './services/presence-discovery.service.js';
 import { PresenceSerpService } from './services/presence-serp.service.js';
 import { SocialVerificationService } from './services/social-verification.service.js';
@@ -38,17 +38,17 @@ import { ValidateStage } from './services/stages/validate.stage.js';
 import { VerifyStage } from './services/stages/verify.stage.js';
 
 @Module({
-  imports: [FetcherModule, BullModule.registerQueue({ name: DISCOVERY_QUEUE })],
+  imports: [FetcherModule, LlmModule, BullModule.registerQueue({ name: DISCOVERY_QUEUE })],
   controllers: [DiscoveryController, DiscoveryRunController],
   providers: [
     // The queue consumer and the orchestrator that does the real work.
     DiscoveryProcessor,
     DiscoveryService,
 
-    // Shared clients: the LLM caller every extraction/consolidation/verification
-    // stage uses, and the one SERP client (paid search is deliberately singular
-    // in this codebase — the old repo consolidated two vendors down to it).
-    LlmService,
+    // The one SERP client (paid search is deliberately singular in this
+    // codebase — the old repo consolidated two vendors down to it). The LLM
+    // client every extraction/consolidation/verification stage uses now
+    // comes from LlmModule — Technical Audit needs the same client.
     DataForSeoSerpService,
 
     // Social footprint: same-site discovery, the SERP fallback sweep, and our

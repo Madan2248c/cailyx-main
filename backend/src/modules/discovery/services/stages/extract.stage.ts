@@ -50,7 +50,7 @@ import type { DraftFact, FactField, FactType, JsonLdEntity, PagePipelineState, P
 import { PRISMA_TO_PAGE_TYPE, readPageState } from '../../discovery.types.js';
 import { normalizeHeading } from '../pipeline-utils.js';
 import { RunPausedException, type DiscoveryRunContext } from '../pipeline-context.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 
 /**
  * JSON-LD entity types whose `name` field is the company's or brand's own name.

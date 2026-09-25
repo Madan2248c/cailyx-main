@@ -4,7 +4,7 @@ import { EXTRACT_BATCH_SIZE, MAX_BATCH_CHARS } from '../../discovery.constants.j
 import type { PagePipelineState } from '../../discovery.types.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../../../test/mocks/prisma.mock.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import { RunBudget, RunPausedException, type DiscoveryRunContext } from '../pipeline-context.js';
 import { ExtractStage } from './extract.stage.js';
 

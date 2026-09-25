@@ -34,7 +34,7 @@ import type { DiscoveryRunContext } from './pipeline-context.js';
 import { cleanValueList, normalizeForMatch } from './pipeline-utils.js';
 import { DataForSeoSerpService } from './dataforseo-serp.service.js';
 import { FetcherService } from '../../fetcher/fetcher.service.js';
-import { LlmService } from './llm.service.js';
+import { LlmService } from '../../llm/llm.service.js';
 
 /** One bounded pass: what it is for, what it wants, and how to find it. */
 export interface BoundedSearchOptions {

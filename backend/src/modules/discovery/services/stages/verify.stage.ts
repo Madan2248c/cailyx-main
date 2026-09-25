@@ -28,7 +28,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CATEGORY_FIELDS } from '../../discovery.constants.js';
 import type { ReconciledFact } from '../../discovery.types.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
 
 /** One category as the verifier returns it. */

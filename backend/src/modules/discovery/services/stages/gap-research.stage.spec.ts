@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GAP_RESEARCH_MAX_FIELDS, RESULTS_PER_SEARCH } from '../../discovery.constants.js';
 import type { CategorySummary, FactField, ReconciledFact } from '../../discovery.types.js';
 import { BoundedSearchService } from '../bounded-search.service.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import { RunBudget, type DiscoveryRunContext } from '../pipeline-context.js';
 import { ConsolidateStage } from './consolidate.stage.js';
 import { GapResearchStage } from './gap-research.stage.js';

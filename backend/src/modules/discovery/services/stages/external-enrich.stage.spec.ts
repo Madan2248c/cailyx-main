@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXTERNAL_ENRICHMENT_FIELDS } from '../../discovery.constants.js';
 import type { ReconciledFact } from '../../discovery.types.js';
 import { BoundedSearchService } from '../bounded-search.service.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import { RunBudget, type DiscoveryRunContext } from '../pipeline-context.js';
 import { ExternalEnrichStage } from './external-enrich.stage.js';
 

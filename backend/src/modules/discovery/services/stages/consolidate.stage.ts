@@ -25,7 +25,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { CANONICAL_VALUE_FIELDS, CATEGORY_FIELDS, VALUE_JUDGEMENT_CAP } from '../../discovery.constants.js';
 import type { CategorySummary, FactField, ReconciledFact } from '../../discovery.types.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 
 /** What the consolidation model is allowed to return, per category. */
 interface ConsolidationEntry {

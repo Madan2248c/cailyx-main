@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CategorySummary, ReconciledFact } from '../../discovery.types.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import { RunBudget, type DiscoveryRunContext } from '../pipeline-context.js';
 import { VerifyStage } from './verify.stage.js';
 

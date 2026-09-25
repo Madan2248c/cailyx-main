@@ -1,11 +1,14 @@
 /**
- * LLM Service — the one constrained-JSON caller the discovery pipeline's
- * extraction/consolidation/verification stages share.
+ * LLM Service — the one constrained-JSON caller Discovery and Technical Audit
+ * share (extraction/consolidation/verification passes in Discovery; the audit
+ * narrative pass in Technical Audit).
  *
  * Ported from the old repo's `aeo-audit/aeo-llm.service.ts` (there named
  * `AeoLlmService`) — logic and comments kept verbatim except for the
  * rename, since this client is no longer AEO-specific in this repo. See
- * docs/analysis/discovery.md.
+ * docs/analysis/discovery.md. Moved here from `discovery/services/` once
+ * Technical Audit needed the same client, per the explicit instruction not to
+ * build a second one — see docs/analysis/technical-audit.md.
  *
  * ## Provider choice
  *
@@ -60,7 +63,7 @@
  * pipeline's cost tracking is fed a real number rather than an estimate from a
  * price table that would drift.
  *
- * @module discovery/services/llm.service
+ * @module llm/llm.service
  */
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -174,7 +177,7 @@ export class LlmService {
           'Content-Type': 'application/json',
           // OpenRouter attributes traffic with these; harmless and useful.
           'HTTP-Referer': this.config.get<string>('AEO_LLM_REFERER', 'https://cailyx.local'),
-          'X-Title': 'Cailyx Discovery',
+          'X-Title': 'Cailyx',
         },
         body: JSON.stringify({
           model,

@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CATEGORY_FIELDS, VALUE_JUDGEMENT_CAP } from '../../discovery.constants.js';
 import type { CategorySummary, ReconciledFact } from '../../discovery.types.js';
-import { LlmService } from '../llm.service.js';
+import { LlmService } from '../../../llm/llm.service.js';
 import { RunBudget, type DiscoveryRunContext } from '../pipeline-context.js';
 import { ConsolidateStage } from './consolidate.stage.js';
 
