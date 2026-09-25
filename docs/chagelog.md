@@ -3,6 +3,21 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-26 — Social Activity live end-to-end run: PASS vs Fello (fello.ai)
+
+Run `80d72471` through the real queue + worker with operator-confirmed
+Apify spend: **COMPLETE in 184s, $0.010 total** (ceiling untouched). All 4
+default platforms returned shaped data — LinkedIn (9,915 followers,
+sporadic), Instagram (8,078 followers, every-2-3-days, 30.2 avg
+engagement), Facebook (3,982 followers, weekly), X (daily) — exercising
+every pattern bucket. 20 posts persisted, narrative written
+(`hasNarrative: true` — the audit run's cleanup race avoided by waiting
+for the narrative save before deleting rows). Scheduler without
+`spendOptIn` fired nothing (no phantom row). No-stack check passed. All
+temp rows deleted (runs/posts/profiles: 0 remaining). Actor table now
+treats the 7 default actors as live-confirmed; alternatives stay
+UNVERIFIED.
+
 ## 2026-09-26 — Social Activity module: Apify pulls, cadence aggregates, API (DB, backend, tests, docs)
 
 Stage 3 of the Day-1 pipeline, built from the approved
