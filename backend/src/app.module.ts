@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { createObserveModule } from '@nestjs/observe';
+import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { GlobalJwtModule } from './common/jwt/global-jwt.module.js';
@@ -15,6 +16,15 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
+    // Discovery module's job queue. Shares the same Redis instance the
+    // fetcher module's cache/rate-limiter use — one Redis config, two
+    // independent consumers of it. See docs/analysis/discovery.md.
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: { url: config.get<string>('REDIS_URL') },
+      }),
+    }),
     PrismaModule,
     GlobalJwtModule,
     AuthModule,

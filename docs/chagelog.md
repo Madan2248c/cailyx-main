@@ -3,6 +3,125 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-25 — Discovery module: cleaned-up offerings/positioning values
+
+Follow-up to the module below, after the user reviewed the live profile and
+flagged that `offerings.services` and `positioning` mixed real capabilities
+with marketing copy ("Integrate tonight", "Write using a delightful editor",
+"Beyond expectations" sitting next to actual product features) and repeated
+one claim under several phrasings.
+
+**What changed**: the extraction prompt now explicitly excludes calls to
+action, benefit/quality claims, slogans and section headings from `services`,
+and restricts `valueProps`/`differentiator` to the company's own words (never
+a customer testimonial or another company's executive quoted on the page).
+Consolidation gained a **second, separate LLM call per category** — a
+value-by-value keep/drop judgement — because the summary call alone could not
+clean the list: asked to edit a list, the model returned every value
+unchanged; asked to judge one value at a time, it correctly dropped 14 of 28
+noisy values on the same input. `compile` now assembles offerings/valueProps/
+technology/etc. from this judged canonical list rather than the raw extracted
+values, with identity fields (brand, legalName, category, …) deliberately
+exempt — list-level filtering never applies there, since dropping a value
+there costs the profile its identity rather than tidying a list.
+
+**A real defect was found and fixed mid-tuning**: the first version of the
+judgement pass capped each category at 40 values before judging and silently
+kept everything past the cut unjudged. On resend.com's 76 unique `services`
+values, that meant the back half of a real offerings list — headings, CTAs,
+price lines — passed straight through regardless of what it actually was.
+Fixed by chunking instead of truncating: a category judges in as many calls
+as it needs, and every value is judged. Caught only by running the redesigned
+stage against real extracted facts (no site traffic — the facts were already
+saved from an earlier live run); the unit fixtures never had enough distinct
+values to hit the cap, which is now itself a regression test.
+
+**Measured effect** on the resend.com profile: `offerings.services` went from
+74 values (marketing copy interleaved with real capabilities, nothing
+filtered) to 43 (every CTA, slogan, price line and section heading removed —
+`Frequently asked questions`, `Start sending tonight`, `Try it today $0/mo`,
+`Analyze and track performance`, `Ready for every use case`, and the rest, all
+gone); `positioning` went from 27 to 10, including correctly dropping a
+customer testimonial ("switching from SendGrid marked a significant
+improvement") that had been read as the company's own differentiator.
+
+11 new tests (222 in the module, 321 across the backend), including the
+chunking regression. `tsc`/lint/build green. No live crawl was run for this
+change — verification was against facts a prior live run already produced.
+
+## 2026-09-25 — Discovery / company-context module
+
+Stage 1 of the Day-1 pipeline. Given a project's domain, crawls its site and
+produces an evidence-backed company-context profile — every material field
+carrying a value, a fact type, a confidence, and the quotes that support it.
+Design and rationale: `docs/analysis/discovery.md` (which records the six
+places the build departs from the original design); operational notes:
+`backend/src/modules/discovery/README.md`.
+
+**DB**: four append-only tables (`discovery_runs`, `discovered_pages`,
+`social_profiles`, `company_context_profiles`) plus their enums. Deliberately no
+`deleted_at` — a stale fact is marked inside the JSON and a new run supersedes
+the row; agreed with the user, and documented so it is not "fixed" later. Two
+`pipeline_state` jsonb columns hold in-flight pipeline state (reconciled facts,
+category summaries, per-page metadata and facts) so a re-enqueued job resumes
+instead of re-spending LLM calls. Three migrations, applied to the Supabase
+instance.
+
+**Backend**: a twelve-stage pipeline (discover → inspect → select → extract →
+reconcile → validate → social-discovery → external-enrich → consolidate →
+gap-research → verify → compile) running on a BullMQ `discovery` queue, one job
+per run. Long runs pause on an elapsed-time budget and enqueue their own
+continuation — the caller never catches a "paused" exception, which is what the
+old repo's HTTP-driven design required. Ported alongside: the whole
+`fetcher/` module, the LLM client, the shared DataForSEO SERP client, and the
+digital-presence discovery/SERP services. `ProjectsService.createProject` starts
+a run in the same request; it never fails project creation if the queue is down.
+
+**Frontend**: none, by design — the module has no client-facing trigger, and
+nothing is shown to the client until the Day-1 report module exists.
+
+**Tests**: 307 passing across 28 spec files (up from 98/12), the new ones
+organised per stage over mocked Prisma/fetcher/LLM/search clients. The suite
+caught two real defects, both fixed and now pinned by regression tests: the
+social scoring's own-domain guard read a capture group that does not exist (so a
+profile naming the client's *own* domain took the −40 penalty meant for other
+companies), and consolidate's no-LLM path reported every field missing after a
+successful extraction, scoring 0 completeness.
+
+**Verified live** against `resend.com`, twice (2026-09-25): a real crawl, real
+LLM extraction and consolidation, no paid search (`SWARM_ALLOW_LIVE=0`), about
+$0.005 of OpenRouter credits per run. Every row created was deleted afterwards —
+confirmed by counting all four tables back to zero, plus the temp client and
+project.
+
+- The pipeline ran end to end, including the budget pause and the continuation
+  job that resumes it, and the SERP fallback correctly *refused to run* for the
+  two platforms same-site discovery did not find rather than assuming them
+  absent.
+- The first run found two defects, both fixed here and re-verified by the second
+  run: extraction stopped silently when the elapsed budget ran out, so four of
+  six selected pages were never extracted (now 4/6, with the remainder limited
+  by the character budget, and the stage signals a pause instead of completing);
+  and a `Product` JSON-LD block named the brand, which made the profile's own
+  business name a conflict — the run's business_name went from `conflicted` at
+  0.50 to `explicit` at 0.95, and overall confidence from 0.74 to 0.82.
+- Still true of every run and worth knowing before reading a profile: the
+  identity gate flags any site that publishes no legal name (0.60 →
+  `MANUAL_REVIEW_REQUIRED`, so the flag is common rather than exceptional); the
+  24,000-character extraction budget covers only about three to four pages at
+  the default per-page slice, so a twelve-page crawl is deliberately partial
+  (raise `DISCOVERY_MAX_CHARS` to change that); and the independent verification
+  pass can come back non-JSON on a large payload, in which case the run says so
+  in its notes and keeps the consolidated summaries unverified rather than
+  failing.
+
+**Left for later**: a human-readable Markdown/HTML report, multilingual-site
+handling, marketplace/franchise entity separation, and per-run cost reporting —
+`__cost__` notes on the run are currently the only cost record. The schema
+sections with no fact source yet (`products`, `buyer_roles`, `team_size`,
+`testimonials`, …) stay empty and surface as `missing_fields` rather than being
+filled with something plausible.
+
 ## 2026-09-25 — Projects module
 
 New foundational module: a client can have multiple projects

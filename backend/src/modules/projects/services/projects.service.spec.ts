@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Role } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../../test/mocks/prisma.mock.js';
+import { DiscoveryService } from '../../discovery/services/discovery.service.js';
 import { ProjectsService } from './projects.service.js';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
   let prisma: PrismaMock;
+  let discovery: { startRun: ReturnType<typeof vi.fn> };
 
   const admin = { sub: 'admin-1', role: Role.ADMIN, clientId: null };
   const poc = { sub: 'poc-1', role: Role.CLIENT_POC, clientId: 'client-1' };
@@ -18,9 +20,14 @@ describe('ProjectsService', () => {
 
   beforeEach(async () => {
     prisma = createPrismaMock();
+    discovery = { startRun: vi.fn().mockResolvedValue({ id: 'discovery-run-1' }) };
 
     const moduleRef = await Test.createTestingModule({
-      providers: [ProjectsService, { provide: PrismaService, useValue: asPrismaService(prisma) }],
+      providers: [
+        ProjectsService,
+        { provide: PrismaService, useValue: asPrismaService(prisma) },
+        { provide: DiscoveryService, useValue: discovery },
+      ],
     }).compile();
 
     service = moduleRef.get(ProjectsService);
@@ -46,6 +53,27 @@ describe('ProjectsService', () => {
       expect(prisma.project.create).toHaveBeenCalledWith({
         data: { clientId: 'client-1', name: 'Acme', domain: 'acme.com', createdBy: 'admin-1' },
       });
+      // Creating a project is what starts discovery — same request, direct call.
+      expect(discovery.startRun).toHaveBeenCalledWith('project-1');
+    });
+
+    it('still returns the project when the discovery run cannot be started', async () => {
+      prisma.client.findFirst.mockResolvedValue(client);
+      prisma.project.findFirst.mockResolvedValue(null);
+      prisma.project.create.mockResolvedValue({
+        id: 'project-1',
+        clientId: 'client-1',
+        name: 'Acme',
+        domain: 'acme.com',
+        createdAt: new Date(),
+      });
+      // A dead job queue must not make project creation fail — the failure is
+      // recorded on the run row instead (see DiscoveryService.startRun).
+      discovery.startRun.mockRejectedValue(new Error('redis is down'));
+
+      const project = await service.createProject('client-1', { name: 'Acme', domain: 'acme.com' }, 'admin-1');
+
+      expect(project.id).toBe('project-1');
     });
 
     it('rejects a duplicate active domain for the same client', async () => {

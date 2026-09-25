@@ -8,6 +8,7 @@ before the next one starts, per AGENTS.md.
 |---|---|---|---|---|---|
 | Login / access control | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/auth/README.md` for full detail. |
 | Projects | ✅ Done | ✅ | ✅ | ✅ | See `backend/src/modules/projects/README.md`. Foundational — a client can have multiple projects; the Day-1 report pipeline keys off a project, not a client. |
+| Discovery / company context | ✅ Done | ✅ | ✅ | n/a | Stage 1 of the Day-1 pipeline. `backend/src/modules/discovery/README.md` + `docs/analysis/discovery.md`. Backend-only by design: it has no client-facing trigger or UI — a run starts when an admin creates a project, and the client sees nothing until the report module exists. |
 | Day-1 report | Not started | — | — | — | Explicitly deferred while building login and projects. |
 | Per-client feature config | Not started | ⚠️ (placeholder table) | ❌ | ❌ | Intentionally not building generic toggle infra ahead of a real feature — see "every feature is a plugin" in `docs/context.md`. The existing `client_feature_flags` table is a simple boolean placeholder from the login module and will likely be redesigned (per-feature config, not just on/off) once the first real feature module needs it. |
 | Email delivery | Not started | — | — | — | Plunk credentials added to `.env` but unused — sending fails without a verified sender domain configured in the Plunk dashboard. Invite/reset links are logged to the console in the meantime. |
@@ -39,6 +40,20 @@ before the next one starts, per AGENTS.md.
 | One active domain per client | ✅ | Partial unique index, domain normalized at the app layer |
 | POC/member can view their own client's projects | ✅ | New `view_projects` permission |
 | Soft deletes | ✅ | "Archive" = `deletedAt` |
+
+## Discovery / company-context module — requirement-level detail
+
+| Requirement | Status | Notes |
+|---|---|---|
+| Runs automatically when a project is created | ✅ | `ProjectsService.createProject` → `DiscoveryService.startRun`, same request |
+| Resumable, budgeted, long-running (not one HTTP call) | ✅ | BullMQ `discovery` queue; a run pauses on the elapsed budget and re-enqueues a continuation for the same run |
+| Evidence-bearing output (every claim traceable to a quote) | ✅ | The spec doc's field format: value + fact type + confidence + evidence quotes with source URL and fetch date |
+| Anti-hallucination: claims checked against their source | ✅ | Two independent checks — a deterministic verbatim-substring check, then an LLM verification pass that can only remove or penalise |
+| External facts never equal to first-party | ✅ | Capped at 0.6 confidence, marked `external`, validated the same way |
+| Social profiles discovered + verified | ✅ | Same-site crawl first, SERP fallback only for what's still missing, then our own point-table scoring |
+| Paid search cannot be spent by accident | ✅ | `SWARM_ALLOW_LIVE` must be `1`; `PRESENCE_SERP_MAX_QUERIES` caps a sweep; all caps cumulative across re-enqueues |
+| Definition-of-Done gates | ✅ | Identity confidence < 0.80 → `MANUAL_REVIEW_REQUIRED`; < 80% of fetched pages analyzed → `COMPLETE_WITH_GAPS` |
+| Client-facing UI / trigger | n/a by design | Nothing is shown to the client until the Day-1 report module exists |
 
 ## Known deferred items
 

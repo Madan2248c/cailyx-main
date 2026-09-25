@@ -158,6 +158,68 @@ Errors: `404` project not found (wrong client, already archived, or doesn't exis
 
 ---
 
+## Discovery / company context — requires `Authorization` header
+
+See `docs/analysis/discovery.md` for the design and
+`backend/src/modules/discovery/README.md` for operational notes. Given a
+project, this module crawls its site and produces an evidence-backed
+company-context profile. It is **stage 1 of the Day-1 pipeline** and has no
+client-facing trigger — a run starts automatically when an admin creates a
+project, and nothing is shown to the client until the report module exists.
+These endpoints are for staff inspection.
+
+### `POST /team/clients/:clientId/projects/:projectId/discovery-runs` — **ADMIN only**
+Queues discovery for the project. No body.
+**Resumes** the project's unfinished run when there is one (`PAUSED` or
+`FAILED`) — it already holds the fetched pages and extracted facts, so a second
+run would pay for the whole crawl and every LLM call again — and otherwise
+creates a new run. This is also the recovery path for a run left `PAUSED`
+without a job, which can happen if the process dies in the moment between
+pausing a run and queueing its continuation.
+Response `202`: the run row being worked on
+(`{ id, projectId, status, profileVersion, … }`) — new or resumed.
+A run is queued, not executed: the response returns immediately and the
+pipeline runs in a background worker. If the job queue is unreachable the run
+row is created as `FAILED` with the reason (the trigger never fails silently).
+Errors: `404` project not found (wrong client, archived, or doesn't exist).
+
+### `GET /team/clients/:clientId/projects/:projectId/discovery-runs` — requires `view_projects`
+This project's run history, newest first (max 20).
+Response `200`: `[{ id, status, stage, spent: { pages, requests, chars, elapsedMs }, overallConfidence, overallCompleteness, profileVersion, error, notes[], startedAt, completedAt, createdAt }]`
+`status` is one of `QUEUED`, `RUNNING`, `PAUSED`, `COMPLETE`,
+`COMPLETE_WITH_GAPS`, `MANUAL_REVIEW_REQUIRED`, `FAILED`. `stage` is the last
+**completed** stage — a `PAUSED` run resumes from the stage after it.
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/discovery-runs/:runId` — requires `view_projects`
+One run, including every page it considered.
+Response `200`: the run row above, plus
+`pages: [{ id, url, pageType, fetchStatus, discoverySource, title, selected, selectionReason, extractStatus, extractError, factCount }]`
+and `profileId` (null until the compile stage has produced a profile).
+Errors: `404` run not found, or it belongs to another client's project.
+
+### `GET /team/clients/:clientId/projects/:projectId/company-context` — requires `view_projects`
+The project's current company-context profile.
+Response `200`: `{ id, projectId, discoveryRunId, version, overallConfidence, overallCompleteness, profile, createdAt, updatedAt }`,
+where `profile` is the full enriched schema (every material field is an
+evidence-bearing object — see the analysis doc). Response `200` with `null`
+when no run has produced a profile yet.
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/projects/:projectId/social-profiles` — requires `view_projects`
+The project's discovered social footprints, best-verified first.
+Response `200`: `[{ id, platform, url, discoveryMethod, score, verificationStatus, verifiedAt }]`
+`discoveryMethod` is `SAMEAS` (JSON-LD `sameAs`), `LINK_SCAN` (an on-site link)
+or `SERP` (found by the paid-search fallback sweep). `verificationStatus` is
+`VERIFIED` (80–100), `PROBABLE` (60–79), `POSSIBLE` (40–59) or `REJECTED` (<40);
+rejected candidates are not stored. Walled platforms (LinkedIn, Instagram,
+Facebook, X, TikTok, Threads) are never fetched, so they can never exceed
+`PROBABLE` — see the analysis doc for why that ceiling is honest rather than a
+limitation to work around.
+Errors: `404` project not found.
+
+---
+
 ## Roles & permissions
 
 Fixed enum: `ADMIN`, `CLIENT_POC`, `CLIENT_MEMBER`. `ADMIN` implicitly has every

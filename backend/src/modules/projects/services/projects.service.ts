@@ -1,12 +1,18 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Role } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
+import { DiscoveryService } from '../../discovery/services/discovery.service.js';
 import type { CreateProjectDto } from '../dto/create-project.dto.js';
 
 @Injectable()
 export class ProjectsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(ProjectsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly discovery: DiscoveryService,
+  ) {}
 
   /** Creates a project under a client. Caller must be ADMIN (enforced by the controller's guard). */
   async createProject(clientId: string, dto: CreateProjectDto, adminId: string) {
@@ -22,6 +28,24 @@ export class ProjectsService {
 
     const project = await this.prisma.project.create({
       data: { clientId, name: dto.name, domain, createdBy: adminId },
+    });
+
+    // Discovery (Stage 1 of the Day-1 pipeline) starts here, in the same
+    // request: creating a project is the trigger, and there is no client-facing
+    // step between the two. A direct call rather than an event bus — there is
+    // one consumer, and a same-transaction call is simpler and equally correct
+    // until a second module needs to react to project creation. See
+    // docs/analysis/discovery.md "Trigger".
+    //
+    // Deliberately non-fatal: a project must be creatable even if the job queue
+    // is unreachable. `startRun` records the failure on the run row instead of
+    // throwing, so the failure is visible without blocking project creation.
+    await this.discovery.startRun(project.id).catch((err: unknown) => {
+      this.logger.error(
+        `Project ${project.id} was created, but its discovery run could not be started: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     });
 
     return this.publicProject(project);

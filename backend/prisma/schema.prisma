@@ -66,6 +66,11 @@ model Project {
   client  Client @relation(fields: [clientId], references: [id])
   creator User?  @relation("ProjectCreatedBy", fields: [createdBy], references: [id])
 
+  discoveryRuns          DiscoveryRun[]
+  discoveredPages        DiscoveredPage[]
+  socialProfiles         SocialProfile[]
+  companyContextProfiles CompanyContextProfile[]
+
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
   @@index([clientId, domain])
@@ -198,4 +203,181 @@ model RefreshToken {
   @@index([userId])
   @@index([tokenHash])
   @@map("refresh_tokens")
+}
+
+// --- Discovery / company-context module ---
+// See docs/analysis/discovery.md for the full design rationale. These 4
+// tables are deliberately append-only/history tables (no deletedAt) — a
+// stale fact is marked `status: stale` inside profile_json, and a new
+// discovery_runs/company_context_profiles row supersedes the old one.
+
+enum DiscoveryRunStatus {
+  QUEUED
+  RUNNING
+  PAUSED
+  COMPLETE
+  COMPLETE_WITH_GAPS
+  MANUAL_REVIEW_REQUIRED
+  FAILED
+}
+
+enum DiscoveryStage {
+  DISCOVER
+  INSPECT
+  SELECT
+  EXTRACT
+  RECONCILE
+  VALIDATE
+  SOCIAL_DISCOVERY
+  EXTERNAL_ENRICH
+  CONSOLIDATE
+  GAP_RESEARCH
+  VERIFY
+  COMPILE
+}
+
+enum PageType {
+  HOMEPAGE
+  SERVICE
+  PRICING
+  ABOUT
+  INDUSTRIES
+  LOCATION
+  CASE_STUDY
+  LEADERSHIP
+  SECURITY
+  PRESS
+  CAREERS
+  PARTNER
+  BLOG
+  OTHER
+  CART
+  LOGIN
+  POLICY
+}
+
+enum PageFetchStatus {
+  PENDING
+  FETCHED
+  FAILED
+  EXCLUDED
+}
+
+enum ProfileDiscoveryMethod {
+  SAMEAS
+  LINK_SCAN
+  SERP
+}
+
+enum SocialVerificationStatus {
+  VERIFIED
+  PROBABLE
+  POSSIBLE
+  REJECTED
+}
+
+model DiscoveryRun {
+  id        String             @id @default(uuid()) @db.Uuid
+  projectId String             @map("project_id") @db.Uuid
+  status    DiscoveryRunStatus @default(QUEUED)
+  stage     DiscoveryStage?
+
+  pagesSpent    Int @default(0) @map("pages_spent")
+  requestsSpent Int @default(0) @map("requests_spent")
+  charsSpent    Int @default(0) @map("chars_spent")
+  elapsedMs     Int @default(0) @map("elapsed_ms")
+
+  overallConfidence   Float?  @map("overall_confidence")
+  overallCompleteness Float?  @map("overall_completeness")
+  profileVersion      Int     @default(1) @map("profile_version")
+  error               String?
+  notes               Json    @default("[]")
+  /// The run's in-flight pipeline state — reconciled/validated facts, category
+  /// summaries, coverage plan, search usage/cost. A re-enqueued job resumes at
+  /// `stage` from this instead of re-spending LLM/search calls (see
+  /// docs/analysis/discovery.md "Job orchestration"). Deliberately a column,
+  /// not a table — the module is capped at 4 tables.
+  pipelineState       Json    @default("{}") @map("pipeline_state")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  project  Project                 @relation(fields: [projectId], references: [id])
+  pages    DiscoveredPage[]
+  profiles CompanyContextProfile[]
+
+  @@index([projectId])
+  @@map("discovery_runs")
+}
+
+model DiscoveredPage {
+  id                       String          @id @default(uuid()) @db.Uuid
+  projectId                String          @map("project_id") @db.Uuid
+  discoveryRunId           String          @map("discovery_run_id") @db.Uuid
+  url                      String
+  pageType                 PageType        @map("page_type")
+  classificationConfidence Float?          @map("classification_confidence")
+  priorityScore            Int?            @map("priority_score")
+  fetchStatus              PageFetchStatus @default(PENDING) @map("fetch_status")
+  cleanedText              String?         @map("cleaned_text")
+  jsonLdRaw                String?         @map("json_ld_raw")
+  contentHash              String?         @map("content_hash")
+  /// Per-page pipeline state — the inspect output (title/description/headings/
+  /// language) and this page's extracted facts plus their status, so the extract
+  /// stage resumes without re-spending LLM calls on pages already done. See
+  /// DiscoveryRun.pipelineState for why this is a column and not a table.
+  pipelineState            Json            @default("{}") @map("pipeline_state")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project      Project      @relation(fields: [projectId], references: [id])
+  discoveryRun DiscoveryRun @relation(fields: [discoveryRunId], references: [id])
+
+  @@index([projectId])
+  @@index([discoveryRunId])
+  @@index([url])
+  @@map("discovered_pages")
+}
+
+model SocialProfile {
+  id                 String                   @id @default(uuid()) @db.Uuid
+  projectId          String                   @map("project_id") @db.Uuid
+  platform           String
+  url                String
+  discoveryMethod    ProfileDiscoveryMethod   @map("discovery_method")
+  score              Int?
+  verificationStatus SocialVerificationStatus @map("verification_status")
+  verifiedAt         DateTime?                @map("verified_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([platform])
+  @@map("social_profiles")
+}
+
+model CompanyContextProfile {
+  id                  String @id @default(uuid()) @db.Uuid
+  projectId           String @map("project_id") @db.Uuid
+  discoveryRunId      String @map("discovery_run_id") @db.Uuid
+  profileJson         Json   @map("profile_json")
+  overallConfidence   Float  @map("overall_confidence")
+  overallCompleteness Float  @map("overall_completeness")
+  version             Int
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project      Project      @relation(fields: [projectId], references: [id])
+  discoveryRun DiscoveryRun @relation(fields: [discoveryRunId], references: [id])
+
+  @@index([projectId])
+  @@index([discoveryRunId])
+  @@map("company_context_profiles")
 }

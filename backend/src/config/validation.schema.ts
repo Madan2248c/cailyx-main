@@ -9,4 +9,25 @@ export const validationSchema = Joi.object({
   RESET_TOKEN_TTL_HOURS: Joi.number().positive().default(1),
   LOGIN_MAX_ATTEMPTS: Joi.number().positive().default(5),
   LOGIN_LOCKOUT_MINUTES: Joi.number().positive().default(15),
+
+  // Discovery / company-context module. Optional — the services that read
+  // these (fetcher's cache, the LLM client, the DataForSEO client) all fail
+  // closed (disabled, not broken) when unset, per docs/analysis/discovery.md.
+  REDIS_URL: Joi.string().uri().optional(),
+  OPENROUTER_API_KEY: Joi.string().optional(),
+  AEO_LLM_MODEL: Joi.string().default('deepseek/deepseek-v4.1-flash'),
+  DATAFORSEO_LOGIN: Joi.string().optional(),
+  DATAFORSEO_PASSWORD: Joi.string().optional(),
+  SWARM_ALLOW_LIVE: Joi.string().valid('0', '1').default('0'),
+  PRESENCE_SERP_MAX_QUERIES: Joi.number().positive().default(20),
+
+  // Per-run crawl budgets. Ported from the old repo's AEO_CONTEXT_* env vars
+  // (same defaults); optional, so the pipeline's own defaults apply when unset.
+  // They exist mainly so a live end-to-end run can be widened without a code
+  // change — every stage enforces them through the run's budget.
+  DISCOVERY_MAX_PAGES: Joi.number().positive().optional(),
+  DISCOVERY_MAX_REQUESTS: Joi.number().positive().optional(),
+  DISCOVERY_MAX_CHARS: Joi.number().positive().optional(),
+  DISCOVERY_MAX_ELAPSED_MS: Joi.number().positive().optional(),
+  DISCOVERY_MAX_RETRIES_PER_PAGE: Joi.number().positive().optional(),
 });

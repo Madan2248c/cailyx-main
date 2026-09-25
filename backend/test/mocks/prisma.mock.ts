@@ -37,12 +37,61 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       update: vi.fn(),
     },
+    // --- Discovery / company-context module ---
+    // Wider than any one stage needs: the pipeline reads and writes these from
+    // several stages, and a mock that is missing a method fails as a confusing
+    // "is not a function" inside whichever stage happened to call it first.
+    discoveryRun: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      delete: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
+    discoveredPage: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
+    socialProfile: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
+    companyContextProfile: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      deleteMany: vi.fn(),
+      count: vi.fn(),
+    },
   };
 }
 
 export type PrismaMock = ReturnType<typeof buildRawPrismaMock>;
 
-/** A fully mocked PrismaService — every delegate method used by the auth module is a vi.fn(). */
+/**
+ * A fully mocked PrismaService — every delegate method any module's service
+ * calls is a `vi.fn()`. Not an exhaustive Prisma surface: a model that is
+ * genuinely unused by the code under test does not need an entry, and adding
+ * one for every generated model would be noise. Add a delegate (and the methods
+ * a service actually calls on it) when a test needs it.
+ */
 export function createPrismaMock(): PrismaMock {
   return buildRawPrismaMock();
 }
