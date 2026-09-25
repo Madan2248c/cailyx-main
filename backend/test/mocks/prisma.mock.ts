@@ -96,6 +96,23 @@ function buildRawPrismaMock() {
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    // --- Social Activity (digital presence) module ---
+    socialActivityRun: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    socialPost: {
+      findMany: vi.fn(),
+      createMany: vi.fn(),
+      count: vi.fn(),
+    },
+    socialActivitySchedule: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+    },
   };
 }
 

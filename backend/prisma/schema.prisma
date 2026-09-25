@@ -73,6 +73,9 @@ model Project {
   technicalAuditRuns     TechnicalAuditRun[]
   auditPages             AuditPage[]
   technicalAuditSchedule TechnicalAuditSchedule?
+  socialActivityRuns     SocialActivityRun[]
+  socialPosts            SocialPost[]
+  socialActivitySchedule SocialActivitySchedule?
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -496,4 +499,134 @@ model TechnicalAuditSchedule {
   project Project @relation(fields: [projectId], references: [id])
 
   @@map("technical_audit_schedules")
+}
+
+// --- Social Activity (digital presence) module ---
+// See docs/analysis/digital-presence-audit.md for the full design. Audits a
+// company's publishing activity across its verified social profiles (pulled
+// via Apify actors): posts in a 30-day window, cadence aggregates, pattern
+// buckets, dormant/infrequent findings. 3 tables, append-only (no deleted_at
+// — same reasoning as Discovery's and Technical Audit's tables: a schedule
+// being off is `active: false`, never a delete, and a run is never edited
+// after it completes).
+
+enum SocialActivityStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum SocialActivityTrigger {
+  MANUAL
+  SCHEDULED
+}
+
+enum SocialActivityCadence {
+  WEEKLY
+  MONTHLY
+  MANUAL_ONLY
+}
+
+model SocialActivityRun {
+  id             String               @id @default(uuid()) @db.Uuid
+  projectId      String               @map("project_id") @db.Uuid
+  status         SocialActivityStatus @default(QUEUED)
+  triggeredBy    SocialActivityTrigger @map("triggered_by")
+  /// The run this one is diffed against — resolved *before* this row is
+  /// created (most recent sibling run with a non-null result), so the chain
+  /// is unambiguous even with overlapping runs. Null on a project's first run.
+  previousRunId  String?              @map("previous_run_id") @db.Uuid
+  /// Platforms pulled, as-run. A subset of the social group when configured.
+  platforms      String[]             @default([])
+  postsPerPlatform Int                @default(20) @map("posts_per_platform")
+  windowDays     Int                  @default(30) @map("window_days")
+  /// Whether PROBABLE (not just VERIFIED) discovery rows were admitted as
+  /// pull targets — recorded so a later reader knows the sample is softer.
+  includeProbable Boolean             @default(false) @map("include_probable")
+  /// Sum of per-platform actor spend (run-reported usageTotalUsd, else unit
+  /// estimate — never presented as the billed figure).
+  totalCostUsd   Float?               @map("total_cost_usd")
+  /// Per-platform aggregates (cadence, buckets, engagement) — one blob, same
+  /// pattern as technical_audit_runs.result.
+  result         Json                 @default("{}")
+  /// Normalized finding[] — one entry per platform, `status: error` for a
+  /// platform whose actors threw rather than aborting the whole run.
+  findings       Json                 @default("[]")
+  /// Computed once at compile time against previousRunId, never recomputed
+  /// later even if the referenced previous run's own data changes.
+  deltas         Json                 @default("[]")
+  narrative      String?
+  narrativeModel String?              @map("narrative_model")
+
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  project      Project             @relation(fields: [projectId], references: [id])
+  previousRun  SocialActivityRun?  @relation("SocialActivityChain", fields: [previousRunId], references: [id])
+  succeededBy  SocialActivityRun[] @relation("SocialActivityChain")
+  posts        SocialPost[]
+
+  @@index([projectId])
+  @@index([previousRunId])
+  @@map("social_activity_runs")
+}
+
+model SocialPost {
+  id                  String @id @default(uuid()) @db.Uuid
+  socialActivityRunId String @map("social_activity_run_id") @db.Uuid
+  /// Denormalized, same pattern as audit_pages — backs project-scoped
+  /// queries without a join through the run.
+  projectId           String @map("project_id") @db.Uuid
+  platform            String
+  /// 'profile' (account snapshot row) or 'post'.
+  kind                String
+  postedAt            DateTime? @map("posted_at")
+  url                 String?
+  caption             String?
+  likeCount           Int? @map("like_count")
+  commentCount        Int? @map("comment_count")
+  shareCount          Int? @map("share_count")
+  viewCount           Int? @map("view_count")
+  followerCount       Int? @map("follower_count")
+  followingCount      Int? @map("following_count")
+  postCount           Int? @map("post_count")
+  actorId             String @map("actor_id")
+  /// Full raw actor item, so normalization can be re-run without re-spend.
+  raw                 Json   @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  run     SocialActivityRun @relation(fields: [socialActivityRunId], references: [id])
+  project Project           @relation(fields: [projectId], references: [id])
+
+  @@index([socialActivityRunId])
+  @@index([projectId])
+  @@index([platform])
+  @@map("social_posts")
+}
+
+model SocialActivitySchedule {
+  id        String               @id @default(uuid()) @db.Uuid
+  projectId String               @unique @map("project_id") @db.Uuid
+  cadence   SocialActivityCadence @default(MANUAL_ONLY)
+  /// Off is `active: false`, never a delete. No `next_run_at` here — BullMQ's
+  /// job scheduler tracks that; not duplicated in Postgres.
+  active    Boolean              @default(true)
+  /// Module-owned per-project config (plugin principle — not a boolean
+  /// placeholder). Null/empty platforms means the env defaults.
+  platforms        String[] @default([])
+  windowDays       Int?     @map("window_days")
+  postsPerPlatform Int?     @map("posts_per_platform")
+  /// The scheduler fires nothing unless this is true — scheduled runs must
+  /// never spend without opt-in.
+  spendOptIn       Boolean  @default(false) @map("spend_opt_in")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("social_activity_schedules")
 }

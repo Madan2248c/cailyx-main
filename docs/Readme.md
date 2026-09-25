@@ -281,6 +281,60 @@ Errors: `404` project not found.
 
 ---
 
+## Social Activity — requires `Authorization` header
+
+See `docs/analysis/digital-presence-audit.md` for the design and
+`backend/src/modules/social-activity/README.md` for operational notes. Given
+a project, this module pulls recent posts for its verified company social
+profiles via Apify actors (dual spend gates — key + explicit opt-in),
+aggregates per-platform cadence over a 30-day window (pattern buckets
+daily → dormant), and stores dormant/infrequent findings. It is **stage 3
+of the Day-1 pipeline**. Runs execute on the background `social-activity`
+queue (concurrency 1), never inside the HTTP call.
+
+### `POST /team/clients/:clientId/projects/:projectId/social-activity-runs` — **ADMIN only**
+Queues a pull for the project. Body requires explicit spend approval:
+`{ "confirmSpend": true, "platforms"?: ["linkedin", …], "postsPerPlatform"?: 20, "windowDays"?: 30, "includeProbable"?: false }`.
+Without `confirmSpend: true` the trigger 400s and nothing is spent. Returns
+the active run instead of starting a second one when a run is already
+`QUEUED`/`RUNNING` for the project.
+Response `202`: the run row. If the queue is unreachable the row is left
+`FAILED` with the reason; if `APIFY_API_KEY` is unset at execution the run
+fails closed.
+Errors: `404` project not found; `400` missing opt-in or unknown platform.
+
+### `GET /team/clients/:clientId/projects/:projectId/social-activity-runs` — requires `view_projects`
+This project's run history, newest first (max 20).
+Response `200`: `[{ id, projectId, status, triggeredBy, previousRunId,
+platforms, postsPerPlatform, windowDays, includeProbable, totalCostUsd,
+result, findings, deltas, narrative, narrativeModel, startedAt, completedAt,
+createdAt }]`
+`status` is one of `QUEUED`, `RUNNING`, `COMPLETE`, `FAILED`.
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/social-activity-runs/:runId` — requires `view_projects`
+One run, plus its per-platform aggregates.
+Errors: `404` run not found, or it belongs to another client's project.
+
+### `GET /team/clients/:clientId/social-activity-runs/:runId/comparison` — requires `view_projects`
+Previous-vs-current comparison for one run.
+Response `200`: `{ currentRunId, previousRunId, currentAt, previousAt,
+deltas: [{ platform, metric, previous, current }] }`
+Errors: `404` run not found, or it belongs to another client's project.
+
+### `PUT /team/clients/:clientId/projects/:projectId/social-activity-schedule` — **ADMIN only**
+Sets the recurring cadence + module config. `MANUAL_ONLY` removes the
+recurrence. The scheduler fires nothing unless `spendOptIn` is true.
+Request: `{ "cadence": "WEEKLY"|"MONTHLY"|"MANUAL_ONLY", "spendOptIn"?: boolean, "platforms"?: [...], "windowDays"?: number, "postsPerPlatform"?: number }`
+Response `200`: the schedule row with its config payload.
+Errors: `404` project not found; `400` invalid cadence.
+
+### `GET /team/clients/:clientId/projects/:projectId/social-activity-schedule` — requires `view_projects`
+Current schedule + config, or `null` when none was ever set.
+Errors: `404` project not found.
+
+---
+
 ## Roles & permissions
 
 Fixed enum: `ADMIN`, `CLIENT_POC`, `CLIENT_MEMBER`. `ADMIN` implicitly has every

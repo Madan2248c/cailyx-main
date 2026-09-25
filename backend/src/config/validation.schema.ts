@@ -40,4 +40,14 @@ export const validationSchema = Joi.object({
   TECHNICAL_AUDIT_PAGE_CRAWL_BUDGET: Joi.number().positive().optional(),
   TECHNICAL_AUDIT_PAGE_CRAWL_CONCURRENCY: Joi.number().positive().optional(),
   TECHNICAL_AUDIT_MAX_COST_PER_RUN_USD: Joi.number().positive().optional(),
+
+  // Social Activity (digital presence) module. Optional — pulls fail
+  // closed (typed 503 / never scheduled without opt-in) when unset, per
+  // docs/analysis/digital-presence-audit.md.
+  APIFY_API_KEY: Joi.string().optional(),
+  APIFY_PLATFORMS: Joi.string().optional(),
+  APIFY_POSTS_PER_PLATFORM: Joi.number().positive().optional(),
+  APIFY_ACTORS: Joi.string().optional(),
+  SOCIAL_WINDOW_DAYS: Joi.number().positive().optional(),
+  SOCIAL_MAX_COST_PER_RUN_USD: Joi.number().positive().optional(),
 });

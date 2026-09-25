@@ -9,6 +9,7 @@ import configuration from './config/configuration.js';
 import { validationSchema } from './config/validation.schema.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
+import { SocialActivityModule } from './modules/social-activity/social-activity.module.js';
 import { TechnicalAuditModule } from './modules/technical-audit/technical-audit.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 
@@ -31,6 +32,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     AuthModule,
     ProjectsModule,
     TechnicalAuditModule,
+    SocialActivityModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ObserveModule.forRoot({

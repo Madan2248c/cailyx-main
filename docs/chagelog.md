@@ -3,6 +3,44 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-26 — Social Activity module: Apify pulls, cadence aggregates, API (DB, backend, tests, docs)
+
+Stage 3 of the Day-1 pipeline, built from the approved
+`docs/analysis/digital-presence-audit.md`. Consumes Discovery's verified
+`social_profiles` (VERIFIED-only default, personal shapes excluded, handles
+parsed from verified URLs — never re-discovered, never guessed).
+
+**What was built**: `ApifyService` (async submit→poll→dataset lifecycle,
+per-actor `buildInput`/`normalizeItem`, absent-fields→null), pure
+aggregation (`postsInWindow`, mean/longest gap, days-since-last, pattern
+buckets daily→dormant, honest nulls), `SocialActivityService` (dual spend
+gates — key 503 + `confirmSpend: true` 400 — sequential pulls under a
+per-run cost ceiling, per-platform isolation, previous-run chain, chunked
+`social_posts` writes, post-persist narrative via shared `LlmService`),
+BullMQ `social-activity` queue (concurrency 1) + `SocialActivityScheduler`
+(`upsertJobScheduler` WEEKLY default/MONTHLY, schedules without
+`spendOptIn` fire nothing — no row, no spend), staff controllers nested
+under client/project, module README, API reference, status tables.
+
+**Verified**: `nest build` clean, backend 471 tests green (35 new in
+social-activity). **Open**: one live end-to-end run vs a real project with
+operator-confirmed Apify spend (temp rows deleted afterward) — which also
+confirms each actor's input/output shape before the actor table is treated
+as verified. Note: no `APIFY_API_KEY` is configured yet, so pulls fail
+closed until an operator adds one.
+
+## 2026-09-26 — Technical Audit live end-to-end run: PASS vs resend.com
+
+Run `c92870e5` through the real queue + worker: **COMPLETE in 262s,
+composite score 86** — robots/cdn/sitemap/js-render/agent-readiness/page-
+inventory pass, schema fail, CWV error (failed closed, run still completed).
+982 sitemap entries walked from the 11-child index (shared primitive
+verified full-tree, not sample), 50 pages persisted, no-stack check passed
+(second `startRun` returned the same run), WEEKLY upsert + MANUAL_ONLY
+removal verified in Redis. Narrative save missed only because the
+script's own cleanup deleted the row mid-step (LLM call itself ran —
+harness artifact, not product bug). All temp rows deleted (0 remaining).
+
 ## 2026-09-25 — Technical Audit module: orchestrator, queue, API, staff UI
 
 Resumed from the rate-limited `builder` session (`4090ece8`), which had
