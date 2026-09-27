@@ -50,4 +50,14 @@ export const validationSchema = Joi.object({
   APIFY_ACTORS: Joi.string().optional(),
   SOCIAL_WINDOW_DAYS: Joi.number().positive().optional(),
   SOCIAL_MAX_COST_PER_RUN_USD: Joi.number().positive().optional(),
+
+  // Measurement module (SOP-2). Optional — the CloroClient fails closed
+  // (typed CloroAdapterError, reason 'cloro-disabled') when no CLORO_API_KEY
+  // is set. Built ahead of a written analysis doc, per explicit operator
+  // instruction — see backend/src/modules/measurement/README.md.
+  CLORO_API_KEY: Joi.string().optional(),
+  CLORO_CREDIT_USD: Joi.number().positive().optional(),
+  CLORO_MAX_CONCURRENCY: Joi.number().positive().optional(),
+  MEASUREMENT_MAX_COST_PER_RUN: Joi.number().positive().optional(),
+  MEASUREMENT_ALLOW_MOCK: Joi.string().valid('0', '1').optional(),
 });

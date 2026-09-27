@@ -77,6 +77,7 @@ model Project {
   socialPosts            SocialPost[]
   socialActivitySchedule SocialActivitySchedule?
   querySets              QuerySet[]
+  measurementRuns        MeasurementRun[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -706,6 +707,7 @@ model QuerySet {
   generationContext CompanyContextProfile? @relation(fields: [generationContextId], references: [id])
   buckets           QuerySetBucket[]
   items             QuerySetItem[]
+  measurementRuns   MeasurementRun[]
 
   @@index([projectId])
   @@index([generationContextId])
@@ -756,8 +758,101 @@ model QuerySetItem {
 
   querySet QuerySet        @relation(fields: [querySetId], references: [id])
   bucket   QuerySetBucket? @relation(fields: [bucketId], references: [id])
+  observations Observation[]
 
   @@index([querySetId])
   @@index([bucketId])
   @@map("query_set_items")
+}
+
+// --- Measurement module (SOP-2) ---
+// See backend/src/modules/measurement/README.md. Measures AI visibility:
+// for every prompt in a project's ACTIVE query set, queries an AI answer
+// surface via Cloro (cloro.dev — ChatGPT/Perplexity/Gemini/Google AI
+// Overview/AI Mode through one API instead of a Playwright session) n
+// times, and scores each answer into a structured Observation
+// (mentioned/cited/position). Append-only, same pattern as every other
+// pipeline module: a run is never edited after it completes.
+
+enum MeasurementRunStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+/// Cloro-backed answer-engine surfaces. `mock` is test-only, gated behind
+/// MEASUREMENT_ALLOW_MOCK — never used in a real run.
+enum MeasurementSurface {
+  cloro_chatgpt
+  cloro_perplexity
+  cloro_gemini
+  cloro_ai_overview
+  cloro_ai_mode
+  mock
+}
+
+model MeasurementRun {
+  id         String               @id @default(uuid()) @db.Uuid
+  projectId  String               @map("project_id") @db.Uuid
+  querySetId String               @map("query_set_id") @db.Uuid
+  surface    MeasurementSurface
+  /// Country code, e.g. "US", "GB".
+  geo        String               @default("US")
+  /// Repeat count per prompt. Was a hard n>=5 floor in the old design;
+  /// lowered to 1 minimum here on the same operator override the old repo
+  /// recorded — a runCount:1 result is a single sample, not a rate, and
+  /// callers must treat it accordingly.
+  runCount   Int                  @default(1) @map("run_count")
+  status     MeasurementRunStatus @default(pending)
+
+  totalRequests     Int   @default(0) @map("total_requests")
+  completedRequests Int   @default(0) @map("completed_requests")
+  failedRequests    Int   @default(0) @map("failed_requests")
+  costTotal         Float @default(0) @map("cost_total")
+  error             String?
+
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  project      Project       @relation(fields: [projectId], references: [id])
+  querySet     QuerySet      @relation(fields: [querySetId], references: [id])
+  observations Observation[]
+
+  @@index([projectId])
+  @@index([querySetId])
+  @@map("measurement_runs")
+}
+
+model Observation {
+  id        String @id @default(uuid()) @db.Uuid
+  runId     String @map("run_id") @db.Uuid
+  itemId    String @map("item_id") @db.Uuid
+  runNumber Int    @map("run_number")
+  /// Denormalized from the item at execution time — the prompt text used
+  /// stays fixed even if the item is later removed from a still-draft set.
+  prompt    String
+
+  mentioned        Boolean
+  cited            Boolean
+  citedUrl         String? @map("cited_url")
+  /// 1-based index among the surface's citations. Diagnostics only — never
+  /// surfaced as a headline metric (rates, never positions).
+  position         Int?
+  characterization String
+
+  rawAnswer String @map("raw_answer")
+  costUsd   Float  @map("cost_usd")
+  latencyMs Int    @map("latency_ms")
+  model     String
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  run  MeasurementRun @relation(fields: [runId], references: [id])
+  item QuerySetItem   @relation(fields: [itemId], references: [id])
+
+  @@index([runId])
+  @@index([itemId])
+  @@map("observations")
 }

@@ -32,6 +32,7 @@ function buildRawPrismaMock() {
       findFirst: vi.fn(),
     },
     project: {
+      findUnique: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -115,6 +116,7 @@ function buildRawPrismaMock() {
     },
     // --- Query Set module ---
     querySet: {
+      findUnique: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -125,9 +127,24 @@ function buildRawPrismaMock() {
     },
     querySetItem: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
       createMany: vi.fn(),
       delete: vi.fn(),
+    },
+    // --- Measurement module ---
+    measurementRun: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      count: vi.fn(),
+    },
+    observation: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+      deleteMany: vi.fn(),
     },
   };
 }
