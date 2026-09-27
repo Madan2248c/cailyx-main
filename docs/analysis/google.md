@@ -90,9 +90,15 @@ request from the refresh token). No metrics stored — every read is live.
 - Unconfigured (`GOOGLE_CLIENT_ID/SECRET` unset) → 503
   `google-unconfigured`, nothing attempted.
 - No connection / missing scope → 404 `google-not-connected`.
-- No matching site/property → 200 with null + the UI explains.
-- Google API error / expired grant → 503 `google-fetch-failed` (revoked
-  grants surface here; the UI offers reconnect).
+- Revoked or unchecked grant (Google 403s) → 403 `google-scope-missing`
+  with reconnect guidance; the UI answers with a reconnect card, and the
+  next grant overwrites stored scopes with exactly what Google granted
+  (the consent screen lets users uncheck boxes — merging would preserve
+  a lie).
+- No matching site/property → 404 `google-no-site` / `google-no-property`
+  (linked, but nothing for this domain) with a manual picker; explicit
+  picks are validated against the account.
+- Other Google API errors → 503 `google-fetch-failed`.
 
 ## Out of scope
 
