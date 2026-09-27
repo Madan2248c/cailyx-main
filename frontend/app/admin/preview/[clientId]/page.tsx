@@ -2,38 +2,46 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
-import { CreateProjectDialog } from '@/components/admin/create-project-dialog';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
-import { archiveProject, listProjects } from '@/lib/projects-api';
+import { listProjects } from '@/lib/projects-api';
+import { listClients } from '@/lib/team-api';
 import type { Project } from '@/types/project';
 
-export default function ClientProjectsPage() {
+export default function AdminPreviewClientPage() {
   const { user, accessToken, isLoading } = useAuth();
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const clientId = params.id;
+  const params = useParams<{ clientId: string }>();
+  const clientId = params.clientId;
 
+  const [clientName, setClientName] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setProjects(await listProjects(accessToken, clientId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load projects');
-    }
-  }, [accessToken, clientId]);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'ADMIN')) {
       router.replace('/dashboard');
     }
   }, [isLoading, user, router]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    let cancelled = false;
+
+    listClients(accessToken)
+      .then((clients) => {
+        if (!cancelled) setClientName(clients.find((c) => c.id === clientId)?.name ?? clientId);
+      })
+      .catch(() => {
+        if (!cancelled) setClientName(clientId);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, clientId]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -52,20 +60,6 @@ export default function ClientProjectsPage() {
     };
   }, [accessToken, clientId]);
 
-  async function handleArchive(project: Project) {
-    if (!accessToken) return;
-    setPendingId(project.id);
-    setError(null);
-    try {
-      await archiveProject(accessToken, clientId, project.id);
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setPendingId(null);
-    }
-  }
-
   if (isLoading || !user || user.role !== 'ADMIN') {
     return (
       <div className="flex flex-1 items-center justify-center">
@@ -81,30 +75,23 @@ export default function ClientProjectsPage() {
           ← Clients
         </Button>
       </div>
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Projects</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={<Link href={`/admin/preview/${clientId}`}>Preview as client</Link>}
-          />
-          {accessToken ? (
-            <CreateProjectDialog accessToken={accessToken} clientId={clientId} onCreated={refresh} />
-          ) : null}
-        </div>
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+        <p className="text-sm font-medium">Previewing {clientName ?? '…'} — read-only</p>
+        <p className="text-sm text-muted-foreground">
+          You are viewing this client&apos;s projects as an admin. Nothing here can be edited.
+        </p>
       </div>
+      <h1 className="text-xl font-semibold">Projects</h1>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      {projects === null ? (
+      {projects === null && !error ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : projects.length === 0 ? (
+      ) : (projects ?? []).length === 0 && !error ? (
         <p className="text-sm text-muted-foreground">No projects yet.</p>
       ) : (
         <div className="flex flex-col gap-3">
-          {projects.map((project) => (
+          {(projects ?? []).map((project) => (
             <Card key={project.id}>
               <CardHeader>
                 <CardTitle className="text-base">{project.name}</CardTitle>
@@ -114,11 +101,9 @@ export default function ClientProjectsPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={pendingId === project.id}
-                  onClick={() => handleArchive(project)}
-                >
-                  Archive
-                </Button>
+                  nativeButton={false}
+                  render={<Link href={`/admin/preview/${clientId}/projects/${project.id}`}>Preview</Link>}
+                />
               </CardContent>
             </Card>
           ))}

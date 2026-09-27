@@ -85,6 +85,8 @@ model Project {
   competitorProfiles     CompetitorProfile[]
   reports                Report[]
   day1PipelineRun        Day1PipelineRun?
+  dataforseoSchedule     DataforseoSchedule?
+  dataforseoSnapshots    DataforseoSnapshot[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -1314,6 +1316,79 @@ model Day1PipelineRun {
 
   @@index([clientId])
   @@map("day1_pipeline_runs")
+}
+
+// --- DataForSEO (scheduled-data) module ---
+// See docs/analysis/dataforseo.md for the full design. Scheduled pulls of
+// paid SERP/backlink/keyword data per project. 2 tables, append-only (no
+// deletedAt — same reasoning as every other pipeline module: a schedule
+// being off is `active: false`, never a delete, and a snapshot is never
+// edited or deleted after it is written).
+//
+// Unlike Technical Audit / Social Activity, `next_run_at` IS stored here:
+// the scheduler advances it on every tick, so a missed interval never
+// fires a backlog of catch-up runs and the next due time is inspectable
+// without reading Redis.
+//
+// This build NEVER calls live DataForSEO: the only adapter wired into the
+// module is the Mock adapter (gated behind DATAFORSEO_ALLOW_MOCK, same
+// pattern as measurement's mock adapter). The live adapter exists only as
+// a fail-closed stub documenting the wiring follow-ups.
+
+enum DataforseoCadence {
+  WEEKLY
+  MONTHLY
+  MANUAL_ONLY
+}
+
+model DataforseoSchedule {
+  id        String            @id @default(uuid()) @db.Uuid
+  projectId String            @unique @map("project_id") @db.Uuid
+  cadence   DataforseoCadence @default(MANUAL_ONLY)
+  /// Off is `active: false`, never a delete.
+  active    Boolean           @default(true)
+  /// Subset of the module's dataset keys (see dataforseo.types.ts
+  /// DATASETS). Empty means the module defaults.
+  datasets   String[]  @default([])
+  /// Next due time, advanced on every tick. Null for MANUAL_ONLY.
+  /// BullMQ's job scheduler also tracks the recurrence — this column is
+  /// the inspectable guard the tick honors, not a second scheduler.
+  nextRunAt  DateTime? @map("next_run_at")
+  /// The scheduler fires nothing unless this is true — scheduled pulls
+  /// must never spend without opt-in.
+  spendOptIn Boolean   @default(false) @map("spend_opt_in")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@map("dataforseo_schedules")
+}
+
+model DataforseoSnapshot {
+  id        String @id @default(uuid()) @db.Uuid
+  /// Denormalized, same pattern as audit_pages — backs project-scoped
+  /// queries without a join.
+  projectId String @map("project_id") @db.Uuid
+  /// One of the module's dataset keys (e.g. serp-ranks). Plain String,
+  /// not an enum — adding a dataset later must not require a migration.
+  dataset     String    @map("dataset")
+  periodStart DateTime? @map("period_start")
+  periodEnd   DateTime? @map("period_end")
+  /// The adapter's fixture-normalized payload for this dataset — one blob,
+  /// same pattern as technical_audit_runs.result.
+  payload Json
+  /// What the adapter reported this dataset cost (mock: fixture estimate).
+  costUsd Float? @map("cost_usd")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([projectId, dataset])
+  @@map("dataforseo_snapshots")
 }
 
 // --- Google module (Search Console + Analytics) ---

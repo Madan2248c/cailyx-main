@@ -432,6 +432,45 @@ Errors: `404` set not found.
 
 ---
 
+## DataForSEO (scheduled-data) — requires `Authorization` header
+
+See `docs/analysis/dataforseo.md` for the design and
+`backend/src/modules/dataforseo/README.md` for operational notes. Given
+a project, this module collects paid SERP/backlink/keyword datasets
+(`serp-ranks`, `backlinks-summary`, `keyword-overview`) into append-only
+snapshots, on demand or on a WEEKLY/MONTHLY recurrence with spend
+opt-in. **Mock-only build**: the only adapter is deterministic and
+offline (gated behind `DATAFORSEO_ALLOW_MOCK`) — no live DataForSEO
+call exists, no credit is spent. Snapshots are read-only: no
+update/delete endpoint exists on purpose.
+
+### `POST /team/clients/:clientId/projects/:projectId/dataforseo-collect` — **ADMIN only**
+Collects one snapshot per dataset now.
+Request: `{ "datasets"?: ["serp-ranks", "backlinks-summary", "keyword-overview"] }` (omitted = all).
+Response `201`: `{ "snapshots": [{ id, dataset, costUsd }], "totalCostUsd": number, "skipped": string[] }`
+(`skipped` = datasets not collected because the `DATAFORSEO_MAX_COST_PER_RUN_USD` cap stopped the run).
+Errors: `404` project not found; `400` unknown dataset; `503` mock adapter disabled.
+
+### `GET /team/clients/:clientId/projects/:projectId/dataforseo-snapshots` — requires `view_projects`
+This project's snapshots, newest first (max 100, default 20). `?dataset=` filters.
+Errors: `404` project not found; `400` unknown dataset filter.
+
+### `GET /team/clients/:clientId/dataforseo-snapshots/:snapshotId` — requires `view_projects`
+One snapshot: dataset, period, payload, cost.
+Errors: `404` snapshot not found, or it belongs to another client's project.
+
+### `PUT /team/clients/:clientId/projects/:projectId/dataforseo-schedule` — **ADMIN only**
+Sets the recurring cadence + datasets + spend opt-in. `MANUAL_ONLY` removes the recurrence.
+The scheduler fires nothing unless `spendOptIn` is true, and never before the stored `nextRunAt`.
+Request: `{ "cadence": "WEEKLY"|"MONTHLY"|"MANUAL_ONLY", "datasets"?: [...], "spendOptIn"?: boolean }`
+Response `200`: the schedule row (`{ id, projectId, cadence, active, datasets, nextRunAt, spendOptIn, … }`).
+Errors: `404` project not found; `400` invalid cadence.
+
+### `GET /team/clients/:clientId/projects/:projectId/dataforseo-schedule` — requires `view_projects`
+Current schedule + config, or `null` when none was ever set.
+Errors: `404` project not found.
+
+---
 
 ## Roles & permissions
 

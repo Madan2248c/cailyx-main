@@ -196,13 +196,31 @@ deferred-invite admin dialogs, and the client **onboarding wizard**
 company-context/socials/competitors, editable by the POC via the client
 correction endpoints, read-only for members) have UI in `frontend/`.
 
-Nothing exists yet for: discovery progress, technical-audit results,
-social-activity results, query-set builder/viewer, measurement runs,
-aeo-audit verdict/narrative, gap-analysis recommendations list,
-competitors comparison, or the report viewer (client-facing). The Organic
-tab exists with connect-gated Search Console / Analytics dashboards
-(`docs/analysis/google.md`); it shows connect cards until the client's
-Google account is linked. Each module's own README documents its REST API surface — that's
+Client portal tabs (all live-data, verified 200 on 2026-09-28):
+**Social** (`/client/projects/[id]/performance/social` — cadence buckets,
+run history via `social-api.ts`); **Dashboard** (`DashboardTab` +
+`RankHistory` growth band — rank trend with growth shading from
+measurement/stance history); **Reports** (`ReportDetail` — full viewer);
+**Competitors** (`CompetitorsTab` + `RankMovement` — rank movement vs
+rivals); **Settings** (live project/client data); **Organic insights**
+(connect-gated Search Console / Analytics dashboards per
+`docs/analysis/google.md` — connect cards until the client's Google
+account is linked; POC-only connect, members read); **AI visibility**
+verdict KPIs, surfaces, stance, rivals.
+Admin: **preview** (`/admin/preview/x` — report preview with section
+error boundaries) and **schedules** (`/admin/schedules` + per-project
+`social-activity-schedule` / `technical-audit-schedule` API routes and
+project schedule cards).
+
+**DataForSEO scheduled module** (`docs/analysis/dataforseo.md`,
+`backend/src/modules/dataforseo/`): SERP-rank snapshots + scheduler
+(collect/snapshots/schedule endpoints, BullMQ queue + processor), Prisma
+models + migration `20260927215954_add_dataforseo_module`. **Mock-gated
+by default** — the mock adapter serves deterministic snapshots; the live
+adapter never fires unless explicitly enabled (no live calls, no spend
+without opt-in). Frontend proxies via `dataforseo-api.ts` +
+`dataforseo-snapshots` API routes.
+Each module's own README documents its REST API surface — that's
 the contract to build the frontend against.
 
 ## Reference docs, in build order

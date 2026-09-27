@@ -3,6 +3,34 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Client portal tabs, admin preview+schedules, DataForSEO scheduler, rank-history growth
+
+Complete client portal wave: **Social tab** (cadence buckets + run history,
+`SocialTab`, `social-api.ts`, `/performance/social` page); **Dashboard /
+Reports / Competitors / Settings live-data** (`DashboardTab` wired to live
+runs, `ReportDetail` full viewer, `CompetitorsTab` + `RankMovement`,
+settings from live project/client); **Organic insights** (GSC/GA4 dashboards,
+connect-gated); **AI visibility** (verdict KPIs, surfaces, stance, rivals);
+**admin preview** (`/admin/preview/x` with section error boundaries) +
+**schedules** (`/admin/schedules`, project schedule cards,
+social-activity/technical-audit schedule API routes); **DataForSEO scheduled
+module** (spec `docs/analysis/dataforseo.md`: SERP-rank snapshots, BullMQ
+scheduler + processor, mock adapter default / live adapter opt-in only —
+mock-gated, no live calls, no spend; migration
+`20260927215954_add_dataforseo_module`; collect/snapshots/schedule
+endpoints; frontend `dataforseo-api.ts` proxies); **rank-history growth band**
+(`RankHistory` trend with growth shading).
+
+**Verified**: backend `vitest` 89 files / 785 tests passed, `tsc --noEmit`
+clean (backend + frontend), `oxlint --type-aware` clean in wave files
+(pre-existing warnings elsewhere untouched), frontend `eslint` clean;
+backend restarted from fresh `dist` (root 200, snapshots with bad token
+401 not 404); frontend spot-checks all 200 (`/client`,
+`/client/projects/abc`, `/competitors`, `/performance/social`,
+`/admin/schedules`, `/admin/preview/x`,
+`/performance/visibility/organic`). No live DataForSEO calls; no secrets
+printed.
+
 ## 2026-09-28 — Google module (Search Console + Analytics) + Organic tab
 
 Per-client OAuth (incremental scopes, refresh token AES-256-GCM at rest,

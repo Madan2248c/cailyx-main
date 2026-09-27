@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { listTechnicalAuditRuns } from '@/lib/technical-api';
+import { RankHistory } from '@/components/dashboard/RankHistory';
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import {
   getCompetitorGap,
@@ -354,7 +355,10 @@ export function DashboardTab({
         </Card>
       </div>
 
-      {/* 2) Needs attention — top 3 cross-module actions */}
+      {/* 2) Rank-history strip — omits itself when there is no rank history */}
+      <RankHistory accessToken={accessToken} clientId={clientId} projectId={projectId} />
+
+      {/* 3) Needs attention — top 3 cross-module actions */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Needs attention</CardTitle>
@@ -380,7 +384,7 @@ export function DashboardTab({
         ) : null}
       </Card>
 
-      {/* 3) Latest report card */}
+      {/* 4) Latest report card */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Latest report</CardTitle>
@@ -404,7 +408,7 @@ export function DashboardTab({
         </CardContent>
       </Card>
 
-      {/* 4) KPI tiles per module */}
+      {/* 5) KPI tiles per module */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((tile) => (
           <Link key={tile.label} href={tile.href} className="block">

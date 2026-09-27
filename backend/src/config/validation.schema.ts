@@ -25,6 +25,11 @@ export const validationSchema = Joi.object({
   SWARM_ALLOW_LIVE: Joi.string().valid('0', '1').default('0'),
   PRESENCE_SERP_MAX_QUERIES: Joi.number().positive().default(20),
 
+  // DataForSEO module. Optional — mock collects unless explicitly disabled;
+  // per-run spend is capped so a live run cannot exceed budget.
+  DATAFORSEO_ALLOW_MOCK: Joi.string().valid('0', '1').default('1'),
+  DATAFORSEO_MAX_COST_PER_RUN_USD: Joi.number().positive().default(5.0),
+
   // Per-run crawl budgets. Ported from the old repo's AEO_CONTEXT_* env vars
   // (same defaults); optional, so the pipeline's own defaults apply when unset.
   // They exist mainly so a live end-to-end run can be widened without a code

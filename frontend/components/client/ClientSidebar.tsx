@@ -12,6 +12,7 @@ import {
   LogOut,
   Search,
   Settings,
+  Share2,
   Sparkles,
   Users,
   Wrench,
@@ -54,6 +55,7 @@ function projectNav(projectId: string): NavSection[] {
         { label: 'Technical', href: `${base}/performance/technical`, icon: Wrench },
         { label: 'Organic', href: `${base}/performance/visibility/organic`, icon: Search, indent: true },
         { label: 'AI', href: `${base}/performance/visibility/ai`, icon: Sparkles, indent: true },
+        { label: 'Social', href: `${base}/performance/social`, icon: Share2 },
       ],
     },
     {

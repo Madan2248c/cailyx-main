@@ -198,6 +198,19 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       update: vi.fn(),
     },
+    // --- DataForSEO (scheduled-data) module ---
+    dataforseoSchedule: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      update: vi.fn(),
+    },
+    dataforseoSnapshot: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      count: vi.fn(),
+    },
     // --- Google module ---
     googleConnection: {
       findUnique: vi.fn(),

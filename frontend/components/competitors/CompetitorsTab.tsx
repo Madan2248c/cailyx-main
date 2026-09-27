@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { getCompetitorsGap, listCompetitorProfiles } from '@/lib/competitors-api';
+import { RankMovement } from '@/components/competitors/RankMovement';
 import { addCompetitor, patchCompetitor } from '@/lib/onboarding-api';
 import type {
   CompetitorWithProfile,
@@ -369,6 +370,8 @@ export function CompetitorsTab({
           </Card>
         </>
       )}
+
+      <RankMovement accessToken={accessToken} clientId={clientId} projectId={projectId} />
 
       <Card>
         <CardHeader>

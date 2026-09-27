@@ -132,6 +132,72 @@ function DeltasCard({ deltas }: { deltas: ReportDelta[] }) {
   );
 }
 
+const GROWTH_SUBJECT: Record<string, string> = {
+  score: "Your site's technical health",
+  totalPostsInWindow: 'Your posting volume',
+  overallMentionRate: 'How often AI answers mention you',
+  overallCitationRate: 'How often AI answers cite you',
+};
+
+function growthSentence(delta: ReportDelta): string {
+  const subject = GROWTH_SUBJECT[delta.metric] ?? (DELTA_LABEL[delta.metric] ?? delta.metric);
+  const prev = formatDeltaValue(delta.metric, delta.previous);
+  const cur = formatDeltaValue(delta.metric, delta.current);
+  const direction = deltaDirection(delta);
+  if (direction === 'unknown') return `${subject}: ${prev} → ${cur}.`;
+  if (direction === 'unchanged') return `${subject} held steady at ${cur} since last month.`;
+  const verdict = direction === 'improved' ? "That's growth." : 'A dip to watch.';
+  return `${subject} was ${prev} last month — now it's ${cur}. ${verdict}`;
+}
+
+function GrowthBand({ deltas }: { deltas: ReportDelta[] }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">How you&apos;ve grown</CardTitle>
+        <CardDescription>Last month vs now — every measured change in this report</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col p-0">
+        {deltas.map((d, i) => {
+          const direction = deltaDirection(d);
+          const change = deltaChangeText(d);
+          return (
+            <div
+              key={`${d.module}:${d.metric}`}
+              className={`flex flex-col gap-1 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
+            >
+              <div className="flex items-baseline justify-between gap-3">
+                <p>{DELTA_LABEL[d.metric] ?? d.metric}</p>
+                <p className="flex shrink-0 items-baseline gap-1.5">
+                  <span className="text-muted-foreground">
+                    {formatDeltaValue(d.metric, d.previous)} → {formatDeltaValue(d.metric, d.current)}
+                  </span>
+                  {change ? (
+                    <span
+                      className={
+                        direction === 'improved'
+                          ? 'font-medium text-green-600'
+                          : direction === 'regressed'
+                            ? 'font-medium text-red-600'
+                            : 'text-muted-foreground'
+                      }
+                    >
+                      {direction === 'improved' ? '▲' : direction === 'regressed' ? '▼' : '●'} {change}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">● no change</span>
+                  )}
+                </p>
+              </div>
+              <p className="text-muted-foreground">{growthSentence(d)}</p>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
 function ActionsCard({ gapAnalysis }: { gapAnalysis: GapAnalysisSection }) {
   const top = [...gapAnalysis.recommendations].sort((a, b) => a.rank - b.rank).slice(0, 3);
   if (top.length === 0) return null;
@@ -424,6 +490,7 @@ export function ReportDetail({
         </p>
       </div>
 
+      {report.kind === 'MONTHLY' && deltas.length > 0 ? <GrowthBand deltas={deltas} /> : null}
       {deltas.length > 0 ? <DeltasCard deltas={deltas} /> : null}
       {content.gapAnalysis ? <ActionsCard gapAnalysis={content.gapAnalysis} /> : null}
 
