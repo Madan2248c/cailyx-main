@@ -1,11 +1,11 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
-import { CreateCompetitorDto } from '../dto/competitors.dto.js';
+import { CreateCompetitorDto, UpdateCompetitorDto } from '../dto/competitors.dto.js';
 import { CompetitorsService } from '../services/competitors.service.js';
 
 /**
@@ -46,5 +46,35 @@ export class CompetitorsController {
   @RequirePermission('view_projects')
   getGap(@Param('clientId') clientId: string, @Param('projectId') projectId: string) {
     return this.competitors.getGap(clientId, projectId);
+  }
+
+  /**
+   * POST …/competitors/manual — client adds a missing rival (tracked,
+   * manual). POC-only: this writes the shared Competitor table.
+   */
+  @Post('manual')
+  @RequirePermission('manage_client_settings')
+  @HttpCode(HttpStatus.CREATED)
+  addManual(
+    @Param('clientId') clientId: string,
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateCompetitorDto,
+  ) {
+    return this.competitors.create(clientId, projectId, dto);
+  }
+
+  /**
+   * PATCH …/competitors/:id — client fixes name/domain or confirms
+   * (tracked) / demotes (candidate) a rival. POC-only, same reasoning.
+   */
+  @Patch(':id')
+  @RequirePermission('manage_client_settings')
+  update(
+    @Param('clientId') clientId: string,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateCompetitorDto,
+  ) {
+    return this.competitors.updateCompetitor(clientId, projectId, id, dto);
   }
 }

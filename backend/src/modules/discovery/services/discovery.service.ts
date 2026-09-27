@@ -18,9 +18,10 @@
  */
 
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { DiscoveryRunStatus } from '../../../generated/prisma/enums.js';
 import {
@@ -36,8 +37,11 @@ import {
 import {
   readPageState,
   readRunState,
+  type ArrayField,
   type CompanyContextProfileJson,
+  type FactValue,
   type RunPipelineState,
+  type ScalarField,
 } from '../discovery.types.js';
 import { DISCOVERY_CONTINUATION_JOB_OPTIONS, DISCOVERY_JOB, DISCOVERY_JOB_OPTIONS, DISCOVERY_QUEUE, type DiscoveryJobData } from '../queue/discovery.queue.js';
 import { RunPausedException, RunBudget, type BudgetLimits, type DiscoveryProjectRef, type DiscoveryRunContext } from './pipeline-context.js';
@@ -64,6 +68,87 @@ interface PipelineStage {
 
 /** Rare enough to be worth naming: the statuses that mean "this run is finished". */
 const TERMINAL_STATUSES = new Set<DiscoveryRunStatus>(['COMPLETE', 'COMPLETE_WITH_GAPS', 'MANUAL_REVIEW_REQUIRED']);
+
+/**
+ * Client-editable profile paths (`section.field` → kind). Everything except
+ * the evidence/meta sections (`sources`, `conflicts`, `missing_fields`,
+ * `research_metadata`) — the client corrects claims, never provenance.
+ */
+const EDITABLE_PROFILE_FIELDS: Record<string, 'scalar' | 'array'> = {
+  'identity.business_name': 'scalar',
+  'identity.legal_name': 'scalar',
+  'identity.alternate_names': 'array',
+  'identity.brands': 'array',
+  'identity.company_type': 'scalar',
+  'identity.parent_company': 'scalar',
+  'identity.subsidiaries': 'array',
+  'identity.founded_year': 'scalar',
+  'identity.primary_domain': 'scalar',
+  'identity.related_domains': 'array',
+  'identity.logo_url': 'scalar',
+  'descriptions.one_line': 'scalar',
+  'descriptions.short': 'scalar',
+  'descriptions.detailed': 'scalar',
+  'offerings.products': 'array',
+  'offerings.services': 'array',
+  'offerings.solutions': 'array',
+  'offerings.packages': 'array',
+  'offerings.delivery_model': 'scalar',
+  'offerings.pricing_model': 'scalar',
+  'offerings.pricing_details': 'array',
+  'offerings.free_trial': 'scalar',
+  'offerings.demo_available': 'scalar',
+  'positioning.value_propositions': 'array',
+  'positioning.differentiators': 'array',
+  'positioning.problems_solved': 'array',
+  'positioning.outcomes_promised': 'array',
+  'positioning.key_messages': 'array',
+  'positioning.claims_and_proof': 'array',
+  'customers.icp_summary': 'scalar',
+  'customers.company_sizes': 'array',
+  'customers.industries': 'array',
+  'customers.buyer_roles': 'array',
+  'customers.user_roles': 'array',
+  'customers.use_cases': 'array',
+  'customers.named_customers': 'array',
+  'customers.customer_examples': 'array',
+  'geography.headquarters': 'scalar',
+  'geography.offices': 'array',
+  'geography.service_areas': 'array',
+  'geography.countries': 'array',
+  'geography.regions': 'array',
+  'geography.languages': 'array',
+  'geography.remote_or_local_delivery': 'scalar',
+  'go_to_market.business_model': 'scalar',
+  'go_to_market.sales_motion': 'scalar',
+  'go_to_market.self_serve': 'scalar',
+  'go_to_market.primary_ctas': 'array',
+  'go_to_market.distribution_channels': 'array',
+  'go_to_market.partners': 'array',
+  'go_to_market.marketplaces': 'array',
+  'credibility.case_studies': 'array',
+  'credibility.testimonials': 'array',
+  'credibility.awards': 'array',
+  'credibility.certifications': 'array',
+  'credibility.security_and_compliance': 'array',
+  'credibility.review_profiles': 'array',
+  'credibility.ratings': 'array',
+  'organization.founders': 'array',
+  'organization.leadership': 'array',
+  'organization.team_members': 'array',
+  'organization.team_size': 'scalar',
+  'organization.hiring_areas': 'array',
+  'organization.contact_details': 'array',
+  'digital_presence.social_profiles': 'array',
+  'digital_presence.app_profiles': 'array',
+  'digital_presence.developer_profiles': 'array',
+  'digital_presence.content_channels': 'array',
+  'digital_presence.community_links': 'array',
+  'technology.integrations': 'array',
+  'technology.platforms_supported': 'array',
+  'technology.api_available': 'scalar',
+  'technology.technology_signals': 'array',
+};
 
 @Injectable()
 export class DiscoveryService {
@@ -507,6 +592,97 @@ export class DiscoveryService {
       where: { projectId },
       orderBy: [{ score: 'desc' }, { platform: 'asc' }],
     });
+  }
+
+  /**
+   * Client corrections to the latest company-context profile (onboarding).
+   * Applies `section.field` updates onto the newest profile row in place —
+   * the client is authoritative over their own facts, so corrected values
+   * keep `supported` status; untouched evidence stays for provenance.
+   * Unknown paths and kind mismatches are 400s.
+   */
+  async updateProfileFields(clientId: string, projectId: string, fields: Record<string, unknown>) {
+    await this.assertProjectInClient(projectId, clientId);
+    const profile = await this.prisma.companyContextProfile.findFirst({
+      where: { projectId },
+      orderBy: { version: 'desc' },
+    });
+    if (!profile) {
+      throw new NotFoundException('No company profile exists for this project yet.');
+    }
+
+    const json = structuredClone(profile.profileJson) as unknown as Record<string, Record<string, unknown>>;
+    for (const [path, raw] of Object.entries(fields)) {
+      const kind = EDITABLE_PROFILE_FIELDS[path];
+      if (!kind) {
+        throw new BadRequestException(`Unknown or non-editable field '${path}'.`);
+      }
+      const [section, field] = path.split('.');
+      if (kind === 'scalar') {
+        if (raw !== null && typeof raw !== 'string') {
+          throw new BadRequestException(`Field '${path}' takes a string or null.`);
+        }
+        const trimmed = typeof raw === 'string' ? raw.trim() : null;
+        if (trimmed !== null && trimmed.length > 2000) {
+          throw new BadRequestException(`Field '${path}' must be at most 2000 characters.`);
+        }
+        const current = json[section][field] as ScalarField;
+        json[section][field] =
+          trimmed === null || trimmed === '' ? null : current ? { ...current, value: trimmed } : this.clientFact(trimmed);
+      } else {
+        if (!Array.isArray(raw) || !raw.every((v) => typeof v === 'string')) {
+          throw new BadRequestException(`Field '${path}' takes an array of strings.`);
+        }
+        const values = raw.map((v) => v.trim()).filter((v) => v.length > 0);
+        if (values.length > 50) {
+          throw new BadRequestException(`Field '${path}' takes at most 50 values.`);
+        }
+        const current = (json[section][field] ?? []) as ArrayField;
+        const byValue = new Map(current.map((f) => [f.value, f]));
+        json[section][field] = values.map((v) => byValue.get(v) ?? this.clientFact(v));
+      }
+    }
+
+    await this.prisma.companyContextProfile.update({
+      where: { id: profile.id },
+      data: { profileJson: asJson(json) },
+    });
+    return this.latestProfile(clientId, projectId);
+  }
+
+  /**
+   * Corrects a social profile URL (onboarding). The old verification no
+   * longer applies to a new URL, so verification resets to POSSIBLE with
+   * no score — honest, not carried over.
+   */
+  async updateSocialProfile(clientId: string, projectId: string, id: string, url: string) {
+    await this.assertProjectInClient(projectId, clientId);
+    const existing = await this.prisma.socialProfile.findFirst({ where: { id, projectId } });
+    if (!existing) {
+      throw new NotFoundException('Social profile not found.');
+    }
+    const clean = url.trim();
+    if (!/^[^\s@]+\.[^\s@]+(\/\S*)?$/.test(clean)) {
+      throw new BadRequestException('url must look like a profile link (e.g. linkedin.com/company/acme).');
+    }
+    return this.prisma.socialProfile.update({
+      where: { id },
+      data: { url: clean, verificationStatus: 'POSSIBLE', score: null, verifiedAt: null },
+    });
+  }
+
+  /** A client-supplied fact: authoritative, with no crawler evidence behind it. */
+  private clientFact(value: string): FactValue {
+    return {
+      fact_id: randomUUID(),
+      value,
+      status: 'supported',
+      fact_type: 'explicit',
+      confidence: 1,
+      last_checked_at: new Date().toISOString(),
+      evidence_ids: [],
+      evidence: [],
+    };
   }
 
   private publicRun(run: {

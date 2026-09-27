@@ -1,6 +1,6 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -405,6 +405,125 @@ describe('DiscoveryService', () => {
       prisma.project.findFirst.mockResolvedValue(null);
 
       await expect(service.listRuns('client-1', 'project-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateProfileFields', () => {
+    const fact = (value: string) => ({
+      fact_id: 'f1',
+      value,
+      status: 'supported',
+      fact_type: 'explicit',
+      confidence: 0.9,
+      last_checked_at: '2026-01-01',
+      evidence_ids: [],
+      evidence: [],
+    });
+
+    function profileRow() {
+      return {
+        id: 'profile-1',
+        profileJson: {
+          identity: { business_name: fact('Acme'), legal_name: null },
+          customers: { industries: [fact('SaaS'), fact('Fintech')] },
+        },
+      };
+    }
+
+    beforeEach(() => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.companyContextProfile.findFirst.mockResolvedValue(profileRow());
+      prisma.companyContextProfile.update.mockImplementation((args: { data: { profileJson: unknown } }) =>
+        Promise.resolve({ id: 'profile-1', profileJson: args.data.profileJson }),
+      );
+    });
+
+    it('updates a scalar in place, keeping its fact metadata', async () => {
+      await service.updateProfileFields('client-1', 'project-1', { 'identity.business_name': 'Acme Inc' });
+
+      const written = prisma.companyContextProfile.update.mock.calls[0][0].data.profileJson as {
+        identity: { business_name: { value: string; fact_id: string } };
+      };
+      expect(written.identity.business_name.value).toBe('Acme Inc');
+      expect(written.identity.business_name.fact_id).toBe('f1');
+    });
+
+    it('clears a scalar on empty string and fills a missing one with a client fact', async () => {
+      await service.updateProfileFields('client-1', 'project-1', {
+        'identity.business_name': '',
+        'identity.legal_name': 'Acme Ltd',
+      });
+
+      const written = prisma.companyContextProfile.update.mock.calls[0][0].data.profileJson as {
+        identity: { business_name: null; legal_name: { value: string; fact_id: string; evidence: unknown[] } };
+      };
+      expect(written.identity.business_name).toBeNull();
+      expect(written.identity.legal_name.value).toBe('Acme Ltd');
+      expect(written.identity.legal_name.evidence).toEqual([]);
+    });
+
+    it('replaces an array, preserving surviving facts and minting new ones', async () => {
+      await service.updateProfileFields('client-1', 'project-1', {
+        'customers.industries': ['Fintech', 'Health'],
+      });
+
+      const written = prisma.companyContextProfile.update.mock.calls[0][0].data.profileJson as {
+        customers: { industries: Array<{ value: string; fact_id: string }> };
+      };
+      expect(written.customers.industries.map((f) => f.value)).toEqual(['Fintech', 'Health']);
+      expect(written.customers.industries[0].fact_id).toBe('f1');
+      expect(written.customers.industries[1].fact_id).not.toBe('f1');
+    });
+
+    it('400s on unknown paths and kind mismatches', async () => {
+      await expect(
+        service.updateProfileFields('client-1', 'project-1', { 'identity.nope': 'x' }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.updateProfileFields('client-1', 'project-1', { 'identity.business_name': ['x'] }),
+      ).rejects.toThrow(BadRequestException);
+      await expect(
+        service.updateProfileFields('client-1', 'project-1', { 'customers.industries': 'x' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.companyContextProfile.update).not.toHaveBeenCalled();
+    });
+
+    it('404s when no profile exists yet', async () => {
+      prisma.companyContextProfile.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.updateProfileFields('client-1', 'project-1', { 'identity.business_name': 'x' }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('updateSocialProfile', () => {
+    it('updates the URL and resets verification', async () => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.socialProfile.findFirst.mockResolvedValue({ id: 'sp-1', url: 'old' });
+      prisma.socialProfile.update.mockResolvedValue({ id: 'sp-1' });
+
+      await service.updateSocialProfile('client-1', 'project-1', 'sp-1', 'linkedin.com/company/acme');
+
+      expect(prisma.socialProfile.update).toHaveBeenCalledWith({
+        where: { id: 'sp-1' },
+        data: { url: 'linkedin.com/company/acme', verificationStatus: 'POSSIBLE', score: null, verifiedAt: null },
+      });
+    });
+
+    it('404s outside the project and 400s on garbage URLs', async () => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.socialProfile.findFirst.mockResolvedValue(null);
+
+      await expect(service.updateSocialProfile('client-1', 'project-1', 'missing', 'x.com/y')).rejects.toThrow(
+        NotFoundException,
+      );
+
+      prisma.socialProfile.findFirst.mockResolvedValue({ id: 'sp-1', url: 'old' });
+      await expect(service.updateSocialProfile('client-1', 'project-1', 'sp-1', 'not a url')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.socialProfile.update).not.toHaveBeenCalled();
     });
   });
 });

@@ -236,6 +236,23 @@ Facebook, X, TikTok, Threads) are never fetched, so they can never exceed
 limitation to work around.
 Errors: `404` project not found.
 
+### `PATCH /team/clients/:clientId/projects/:projectId/company-context` — requires `manage_client_settings`
+Client corrections to profile fields (onboarding). POC-only: this rewrites
+pipeline output.
+Request: `{ "fields": { "identity.business_name": string|null, "customers.industries": string[], … } }`
+— `section.field` paths (everything except the evidence/meta sections);
+scalars take a string (empty clears) or null, arrays take string[].
+Unknown paths and kind mismatches are `400`.
+Response `200`: the updated profile (same shape as the GET above).
+Errors: `404` project not found, or no profile exists yet.
+
+### `PATCH /team/clients/:clientId/projects/:projectId/social-profiles/:id` — requires `manage_client_settings`
+Corrects a profile URL (onboarding). POC-only. Verification resets to
+`POSSIBLE` with no score — the old verification no longer applies to a new URL.
+Request: `{ "url": string }`
+Response `200`: the updated row.
+Errors: `404` project/profile not found; `400` garbage URL.
+
 ---
 
 ## Technical Audit — requires `Authorization` header

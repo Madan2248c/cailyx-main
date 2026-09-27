@@ -31,6 +31,8 @@ describe('DiscoveryController', () => {
     latestProfile: ReturnType<typeof vi.fn>;
     listSocialProfiles: ReturnType<typeof vi.fn>;
     getRun: ReturnType<typeof vi.fn>;
+    updateProfileFields: ReturnType<typeof vi.fn>;
+    updateSocialProfile: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -40,6 +42,8 @@ describe('DiscoveryController', () => {
       latestProfile: vi.fn().mockResolvedValue(null),
       listSocialProfiles: vi.fn().mockResolvedValue([]),
       getRun: vi.fn().mockResolvedValue({ id: 'run-1' }),
+      updateProfileFields: vi.fn().mockResolvedValue(null),
+      updateSocialProfile: vi.fn().mockResolvedValue({ id: 'sp-1' }),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -70,6 +74,8 @@ describe('DiscoveryController', () => {
     const latestProfile = handlerOf(DiscoveryController.prototype, 'latestProfile');
     const listSocialProfiles = handlerOf(DiscoveryController.prototype, 'listSocialProfiles');
     const getRun = handlerOf(DiscoveryRunController.prototype, 'getRun');
+    const updateProfile = handlerOf(DiscoveryController.prototype, 'updateProfile');
+    const updateSocialProfile = handlerOf(DiscoveryController.prototype, 'updateSocialProfile');
 
     it('lets only ADMIN queue a re-run', () => {
       expect(Reflect.getMetadata(ROLES_KEY, rerun)).toEqual([Role.ADMIN]);
@@ -88,8 +94,13 @@ describe('DiscoveryController', () => {
       expect(Reflect.getMetadata(PERMISSION_KEY, rerun)).toBeUndefined();
     });
 
+    it('gates client rewrites behind manage_client_settings, not view_projects', () => {
+      expect(Reflect.getMetadata(PERMISSION_KEY, updateProfile)).toBe('manage_client_settings');
+      expect(Reflect.getMetadata(PERMISSION_KEY, updateSocialProfile)).toBe('manage_client_settings');
+    });
+
     it('declares a handler for every route, so no route is a silent no-op', () => {
-      for (const handler of [rerun, listRuns, latestProfile, listSocialProfiles, getRun]) {
+      for (const handler of [rerun, listRuns, latestProfile, listSocialProfiles, getRun, updateProfile, updateSocialProfile]) {
         expect(typeof handler).toBe('function');
       }
       // `ROUTE_ARGS_METADATA` is populated by the param decorators, so this is a
@@ -104,12 +115,16 @@ describe('DiscoveryController', () => {
       await controller.listRuns('client-1', 'project-1');
       await controller.latestProfile('client-1', 'project-1');
       await controller.listSocialProfiles('client-1', 'project-1');
+      await controller.updateProfile('client-1', 'project-1', { fields: { 'identity.business_name': 'x' } });
+      await controller.updateSocialProfile('client-1', 'project-1', 'sp-1', { url: 'x.com/y' });
       await runController.getRun('client-1', 'run-1');
 
       expect(discovery.rerun).toHaveBeenCalledWith('client-1', 'project-1');
       expect(discovery.listRuns).toHaveBeenCalledWith('client-1', 'project-1');
       expect(discovery.latestProfile).toHaveBeenCalledWith('client-1', 'project-1');
       expect(discovery.listSocialProfiles).toHaveBeenCalledWith('client-1', 'project-1');
+      expect(discovery.updateProfileFields).toHaveBeenCalledWith('client-1', 'project-1', { 'identity.business_name': 'x' });
+      expect(discovery.updateSocialProfile).toHaveBeenCalledWith('client-1', 'project-1', 'sp-1', 'x.com/y');
       expect(discovery.getRun).toHaveBeenCalledWith('client-1', 'run-1');
     });
 

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -117,6 +117,53 @@ describe('CompetitorsService', () => {
 
       await service.getGap('client-1', 'project-1');
       expect(prisma.competitor.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'tracked' }) }));
+    });
+  });
+
+  describe('updateCompetitor', () => {
+    it('404s outside the caller client or project', async () => {
+      prisma.project.findFirst.mockResolvedValue(null);
+      await expect(service.updateCompetitor('client-1', 'project-1', 'c1', { name: 'x' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.competitor.findFirst.mockResolvedValue(null);
+      await expect(service.updateCompetitor('client-1', 'project-1', 'missing', { name: 'x' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.competitor.update).not.toHaveBeenCalled();
+    });
+
+    it('updates name, domain, and status within the project scope', async () => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.competitor.findFirst.mockResolvedValue({ id: 'c1' });
+      prisma.competitor.update.mockResolvedValue({ id: 'c1' });
+
+      await service.updateCompetitor('client-1', 'project-1', 'c1', {
+        name: 'Rival Inc',
+        domain: 'rival.com',
+        status: 'tracked',
+      });
+
+      expect(prisma.competitor.findFirst).toHaveBeenCalledWith({ where: { id: 'c1', projectId: 'project-1' } });
+      expect(prisma.competitor.update).toHaveBeenCalledWith({
+        where: { id: 'c1' },
+        data: { name: 'Rival Inc', domain: 'rival.com', status: 'tracked' },
+      });
+    });
+
+    it('clears the domain on null and 400s on empty updates or bad status', async () => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.competitor.findFirst.mockResolvedValue({ id: 'c1' });
+
+      await service.updateCompetitor('client-1', 'project-1', 'c1', { domain: null });
+      expect(prisma.competitor.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { domain: null } });
+
+      await expect(service.updateCompetitor('client-1', 'project-1', 'c1', {})).rejects.toThrow(BadRequestException);
+      await expect(
+        service.updateCompetitor('client-1', 'project-1', 'c1', { status: 'archived' as 'tracked' }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

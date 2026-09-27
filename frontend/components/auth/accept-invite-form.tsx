@@ -31,7 +31,7 @@ export function AcceptInviteForm({ token }: { token: string }) {
     setIsSubmitting(true);
     try {
       await acceptInvite(token, password);
-      router.push('/dashboard');
+      router.push('/onboarding');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {

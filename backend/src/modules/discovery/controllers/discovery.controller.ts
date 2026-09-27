@@ -1,10 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
+import { UpdateCompanyContextDto, UpdateSocialProfileDto } from '../dto/discovery.dto.js';
 import { DiscoveryService } from '../services/discovery.service.js';
 
 /**
@@ -49,6 +50,36 @@ export class DiscoveryController {
   @RequirePermission('view_projects')
   listSocialProfiles(@Param('clientId') clientId: string, @Param('projectId') projectId: string) {
     return this.discovery.listSocialProfiles(clientId, projectId);
+  }
+
+  /**
+   * PATCH …/company-context — client corrections to profile fields
+   * (onboarding). POC-only: this rewrites pipeline output, so it is not
+   * open to every team member.
+   */
+  @Patch('company-context')
+  @RequirePermission('manage_client_settings')
+  updateProfile(
+    @Param('clientId') clientId: string,
+    @Param('projectId') projectId: string,
+    @Body() dto: UpdateCompanyContextDto,
+  ) {
+    return this.discovery.updateProfileFields(clientId, projectId, dto.fields);
+  }
+
+  /**
+   * PATCH …/social-profiles/:id — correct a profile URL (resets
+   * verification). POC-only, same reasoning as above.
+   */
+  @Patch('social-profiles/:id')
+  @RequirePermission('manage_client_settings')
+  updateSocialProfile(
+    @Param('clientId') clientId: string,
+    @Param('projectId') projectId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateSocialProfileDto,
+  ) {
+    return this.discovery.updateSocialProfile(clientId, projectId, id, dto.url);
   }
 }
 

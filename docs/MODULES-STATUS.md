@@ -189,17 +189,17 @@ deliberately):
 
 ## Frontend status
 
-Only `auth` (login) and `projects` (create/list) have any UI at all, and
-it's in `frontend/` — check with the team on whether that's still the live
-app or superseded, since the sibling `cailyx` repo's own memory notes flag
-`frontend/` as deprecated there; confirm which frontend this monorepo's
-`frontend/` actually is before building on it.
+`auth` (login/invite/reset), `projects` (create/list), spend pre-auth +
+deferred-invite admin dialogs, and the client **onboarding wizard**
+(`/onboarding`: 7 steps — welcome, basics, offerings, customers, presence
++ socials, competitors, review — prefilled from the latest project's
+company-context/socials/competitors, editable by the POC via the client
+correction endpoints, read-only for members) have UI in `frontend/`.
 
 Nothing exists yet for: discovery progress, technical-audit results,
 social-activity results, query-set builder/viewer, measurement runs,
 aeo-audit verdict/narrative, gap-analysis recommendations list,
-competitors comparison, report viewer (client-facing), or the onboarding
-flow. Each module's own README documents its REST API surface — that's
+competitors comparison, or the report viewer (client-facing). Each module's own README documents its REST API surface — that's
 the contract to build the frontend against.
 
 ## Reference docs, in build order

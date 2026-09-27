@@ -8,10 +8,10 @@ import { CompetitorsController } from './competitors.controller.js';
 
 describe('CompetitorsController', () => {
   let controller: CompetitorsController;
-  let competitors: { discover: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn>; getGap: ReturnType<typeof vi.fn> };
+  let competitors: { discover: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn>; getGap: ReturnType<typeof vi.fn>; updateCompetitor: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
-    competitors = { discover: vi.fn(), create: vi.fn(), list: vi.fn(), getGap: vi.fn() };
+    competitors = { discover: vi.fn(), create: vi.fn(), list: vi.fn(), getGap: vi.fn(), updateCompetitor: vi.fn() };
 
     const moduleRef = await Test.createTestingModule({
       controllers: [CompetitorsController],
@@ -36,5 +36,12 @@ describe('CompetitorsController', () => {
     expect(competitors.list).toHaveBeenCalledWith('client-1', 'project-1');
     await controller.getGap('client-1', 'project-1');
     expect(competitors.getGap).toHaveBeenCalledWith('client-1', 'project-1');
+  });
+
+  it('client mutations pass scope plus payload through', async () => {
+    await controller.addManual('client-1', 'project-1', { name: 'Rival' });
+    expect(competitors.create).toHaveBeenCalledWith('client-1', 'project-1', { name: 'Rival' });
+    await controller.update('client-1', 'project-1', 'c1', { status: 'tracked' });
+    expect(competitors.updateCompetitor).toHaveBeenCalledWith('client-1', 'project-1', 'c1', { status: 'tracked' });
   });
 });

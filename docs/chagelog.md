@@ -3,6 +3,35 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Client onboarding wizard + client correction endpoints (DB, backend, frontend, tests, docs)
+
+Prefilled, editable onboarding: the POC reviews everything the pipeline
+found and corrects it in place — company-context fields, social profile
+URLs, competitors — and the edits update the source tables directly.
+
+**Backend**: `PATCH …/company-context` (`{fields: {section.field: …}}`,
+whitelisted paths, scalars/arrays, 400 on unknown/kind-mismatch) applies
+onto the latest profile row (corrected values keep `supported` status —
+the client is authoritative; evidence stays for provenance);
+`PATCH …/social-profiles/:id` corrects a URL and resets verification to
+`POSSIBLE` (old proof no longer applies); `PATCH …/competitors/:id`
+(name/domain/tracked|candidate, project-scoped) + `POST …/competitors/manual`.
+All writes require `manage_client_settings` (POC-only); reads stay
+`view_projects`. `POST /team/clients` gains opt-in `deferInvite` (silent
+creation — the pipeline's ready email is the first invite).
+
+**Frontend** (`frontend/`, shadcn/Base-UI): `/onboarding` 7-step wizard
+(welcome, basics, offerings, customers, presence + socials, competitors,
+review) prefilled from the latest project's company-context/socials/
+competitors, per-step save, members get read-only + notice; new BFF
+passthrough routes; `Textarea` kit piece; post-invite redirect lands on
+`/onboarding`; dashboard links to review details.
+
+**Verified**: 12 new backend tests (mocked), full suite 726 passed,
+`tsc`/`oxlint`/`eslint` clean, plus live against the E2E Fello project:
+POC PATCH + revert on all three surfaces, member 403s with data
+unchanged, BFF GET/PATCH through Next.js, `/onboarding` serves 200.
+
 ## 2026-09-27 — Day-1 pipeline orchestrator: auto-chain, spend pre-auth, deferred invite, live e2e pending
 
 Built from `docs/analysis/day1-pipeline.md` (operator calls: deferred

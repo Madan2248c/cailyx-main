@@ -92,6 +92,8 @@ staff-facing, nested under a client and project:
 | GET | `/team/clients/:clientId/discovery-runs/:runId` | `view_projects` | one run + its pages |
 | GET | `/team/clients/:clientId/projects/:projectId/company-context` | `view_projects` | the current profile |
 | GET | `/team/clients/:clientId/projects/:projectId/social-profiles` | `view_projects` | verified/candidate profiles |
+| PATCH | `/team/clients/:clientId/projects/:projectId/company-context` | `manage_client_settings` | client corrections to profile fields (onboarding) — rewrites pipeline output, POC-only |
+| PATCH | `/team/clients/:clientId/projects/:projectId/social-profiles/:id` | `manage_client_settings` | correct a profile URL, resets verification (onboarding), POC-only |
 
 There is **no client-facing trigger or UI** for this module, by design: a run
 starts when an admin creates a project, and the client sees nothing until the

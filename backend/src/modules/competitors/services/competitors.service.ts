@@ -9,7 +9,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { AeoAuditService } from '../../aeo-audit/services/aeo-audit.service.js';
 import type { AeoVerdict, CompetitorStanding } from '../../aeo-audit/aeo-audit.types.js';
@@ -101,6 +101,44 @@ export class CompetitorsService {
     const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null } });
     if (!project) throw new NotFoundException('Project not found.');
     return this.prisma.competitor.create({ data: { projectId, name: input.name, domain: input.domain, status: 'tracked', source: 'manual' } });
+  }
+
+  /**
+   * Client corrections to a competitor (onboarding): fix the name/domain,
+   * confirm a candidate (`tracked`) or demote a tracked rival
+   * (`candidate`). Scoped to the project — a client can only touch their
+   * own rows. At least one field must change.
+   */
+  async updateCompetitor(
+    clientId: string,
+    projectId: string,
+    id: string,
+    input: { name?: string; domain?: string | null; status?: 'tracked' | 'candidate' },
+  ) {
+    const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null } });
+    if (!project) throw new NotFoundException('Project not found.');
+    const existing = await this.prisma.competitor.findFirst({ where: { id, projectId } });
+    if (!existing) throw new NotFoundException('Competitor not found.');
+
+    const data: { name?: string; domain?: string | null; status?: 'tracked' | 'candidate' } = {};
+    if (input.name !== undefined) {
+      const name = input.name.trim();
+      if (name.length === 0) throw new BadRequestException('Competitor name must not be empty.');
+      data.name = input.name.trim();
+    }
+    if (input.domain !== undefined) {
+      data.domain = input.domain === null ? null : input.domain.trim() || null;
+    }
+    if (input.status !== undefined) {
+      if (input.status !== 'tracked' && input.status !== 'candidate') {
+        throw new BadRequestException("Competitor status must be 'tracked' or 'candidate'.");
+      }
+      data.status = input.status;
+    }
+    if (Object.keys(data).length === 0) {
+      throw new BadRequestException('Nothing to update — provide name, domain, or status.');
+    }
+    return this.prisma.competitor.update({ where: { id }, data });
   }
 
   /** Every tracked competitor plus each one's latest profile. */

@@ -116,6 +116,8 @@ existing `Competitor.status` endpoint (no duplicate status route here).
 | POST | `/team/clients/:clientId/projects/:projectId/competitors` | ADMIN | manual add fallback, `{ name, domain? }`, `source: manual` |
 | GET | `/team/clients/:clientId/projects/:projectId/competitors` | `view_projects` | tracked competitors + each one's latest profile |
 | GET | `/team/clients/:clientId/projects/:projectId/competitors/gap` | `view_projects` | deterministic client-vs-competitor comparison |
+| POST | `/team/clients/:clientId/projects/:projectId/competitors/manual` | `manage_client_settings` | client adds a missing rival (onboarding), same body as the admin add |
+| PATCH | `/team/clients/:clientId/projects/:projectId/competitors/:id` | `manage_client_settings` | client fixes name/domain or confirms (`tracked`) / demotes (`candidate`) a rival (onboarding) |
 
 ## Env
 

@@ -67,6 +67,13 @@ export default function DashboardPage() {
               render={<Link href="/team">Manage team</Link>}
             />
           ) : null}
+          {user.role === 'CLIENT_POC' || user.role === 'CLIENT_MEMBER' ? (
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href="/onboarding">Review company details</Link>}
+            />
+          ) : null}
           <Button variant="outline" onClick={handleLogout}>
             Log out
           </Button>
