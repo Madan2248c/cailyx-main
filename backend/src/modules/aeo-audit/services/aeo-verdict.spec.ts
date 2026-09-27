@@ -17,12 +17,12 @@ function obs(overrides: Partial<VerdictObservation>): VerdictObservation {
 
 describe('buildVerdict — counted metrics', () => {
   it('computes overall mention/citation rates', () => {
-    const v = buildVerdict([obs({ id: '1', mentioned: true, cited: true }), obs({ id: '2', mentioned: false, cited: false })], []);
+    const v = buildVerdict([obs({ id: '1', mentioned: true, cited: true }), obs({ id: '2', mentioned: false, cited: false })], [], 'Acme');
     expect(v.counted.overall).toEqual({ observations: 2, mentionRate: 0.5, citationRate: 0.5 });
   });
 
   it('omits unbranded/branded slices with zero observations rather than zeroing them', () => {
-    const v = buildVerdict([obs({ id: '1', branding: 'unbranded', mentioned: true })], []);
+    const v = buildVerdict([obs({ id: '1', branding: 'unbranded', mentioned: true })], [], 'Acme');
     expect(v.counted.unbranded).toEqual({ observations: 1, mentionRate: 1, citationRate: 0 });
     expect(v.counted.branded).toBeNull();
   });
@@ -34,6 +34,7 @@ describe('buildVerdict — counted metrics', () => {
         obs({ id: '2', bucketName: 'b', funnelStage: 'product_aware', surface: 'cloro_gemini', mentioned: false }),
       ],
       [],
+      'Acme',
     );
     expect(v.counted.byBucket).toHaveLength(2);
     expect(v.counted.byFunnelStage).toHaveLength(2);
@@ -41,14 +42,14 @@ describe('buildVerdict — counted metrics', () => {
   });
 
   it('skips null bucket names (manual, unbucketed items) from byBucket', () => {
-    const v = buildVerdict([obs({ id: '1', bucketName: null })], []);
+    const v = buildVerdict([obs({ id: '1', bucketName: null })], [], 'Acme');
     expect(v.counted.byBucket).toEqual([]);
   });
 });
 
 describe('buildVerdict — no composite score', () => {
   it('never produces a single overall score field', () => {
-    const v = buildVerdict([obs({ id: '1', mentioned: true })], []);
+    const v = buildVerdict([obs({ id: '1', mentioned: true })], [], 'Acme');
     expect(v).not.toHaveProperty('score');
     expect(v.counted).not.toHaveProperty('score');
   });
@@ -60,7 +61,7 @@ describe('buildVerdict — competitor standing', () => {
       { observationId: '1', stance: 'recommended_primary', recommendedOver: ['Rival A'], losesTo: [], brandsNamed: ['Rival A'] },
       { observationId: '2', stance: 'mentioned_neutral', recommendedOver: [], losesTo: ['Rival A'], brandsNamed: ['Rival A', 'Rival B'] },
     ];
-    const v = buildVerdict([obs({ id: '1' }), obs({ id: '2' })], stances);
+    const v = buildVerdict([obs({ id: '1' }), obs({ id: '2' })], stances, 'Acme');
     const rivalA = v.counted.competitorStanding.find((c) => c.name === 'Rival A')!;
     expect(rivalA.timesAhead).toBe(1);
     expect(rivalA.timesBehind).toBe(1);
@@ -68,11 +69,37 @@ describe('buildVerdict — competitor standing', () => {
     expect(rivalB.coMentions).toBe(1);
     expect(rivalB.timesAhead).toBe(0);
   });
+
+  // Regression: a first live run against a real project showed the subject's
+  // own brand and a non-competitor platform ("G2") in competitorStanding
+  // with real coMentions counts — buildCompetitorStanding was tallying the
+  // raw, unfiltered brandsNamed list straight into rival standings. See
+  // docs/chagelog.md.
+  it('never counts the subject brand or a non-competitor platform as a rival', () => {
+    const stances: VerdictStance[] = [
+      { observationId: '1', stance: 'mentioned_neutral', recommendedOver: [], losesTo: [], brandsNamed: ['Acme', 'G2', 'Real Rival'] },
+    ];
+    const v = buildVerdict([obs({ id: '1' })], stances, 'Acme');
+    expect(v.counted.competitorStanding.find((c) => c.name === 'Acme')).toBeUndefined();
+    expect(v.counted.competitorStanding.find((c) => c.name === 'G2')).toBeUndefined();
+    expect(v.counted.competitorStanding.find((c) => c.name === 'Real Rival')).toBeDefined();
+  });
+
+  it('still counts a known, tracked competitor as a co-mention even when it was never explicitly ranked', () => {
+    // A known competitor that's merely named alongside the subject (not
+    // placed ahead/behind) must still show up here — this is what the
+    // subject-name/platform filter must NOT also exclude.
+    const stances: VerdictStance[] = [
+      { observationId: '1', stance: 'mentioned_neutral', recommendedOver: [], losesTo: [], brandsNamed: ['Follow Up Boss'] },
+    ];
+    const v = buildVerdict([obs({ id: '1' })], stances, 'Acme');
+    expect(v.counted.competitorStanding.find((c) => c.name === 'Follow Up Boss')?.coMentions).toBe(1);
+  });
 });
 
 describe('buildVerdict — judged summary', () => {
   it('is null when no stances were judged', () => {
-    const v = buildVerdict([obs({ id: '1' })], []);
+    const v = buildVerdict([obs({ id: '1' })], [], 'Acme');
     expect(v.judged).toBeNull();
   });
 
@@ -81,7 +108,7 @@ describe('buildVerdict — judged summary', () => {
       { observationId: '1', stance: 'recommended_primary', recommendedOver: [], losesTo: [], brandsNamed: [] },
       { observationId: '2', stance: 'mentioned_negative', recommendedOver: [], losesTo: ['A', 'B'], brandsNamed: [] },
     ];
-    const v = buildVerdict([obs({ id: '1', prompt: 'winning prompt' }), obs({ id: '2', prompt: 'losing prompt' })], stances);
+    const v = buildVerdict([obs({ id: '1', prompt: 'winning prompt' }), obs({ id: '2', prompt: 'losing prompt' })], stances, 'Acme');
     expect(v.judged!.stanceCounts.recommended_primary).toBe(1);
     expect(v.judged!.stanceCounts.mentioned_negative).toBe(1);
     expect(v.judged!.winningPrompts).toEqual([{ observationId: '1', prompt: 'winning prompt' }]);
@@ -91,7 +118,7 @@ describe('buildVerdict — judged summary', () => {
 
 describe('buildVerdict — headlines', () => {
   it('always includes the overall mention/citation headline', () => {
-    const v = buildVerdict([obs({ id: '1', mentioned: true, cited: true })], []);
+    const v = buildVerdict([obs({ id: '1', mentioned: true, cited: true })], [], 'Acme');
     expect(v.headlines[0]).toMatch(/Mentioned in 100%/);
   });
 
@@ -102,7 +129,7 @@ describe('buildVerdict — headlines', () => {
       obs({ id: '3', surface: 'cloro_gemini', mentioned: false, branding: 'unbranded' }),
       obs({ id: '4', surface: 'cloro_gemini', mentioned: false, branding: 'unbranded' }),
     ];
-    const v = buildVerdict(observations, []);
+    const v = buildVerdict(observations, [], 'Acme');
     expect(v.headlines.some((h) => h.includes('uneven'))).toBe(true);
   });
 
@@ -111,13 +138,13 @@ describe('buildVerdict — headlines', () => {
       obs({ id: '1', surface: 'cloro_chatgpt', mentioned: true, branding: 'unbranded' }),
       obs({ id: '2', surface: 'cloro_gemini', mentioned: true, branding: 'unbranded' }),
     ];
-    const v = buildVerdict(observations, []);
+    const v = buildVerdict(observations, [], 'Acme');
     expect(v.headlines.some((h) => h.includes('consistent'))).toBe(true);
   });
 
   it('names the most-lost-to rival when one exists', () => {
     const stances: VerdictStance[] = [{ observationId: '1', stance: 'mentioned_neutral', recommendedOver: [], losesTo: ['Big Rival'], brandsNamed: [] }];
-    const v = buildVerdict([obs({ id: '1' })], stances);
+    const v = buildVerdict([obs({ id: '1' })], stances, 'Acme');
     expect(v.headlines.some((h) => h.includes('Big Rival'))).toBe(true);
   });
 });

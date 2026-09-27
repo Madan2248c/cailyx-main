@@ -3,6 +3,78 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — AEO Audit live end-to-end run against Fello + a real bug found and fixed
+
+Ran the full pipeline against Fello's already-active 2-prompt query set:
+one known competitor seeded ("Follow Up Boss"), an audit created
+(`cloro_chatgpt`, US), `run()` executed. Result: **COMPLETE**, 2/2
+observations, 2/2 stances judged, **$0.00457 real spend** (Cloro
+measurement + 2 stance-judge LLM calls). One prompt scored `absent`
+(named 7 rival products, none matching the tracked competitor by exact
+string — all correctly queued as `candidate` rows), one scored
+`recommended_alternative` with a real evidence quote. Verdict computed:
+50% mention/citation rate, one funnel-stage breakdown, headlines correct,
+narrative written by the shared LlmService.
+
+**A real bug was caught by this run and fixed before it shipped**:
+`buildCompetitorStanding()` tallied `coMentions` straight from each
+stance's raw, unfiltered `brandsNamed` list — so the subject's own brand
+("Fello") and a non-competitor platform ("G2") showed up in
+`competitorStanding` with real co-mention counts, exactly the kind of
+false-rival noise `otherNamesSeen`'s filter was supposed to prevent
+everywhere. Root cause: the noise filter (self-brand + known-platform
+exclusion) lived only inside `AeoStanceService`, never applied to the
+raw `brandsNamed` list that verdict-building reads. Fixed by extracting
+a shared `name-noise.ts` (`isNoiseName`) used by both — verdict-building
+now filters `brandsNamed` through the same rule before tallying
+`coMentions`, while still correctly counting a known, *tracked*
+competitor's co-mentions (that name is deliberately not noise, unlike
+the subject's own brand or "G2" — a naive "exclude known names too" fix
+would have wrongly zeroed out real rivals like "Follow Up Boss", which
+this run's own data confirmed should show `coMentions: 2`). Two
+regression tests added: one for each direction of the bug.
+
+Also confirmed correctly working live: the audit-wide cost cap
+accounting, per-surface-run isolation infra (untested live since only
+one surface ran), candidate-recording round-trip (7 new `candidate` rows
+created from real stance output), and the comparability-gated narrative
+path (no prior audit existed yet, so no trend claim was attempted —
+correct behavior per `areAuditsComparable`).
+
+## 2026-09-27 — AEO Audit module: stance judging, verdict, competitor tracking, API (DB, backend, tests, docs)
+
+Built ahead of a written analysis doc, per explicit operator instruction,
+same as Measurement. Ties an ACTIVE query set to one or more Measurement
+runs (one per surface x market), judges each observation's stance (a
+separate LLM call, distinct from Measurement's deterministic
+mentioned/cited scoring), assembles a verdict, writes a best-effort
+narrative. Never generates its own query set — closes the layering gap
+Query Set's own design doc recorded.
+
+**Ported from the old repo's `aeo-audit` module, scoped down**: kept
+stance judging's classification/filtering logic, the comparability check
+(near-verbatim), verdict's rate-slice/no-score design (confirmed: the
+old module computed no composite score either — this repo doesn't invent
+one), narrative's never-invent-a-number contract, an audit-wide cost cap
+separate from Measurement's own per-run cap. Dropped as superseded: the
+old matrix generator (Query Set's LLM-invented buckets replace it), the
+old context service (Discovery's `CompanyContextProfile` replaces it),
+visibility read-composition endpoints (no frontend yet), every
+`*-browser` Playwright adapter + Cloro-browser fallback chain (Cloro-
+only, matching Measurement's own scoping decision). Changed:
+`Project.competitors` (seed JSON) + a separate untracked candidates
+table → one `Competitor` table, fixing a real sync gap in the old design
+where a confirmed candidate never fed back into future stance passes.
+
+`MeasurementModule` now also exports `CloroClient` so both modules share
+one instance — a second instance would run its own, uncoordinated
+concurrency limiter.
+
+**Verified**: `tsc --noEmit` clean, `nest build` clean, `oxlint
+--type-aware` 0 errors, backend 586 tests green (64 files, 47 in
+aeo-audit — including 2 regression tests for the competitor-standing bug
+the live run caught). Live end-to-end run recorded in the entry above.
+
 ## 2026-09-27 — Live end-to-end: Discovery → Query Set generation → Cloro measurement, real chain against Fello
 
 Ran the actual downstream chain against Fello (fello.ai), the one real

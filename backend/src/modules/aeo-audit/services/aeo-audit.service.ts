@@ -259,6 +259,8 @@ export class AeoAuditService {
 
   /** Recomputes the verdict fresh from stored rows — side-effect free, cheap, never trusts the cached `AeoAudit.verdict` blindly. */
   async computeVerdict(auditId: string): Promise<AeoVerdict> {
+    const audit = await this.prisma.aeoAudit.findUniqueOrThrow({ where: { id: auditId } });
+    const project = await this.prisma.project.findUniqueOrThrow({ where: { id: audit.projectId } });
     const observations = await this.prisma.observation.findMany({
       where: { run: { aeoSurfaceRuns: { some: { auditId } } } },
       include: { item: { include: { bucket: true } }, run: true },
@@ -283,7 +285,7 @@ export class AeoAuditService {
       brandsNamed: s.brandsNamed,
     }));
 
-    return buildVerdict(verdictObservations, verdictStances);
+    return buildVerdict(verdictObservations, verdictStances, project.name);
   }
 
   async getVerdict(clientId: string, auditId: string): Promise<AeoVerdict> {

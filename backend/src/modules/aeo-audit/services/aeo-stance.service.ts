@@ -19,33 +19,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LlmService } from '../../llm/llm.service.js';
 import { STANCES, type Stance, type StanceJudgment } from '../aeo-audit.types.js';
 import { STANCE_ANSWER_CHAR_CAP, STANCE_EVIDENCE_QUOTE_CAP, STANCE_MAX_TOKENS } from '../aeo-audit.constants.js';
-
-/**
- * Platforms/services an LLM commonly names in an AI-visibility answer that
- * are never a rival business — filtered out of every name list regardless
- * of the project's own competitor data.
- */
-const NON_COMPETITOR_PLATFORMS = new Set(
-  [
-    'chatgpt',
-    'openai',
-    'google',
-    'perplexity',
-    'gemini',
-    'bing',
-    'linkedin',
-    'reddit',
-    'g2',
-    'capterra',
-    'trustpilot',
-    'youtube',
-    'twitter',
-    'x',
-    'facebook',
-    'instagram',
-    'wikipedia',
-  ].map((s) => s.toLowerCase()),
-);
+import { isNoiseName, normalizeName } from './name-noise.js';
 
 const SYSTEM = `You judge how an AI answer-engine's response positions one specific business ("the subject"), among the businesses/products it names.
 
@@ -109,14 +83,10 @@ export class AeoStanceService {
     );
 
     const known = new Set(input.knownCompetitorNames.map(normalizeName));
-    const isNoise = (name: string) => {
-      const n = normalizeName(name);
-      return n === normalizeName(input.subjectName) || NON_COMPETITOR_PLATFORMS.has(n);
-    };
 
     const recommendedOver = result.data.recommendedOver.filter((n) => known.has(normalizeName(n)));
     const losesTo = result.data.losesTo.filter((n) => known.has(normalizeName(n)));
-    const otherNamesSeen = [...new Set(result.data.otherNamesSeen)].filter((n) => !isNoise(n) && !known.has(normalizeName(n)));
+    const otherNamesSeen = [...new Set(result.data.otherNamesSeen)].filter((n) => !isNoiseName(n, input.subjectName) && !known.has(normalizeName(n)));
 
     return {
       observationId: input.observationId,
@@ -132,10 +102,6 @@ export class AeoStanceService {
       costUsd: result.costUsd,
     };
   }
-}
-
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase();
 }
 
 function validateJudgment(raw: unknown): StanceJudgment {

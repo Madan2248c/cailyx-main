@@ -15,6 +15,7 @@ import {
   UNEVEN_ENGINE_GAP,
 } from '../aeo-audit.constants.js';
 import type { AeoVerdict, CompetitorStanding, JudgedSummary, SliceMetrics, Stance } from '../aeo-audit.types.js';
+import { isNoiseName } from './name-noise.js';
 
 export interface VerdictObservation {
   id: string;
@@ -32,6 +33,16 @@ export interface VerdictStance {
   stance: Stance;
   recommendedOver: string[];
   losesTo: string[];
+  /**
+   * Every brand name the model's answer named, unfiltered (as stored on
+   * `AeoStance`). Filtered inside `buildCompetitorStanding` by the same
+   * noise rule stance judging applies to `otherNamesSeen` — the subject's
+   * own brand and non-competitor platforms are never counted as a rival's
+   * co-mention. A first live run surfaced this as a real bug: an earlier
+   * version tallied co-mentions straight from this unfiltered list, so the
+   * subject's own name and platforms like "G2" showed up as fake rivals.
+   * See docs/chagelog.md.
+   */
   brandsNamed: string[];
 }
 
@@ -58,7 +69,7 @@ function groupBy<T, K extends string>(rows: T[], key: (row: T) => K | null): Map
   return map;
 }
 
-export function buildVerdict(observations: VerdictObservation[], stances: VerdictStance[]): AeoVerdict {
+export function buildVerdict(observations: VerdictObservation[], stances: VerdictStance[], subjectName: string): AeoVerdict {
   const unbranded = observations.filter((o) => o.branding === 'unbranded');
   const branded = observations.filter((o) => o.branding === 'branded');
 
@@ -75,7 +86,7 @@ export function buildVerdict(observations: VerdictObservation[], stances: Verdic
     ...metrics(rows),
   }));
 
-  const competitorStanding = buildCompetitorStanding(stances);
+  const competitorStanding = buildCompetitorStanding(stances, subjectName);
   const judged = stances.length > 0 ? buildJudgedSummary(observations, stances) : null;
 
   const headlines = buildHeadlines({ observations, unbranded, bySurface: bySurfaceUnbranded(unbranded), judged, competitorStanding });
@@ -99,7 +110,7 @@ function bySurfaceUnbranded(unbranded: VerdictObservation[]): Array<{ surface: s
   return [...groupBy(unbranded, (o) => o.surface)].map(([surface, rows]) => ({ surface, ...metrics(rows) }));
 }
 
-function buildCompetitorStanding(stances: VerdictStance[]): CompetitorStanding[] {
+function buildCompetitorStanding(stances: VerdictStance[], subjectName: string): CompetitorStanding[] {
   const rows = new Map<string, CompetitorStanding>();
   const get = (name: string) => {
     const existing = rows.get(name);
@@ -112,8 +123,12 @@ function buildCompetitorStanding(stances: VerdictStance[]): CompetitorStanding[]
     const ranked = new Set([...s.recommendedOver, ...s.losesTo]);
     for (const name of s.recommendedOver) get(name).timesAhead += 1;
     for (const name of s.losesTo) get(name).timesBehind += 1;
+    // brandsNamed is the raw, unfiltered list — noise-filtered here (never
+    // the subject's own brand, never a non-competitor platform) before it
+    // can count toward any rival's standing. A name already ranked above
+    // is not double-counted as a co-mention too.
     for (const name of s.brandsNamed) {
-      if (!ranked.has(name)) get(name).coMentions += 1;
+      if (!ranked.has(name) && !isNoiseName(name, subjectName)) get(name).coMentions += 1;
     }
   }
   return [...rows.values()].sort((a, b) => b.timesBehind + b.timesAhead - (a.timesBehind + a.timesAhead));

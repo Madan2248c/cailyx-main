@@ -168,5 +168,21 @@ mocked Prisma (candidate dedup, status scoping). `AeoAuditService` tested
 with every collaborator (Measurement, Cloro, Stance, Narrative,
 Competitor) mocked: create-time validation, cost-cap stop, per-surface
 isolation, zero-success failure, candidate recording. Controller
-pass-through covered. One live end-to-end run against a real project with
-real Cloro + LLM spend is recorded in `docs/chagelog.md`.
+pass-through covered.
+
+**Live end-to-end run** against a real project (Fello/fello.ai) with real
+Cloro + LLM spend — recorded in `docs/chagelog.md`: COMPLETE, $0.00457
+real spend, 2/2 observations, 2/2 stances judged, correct classification
+on both (`absent` with 7 named rivals queued as candidates;
+`recommended_alternative` with a real evidence quote).
+
+**A real bug was caught by this run and fixed same-day**:
+`competitorStanding` was tallying `coMentions` from the raw, unfiltered
+`brandsNamed` list, so the subject's own brand and a non-competitor
+platform ("G2") showed up as fake rivals with real counts. Fixed by
+extracting the noise filter (`name-noise.ts`) into something both
+`AeoStanceService` and `aeo-verdict.ts` share, applied to
+`competitorStanding`'s tally the same way it was already applied to
+`otherNamesSeen` — while still correctly counting a real, *tracked*
+competitor's co-mentions (that name is deliberately not noise). Two
+regression tests cover both directions of the fix.
