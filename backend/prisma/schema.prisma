@@ -81,6 +81,7 @@ model Project {
   aeoAudits              AeoAudit[]
   competitors            Competitor[]
   gapAnalysisRuns        GapAnalysisRun[]
+  competitorProfiles     CompetitorProfile[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -908,6 +909,11 @@ enum CompetitorStatus {
 enum CompetitorSource {
   manual
   stance_discovered
+  /// A distinct domain that ranked in one of this project's bounded
+  /// category-level SERP queries (competitors module) — never the client's
+  /// own domain. Defaults to `candidate` status, same as stance_discovered,
+  /// since ranking in a category search doesn't itself confirm a rivalry.
+  serp_discovered
 }
 
 model AeoAudit {
@@ -1027,6 +1033,7 @@ model Competitor {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   project Project @relation(fields: [projectId], references: [id])
+  profiles CompetitorProfile[]
 
   @@index([projectId])
   @@map("competitors")
@@ -1102,4 +1109,52 @@ model GapAnalysisRecommendation {
 
   @@index([gapAnalysisRunId])
   @@map("gap_analysis_recommendations")
+}
+
+// --- Competitors module ---
+// See backend/src/modules/competitors/README.md. Reuses AEO Audit's
+// `Competitor` table as the single source of truth (never a second
+// competitor list) — this module only adds a profile per competitor
+// (tech stack, schema types, homepage SEO score on the same rubric the
+// client is scored by, review rating) plus one more discovery path
+// (serp_discovered, added to CompetitorSource above).
+
+enum CompetitorProfileFetchStatus {
+  OK
+  FAILED
+}
+
+model CompetitorProfile {
+  id           String  @id @default(uuid()) @db.Uuid
+  /// Null represents the project's OWN domain's profile — same row shape
+  /// used for both, so the gap comparison reads one table without a union.
+  competitorId String? @map("competitor_id") @db.Uuid
+  /// Set on every row, including the client's own, so a query never needs
+  /// to join through a nullable competitorId.
+  projectId    String  @map("project_id") @db.Uuid
+
+  /// TechStackFinding[] — { category, name, evidence }.
+  techStackFindings Json @default("[]") @map("tech_stack_findings")
+  /// Distinct JSON-LD @type values found on the homepage.
+  schemaTypes       Json @default("[]") @map("schema_types")
+  /// 0-100, from Technical Audit's shared seo-rubric.ts — the same
+  /// function the client's own Technical Audit runs use, not a
+  /// re-implementation. Null if the fetch failed.
+  seoScore          Int? @map("seo_score")
+  /// PageIssueCode[] from the same rubric.
+  seoIssues         Json @default("[]") @map("seo_issues")
+  /// { source, rating, count } from a review-site AggregateRating, or null
+  /// — no review-site URL is auto-discovered in v1 (see module README).
+  reviewRating      Json? @map("review_rating")
+  fetchStatus       CompetitorProfileFetchStatus @map("fetch_status")
+  error             String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  competitor Competitor? @relation(fields: [competitorId], references: [id])
+  project    Project     @relation(fields: [projectId], references: [id])
+
+  @@index([competitorId])
+  @@index([projectId])
+  @@map("competitor_profiles")
 }

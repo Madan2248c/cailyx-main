@@ -186,6 +186,12 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       update: vi.fn(),
     },
+    // --- Competitors module ---
+    competitorProfile: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+    },
   };
 }
 

@@ -78,6 +78,9 @@ import { VerifyStage } from './services/stages/verify.stage.js';
   // ProjectsService starts a run when a project is created, so the orchestrator
   // is the module's public surface. The stages stay private — nothing outside
   // this module should be able to run one stage in isolation.
-  exports: [DiscoveryService],
+  // DataForSeoSerpService is also exported: the Competitors module's SERP
+  // discovery reuses this exact client rather than a second DataForSEO
+  // integration — same credentials, same cache, same SWARM_ALLOW_LIVE gate.
+  exports: [DiscoveryService, DataForSeoSerpService],
 })
 export class DiscoveryModule {}
