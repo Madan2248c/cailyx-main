@@ -37,6 +37,22 @@ It does not analyze — downstream modules read snapshots.
   convention as the other paid modules): stop between datasets, report
   the skipped, never silently drop.
 
+## Datasets
+
+Nine dataset keys (strings, so still no migration): the original three
+(`serp-ranks`, `backlinks-summary`, `keyword-overview`) plus
+`backlink-rows` (12 source/target/anchor/dofollow/spam/seen/lost rows),
+`referring-domains` (top 10 domain/backlinks/firstSeen),
+`top-pages` (top 10 url/backlinks/refDomains),
+`keyword-ideas` (16 keyword/volume/difficulty/cpc rows),
+`serp-snapshot` (one keyword + top-10 position/url/title/features),
+and `domain-overview` (rank/rankedKeywords/trafficEstimate/refDomains).
+All are deterministic offline mocks shaped like the real SERP, Backlinks,
+Keywords Data, and Labs API responses — the module README's dataset table
+records which live endpoint each maps to for the live-wiring pass.
+`setSchedule` validates dataset names (unknown 400s before anything is
+stored), same as `collectNow`/`listSnapshots`.
+
 ## Open questions (live wiring)
 
 Real per-dataset pricing and which DataForSEO endpoints map to the three

@@ -8,7 +8,16 @@
  * can be spent through this class by construction.
  *
  * Live-wiring follow-ups (see the module README): implement the DataForSEO
- * REST calls here (SERP / backlinks / keywords endpoints), select this
+ * REST calls here — SERP (`serp/google/organic/live/advanced`) for
+ * `serp-ranks`/`serp-snapshot`, Backlinks (`backlinks/backlinks/live`,
+ * `backlinks/referring_domains/live`, `backlinks/pages/live`) for
+ * `backlinks-summary`/`backlink-rows`/`referring-domains`/`top-pages`,
+ * Keywords Data + DataForSEO Labs
+ * (`keywords_data/google/search_volume/live`,
+ * `dataforseo_labs/google/keyword_ideas/live`,
+ * `dataforseo_labs/google/overview/live`) for
+ * `keyword-overview`/`keyword-ideas`/`domain-overview` (basic auth with
+ * login/password from config — never logged, never returned) — select this
  * adapter only when `SWARM_ALLOW_LIVE=1`, add spend confirmation, and
  * provide it in the module.
  *

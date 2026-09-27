@@ -17,7 +17,7 @@
  */
 
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { Queue } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { DataforseoCadence } from '../../../generated/prisma/enums.js';
@@ -73,6 +73,12 @@ export class DataforseoScheduler {
     const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null }, select: { id: true } });
     if (!project) {
       throw new NotFoundException('Project not found.');
+    }
+    // Unknown dataset names 400 before anything is stored — a schedule
+    // must never silently carry a dataset no collect can fulfil.
+    const unknown = (input.datasets ?? []).filter((d) => !(DATASETS as readonly string[]).includes(d));
+    if (unknown.length > 0) {
+      throw new BadRequestException(`Unknown datasets: ${unknown.join(', ')}. Available: ${DATASETS.join(', ')}`);
     }
 
     const intervalMs = cadenceIntervalMs(input.cadence);

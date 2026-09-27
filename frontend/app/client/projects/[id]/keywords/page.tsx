@@ -4,11 +4,11 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { OverviewTab } from '@/components/overview/OverviewTab';
+import { KeywordsSection } from '@/components/keywords/KeywordsSection';
 import { useClientProject } from '@/components/client/use-client-project';
 import { useAuth } from '@/contexts/auth-context';
 
-export default function PerformanceOverviewPage() {
+export default function KeywordsPage() {
   const params = useParams<{ id: string }>();
   const { user, accessToken } = useAuth();
   const project = useClientProject(accessToken, user?.clientId ?? '', params.id);
@@ -37,7 +37,7 @@ export default function PerformanceOverviewPage() {
   }
 
   return (
-    <OverviewTab
+    <KeywordsSection
       accessToken={accessToken}
       clientId={user.clientId}
       projectId={project.id}

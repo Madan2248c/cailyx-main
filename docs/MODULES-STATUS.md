@@ -223,6 +223,20 @@ without opt-in). Frontend proxies via `dataforseo-api.ts` +
 Each module's own README documents its REST API surface — that's
 the contract to build the frontend against.
 
+Open-SEO parity (2026-09-28, mock-gated): backend `dataforseo` grew 3 → 9
+datasets (`backlink-rows`, `referring-domains`, `top-pages`,
+`keyword-ideas`, `serp-snapshot`, `domain-overview` join `serp-ranks`,
+`backlinks-summary`, `keyword-overview` — deterministic mock payloads,
+live-adapter mapping documented, never fired). Frontend:
+**Backlinks** (`/client/projects/[id]/competitors/backlinks` —
+`BacklinksSection`: backlink rows, ref-domains, top pages);
+**Keywords** (`/client/projects/[id]/keywords` — `KeywordsSection`:
+volume/KD/CPC table + winnable filter from `keyword-ideas`);
+**Performance overview** (`/client/projects/[id]/performance` —
+`OverviewTab` + `DomainStrip`/`RankTable` rank-tracking table,
+`SerpSnapshotViewer`, `ExploreLinks` domain overview). Sidebar links the
+new pages. No live DataForSEO calls, no spend.
+
 ## Reference docs, in build order
 
 `docs/analysis/auth.md` · `docs/analysis/projects.md` ·

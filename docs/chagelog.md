@@ -3,6 +3,25 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Open-SEO parity: backlinks, keywords, rank tracking, SERP snapshots, domain overview
+
+Backend `dataforseo` datasets 3 → 9 (`backlink-rows` source/target/anchor/
+dofollow/spam/lost rows, `referring-domains` top-10, `top-pages` top-10,
+`keyword-ideas` volume/KD/CPC + winnable, `serp-snapshot` keyword top-10
+results, `domain-overview` rank/traffic/ref-domains — deterministic mock
+payloads, live-adapter endpoint mapping documented in the mock adapter).
+Frontend: **Backlinks** page (`/competitors/backlinks`, `BacklinksSection`);
+**Keywords** page (`/keywords`, `KeywordsSection`); **Performance overview**
+(`OverviewTab` + `DomainStrip`/`RankTable` rank-tracking table,
+`SerpSnapshotViewer`, `ExploreLinks`); sidebar links. Mock-gated throughout
+— no live DataForSEO calls, no spend.
+
+**Verified**: backend `npm run build` clean, fresh `dist` restart (root
+200), `vitest` 89 files / 796 tests passed, `tsc --noEmit` clean (backend
++ frontend), `oxlint --type-aware` no errors in wave files, frontend
+`eslint` clean; route spot-checks all 200 (`/competitors/backlinks`,
+`/keywords`, `/performance`). No live calls; no secrets printed.
+
 ## 2026-09-28 — Client portal tabs, admin preview+schedules, DataForSEO scheduler, rank-history growth
 
 Complete client portal wave: **Social tab** (cadence buckets + run history,

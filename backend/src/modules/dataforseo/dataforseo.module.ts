@@ -1,8 +1,9 @@
 /**
  * DataForSEO module — scheduled paid SERP/backlink/keyword snapshots.
  *
- * Collects three datasets per project (`serp-ranks`, `backlinks-summary`,
- * `keyword-overview`) into append-only `dataforseo_snapshots` rows, on
+ * Collects nine datasets per project (`serp-ranks`, `backlinks-summary`,
+ * `keyword-overview`, `backlink-rows`, `referring-domains`, `top-pages`,
+ * `keyword-ideas`, `serp-snapshot`, `domain-overview`) into append-only `dataforseo_snapshots` rows, on
  * demand or on a WEEKLY/MONTHLY recurrence. See
  * docs/analysis/dataforseo.md for the design and `README.md` next to this
  * file for the operational notes.

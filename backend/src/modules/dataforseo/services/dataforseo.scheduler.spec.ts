@@ -1,4 +1,5 @@
 import { getQueueToken } from '@nestjs/bullmq';
+import { BadRequestException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -137,6 +138,40 @@ describe('DataforseoScheduler', () => {
 
     await scheduler.fireScheduledTick('project-1');
 
-    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', ['serp-ranks', 'backlinks-summary', 'keyword-overview']);
+    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', [
+      'serp-ranks',
+      'backlinks-summary',
+      'keyword-overview',
+      'backlink-rows',
+      'referring-domains',
+      'top-pages',
+      'keyword-ideas',
+      'serp-snapshot',
+      'domain-overview',
+    ]);
+  });
+
+  it('setSchedule 400s on unknown datasets before storing anything', async () => {
+    prisma.project.findFirst.mockResolvedValue({ id: 'project-1' });
+
+    await expect(scheduler.setSchedule('client-1', 'project-1', { cadence: 'WEEKLY', datasets: ['serp-ranks', 'not-a-dataset'] })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(prisma.dataforseoSchedule.upsert).not.toHaveBeenCalled();
+    expect(queue.upsertJobScheduler).not.toHaveBeenCalled();
+  });
+
+  it('setSchedule accepts the new datasets', async () => {
+    prisma.project.findFirst.mockResolvedValue({ id: 'project-1' });
+    prisma.dataforseoSchedule.upsert.mockResolvedValue({ id: 'sched-1', projectId: 'project-1', cadence: 'WEEKLY' });
+
+    await scheduler.setSchedule('client-1', 'project-1', {
+      cadence: 'WEEKLY',
+      datasets: ['backlink-rows', 'referring-domains', 'top-pages', 'keyword-ideas', 'serp-snapshot', 'domain-overview'],
+      spendOptIn: true,
+    });
+
+    expect(prisma.dataforseoSchedule.upsert).toHaveBeenCalled();
+    expect(queue.upsertJobScheduler).toHaveBeenCalled();
   });
 });

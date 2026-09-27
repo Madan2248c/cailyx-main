@@ -8,7 +8,9 @@ import {
   ChevronRight,
   FileText,
   Gauge,
+  KeyRound,
   LayoutDashboard,
+  Link2,
   LogOut,
   Search,
   Settings,
@@ -60,7 +62,11 @@ function projectNav(projectId: string): NavSection[] {
     },
     {
       label: null,
-      items: [{ label: 'Competitors', href: `${base}/competitors`, icon: Users, prefix: true }],
+      items: [
+        { label: 'Competitors', href: `${base}/competitors`, icon: Users, prefix: true },
+        { label: 'Backlinks', href: `${base}/competitors/backlinks`, icon: Link2, indent: true },
+        { label: 'Keywords', href: `${base}/keywords`, icon: KeyRound },
+      ],
     },
     {
       label: null,

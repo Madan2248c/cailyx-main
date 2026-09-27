@@ -88,6 +88,44 @@ describe('DataforseoService', () => {
       expect((service as unknown as Record<string, unknown>).remove).toBeUndefined();
     });
 
+    it('stores one append-only snapshot per new dataset with $0 mock cost accounting', async () => {
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.dataforseoSnapshot.create.mockImplementation((args: unknown) => {
+        const data = (args as { data: { dataset: string; costUsd: number } }).data;
+        return Promise.resolve({ id: `snap-${data.dataset}`, dataset: data.dataset, costUsd: data.costUsd });
+      });
+
+      const result = await service.collectNow('client-1', 'project-1', [
+        'backlink-rows',
+        'referring-domains',
+        'top-pages',
+        'keyword-ideas',
+        'serp-snapshot',
+        'domain-overview',
+      ]);
+
+      expect(result.snapshots).toHaveLength(6);
+      expect(result.skipped).toEqual([]);
+      // Mock fixtures are never billed: every dataset books the flat mock
+      // estimate, so the run total is 6x the per-dataset figure.
+      expect(result.totalCostUsd).toBeCloseTo(0.06);
+      const stored = prisma.dataforseoSnapshot.create.mock.calls.map(
+        (call) => (call[0] as { data: Record<string, unknown> }).data,
+      );
+      expect(stored.map((d) => d.dataset)).toEqual([
+        'backlink-rows',
+        'referring-domains',
+        'top-pages',
+        'keyword-ideas',
+        'serp-snapshot',
+        'domain-overview',
+      ]);
+      for (const data of stored) {
+        expect(data.costUsd).toBe(0.01);
+        expect(data.payload).toBeDefined();
+      }
+    });
+
     it('stops at the cost cap between datasets and reports the skipped', async () => {
       configValues.DATAFORSEO_MAX_COST_PER_RUN_USD = '0.015';
       prisma.project.findFirst.mockResolvedValue(project);
@@ -96,8 +134,29 @@ describe('DataforseoService', () => {
       const result = await service.collectNow('client-1', 'project-1');
 
       expect(result.snapshots).toHaveLength(1);
-      expect(result.skipped).toEqual(['backlinks-summary', 'keyword-overview']);
+      expect(result.skipped).toEqual([
+        'backlinks-summary',
+        'keyword-overview',
+        'backlink-rows',
+        'referring-domains',
+        'top-pages',
+        'keyword-ideas',
+        'serp-snapshot',
+        'domain-overview',
+      ]);
       expect(prisma.dataforseoSnapshot.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('cap behavior: a zero-affordable cap collects nothing and skips every new dataset', async () => {
+      configValues.DATAFORSEO_MAX_COST_PER_RUN_USD = '0.005';
+      prisma.project.findFirst.mockResolvedValue(project);
+
+      const result = await service.collectNow('client-1', 'project-1', ['backlink-rows', 'domain-overview']);
+
+      expect(result.snapshots).toHaveLength(0);
+      expect(result.skipped).toEqual(['backlink-rows', 'domain-overview']);
+      expect(result.totalCostUsd).toBe(0);
+      expect(prisma.dataforseoSnapshot.create).not.toHaveBeenCalled();
     });
   });
 
@@ -111,6 +170,14 @@ describe('DataforseoService', () => {
       );
     });
 
+    it('listSnapshots passes a new-dataset filter through', async () => {
+      prisma.project.findFirst.mockResolvedValue({ id: 'project-1' });
+      prisma.dataforseoSnapshot.findMany.mockResolvedValue([]);
+      await service.listSnapshots('client-1', 'project-1', 'backlink-rows');
+      expect(prisma.dataforseoSnapshot.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ projectId: 'project-1', dataset: 'backlink-rows' }) }),
+      );
+    });
     it('listSnapshots 400s on an unknown dataset filter', async () => {
       prisma.project.findFirst.mockResolvedValue({ id: 'project-1' });
       await expect(service.listSnapshots('client-1', 'project-1', 'nope')).rejects.toBeInstanceOf(BadRequestException);

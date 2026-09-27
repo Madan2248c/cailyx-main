@@ -37,11 +37,24 @@ new permission: `view_projects` scopes reads, `ADMIN` gates writes.
 
 ## Datasets
 
-| Key | Payload |
-|---|---|
-| `serp-ranks` | `rankings: [{ keyword, url, position, prevPosition, volume }]` |
-| `backlinks-summary` | `{ referringDomains, newBacklinks, lostBacklinks }` |
-| `keyword-overview` | `keywords: [{ keyword, volume, difficulty, cpc }]` |
+| Key | Payload | Live source (future wiring) |
+|---|---|---|
+| `serp-ranks` | `rankings: [{ keyword, url, position, prevPosition, volume }]` | SERP API `serp/google/organic/live/advanced` |
+| `backlinks-summary` | `{ referringDomains, newBacklinks, lostBacklinks }` | Backlinks API `backlinks/summary/live` |
+| `keyword-overview` | `keywords: [{ keyword, volume, difficulty, cpc }]` | Keywords Data API `keywords_data/google/search_volume/live` |
+| `backlink-rows` | `backlinks: [{ sourceUrl, targetUrl, anchor, isDofollow, spamScore, firstSeen, lastSeen, lost }]` (12 rows) | Backlinks API `backlinks/backlinks/live` |
+| `referring-domains` | `domains: [{ domain, backlinks, firstSeen }]` (top 10) | Backlinks API `backlinks/referring_domains/live` |
+| `top-pages` | `pages: [{ url, backlinks, refDomains }]` (top 10) | Backlinks API `backlinks/pages/live` |
+| `keyword-ideas` | `keywords: [{ keyword, volume, difficulty, cpc }]` (16 rows) | Labs API `dataforseo_labs/google/keyword_ideas/live` |
+| `serp-snapshot` | `{ keyword, results: [{ position, url, title, features }] }` (top 10) | SERP API `serp/google/organic/live/advanced` |
+| `domain-overview` | `{ rank, rankedKeywords, trafficEstimate, refDomains }` | Labs API `dataforseo_labs/google/overview/live` |
+
+All nine fixtures are deterministic offline mocks shaped like the real
+API responses (row counts mirror live pagination: top-10 lists, 12
+backlink rows, 16 keyword ideas). Every dataset books the same flat
+`MOCK_COST_PER_DATASET_USD` mock estimate ($0 billed — no credit can be
+spent through the mock) and flows through the same cost-cap accounting in
+`collectNow`.
 
 Dataset keys are plain strings on the snapshot (not a Prisma enum), so a
 new dataset later needs no migration.
@@ -88,20 +101,25 @@ module's SERP sweep — this module never reads them (and never logs them).
 
 ## Testing
 
-Mock gate (disabled by default, fixture shape per dataset), service
+Mock gate (disabled by default, fixture shape per dataset — including
+row-count bounds for `backlink-rows`/`keyword-ideas` and top-10 lengths
+for `referring-domains`/`top-pages`/`serp-snapshot`), service
 (unknown-dataset 400, cross-client 404, disabled-mock 503 with zero rows,
 per-dataset rows with period + cost, append-only double-collect, cost-cap
 stop + skipped report, read scoping), scheduler (cadence→ms mapping,
 WEEKLY upsert + `nextRunAt`, MANUAL_ONLY removal, no-opt-in / not-due
-skips, tick advances `nextRunAt` then collects, empty-datasets default),
-controller (pass-through + ADMIN-only triggers / `view_projects` reads via
+ skips, tick advances `nextRunAt` then collects, empty-datasets default,
+ dataset validation), controller (pass-through + ADMIN-only triggers / `view_projects` reads via
 decorator metadata).
 
 ## Live-wiring follow-ups (NOT done — explicit)
 
 1. Implement the DataForSEO REST calls in `adapters/live.adapter.ts`
-   (SERP / backlinks / keywords endpoints; basic auth with login/password
-   from config — never logged, never returned).
+   (SERP for `serp-ranks`/`serp-snapshot`, Backlinks for
+   `backlinks-summary`/`backlink-rows`/`referring-domains`/`top-pages`,
+   Keywords Data + Labs for
+   `keyword-overview`/`keyword-ideas`/`domain-overview`; basic auth with
+   login/password from config — never logged, never returned).
 2. Gate adapter selection on `SWARM_ALLOW_LIVE=1` in the service (mock
    otherwise), with explicit per-collect spend confirmation.
 3. Register `DataforseoModule` in `src/app.module.ts`.
