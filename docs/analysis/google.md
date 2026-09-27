@@ -60,6 +60,9 @@ request from the refresh token). No metrics stored — every read is live.
   next step (slipping / CTR-drop / visibility-fade / striking-distance /
   page-1-entry rules in `buildPageInsights` — heuristics, never model
   judgments). `pageTrends` carries daily clicks for the top 8 pages.
+  `indexCoverage` (sitemap submitted-vs-indexed sums, best-effort — null
+  when the account lists no sitemaps) answers "how many pages aren't
+  indexed" straight from Google's own counts.
   Without `siteUrl`, the account's sites are auto-matched to the project
   domain (404 `google-no-site` when nothing matches); with it, the
   property must belong to the account. `GET …/google/sites` lists every
