@@ -32,6 +32,7 @@ import {
   type GscOverview,
   type GscRow,
   type GscTotals,
+  type PageInsight,
 } from './google.types.js';
 
 /** Code-level fallback — validation.schema.ts carries the same default. */
@@ -55,6 +56,97 @@ export function matchGscSite(sites: Array<{ siteUrl?: string | null }>, domain: 
   if (exact) return exact.raw;
   const related = hosts.find((s) => s.host.endsWith(`.${want}`) || want.endsWith(`.${s.host}`));
   return related?.raw ?? null;
+}
+
+/**
+ * Per-page period-over-period intelligence — the Organic tab's value over
+ * raw Search Console. Pure and fully tested; thresholds are documented
+ * heuristics, not model judgments:
+ * - climbed ≥2 spots → up; slipped ≥3 → down (+ slipping action);
+ * - clicks −20%+ at stable rank → CTR action; impressions −30%+ → visibility watch;
+ * - position 11–20 with above-median impressions → striking-distance action;
+ * - entering page 1 → win note; no previous row → new.
+ * One action per page, first match wins; null when there is nothing to do.
+ */
+export function buildPageInsights(current: GscRow[], previous: GscRow[]): PageInsight[] {
+  const prevByKey = new Map(previous.map((r) => [r.key, r]));
+  const medianImpressions = median(current.map((r) => r.impressions));
+
+  return current.map((row) => {
+    const prev = prevByKey.get(row.key) ?? null;
+    const onPageOne = row.position > 0 && row.position <= 10;
+
+    if (!prev || (prev.impressions === 0 && prev.clicks === 0)) {
+      const active = row.clicks > 0 || row.impressions > 0;
+      return {
+        url: row.key,
+        clicks: row.clicks,
+        prevClicks: null,
+        impressions: row.impressions,
+        prevImpressions: null,
+        position: row.position,
+        prevPosition: null,
+        onPageOne,
+        trend: active ? 'new' : 'stable',
+        action: active ? 'New in this period — watch whether it holds its rank.' : null,
+        actionLevel: active ? 'win' : null,
+      } as PageInsight;
+    }
+
+    const posMove = prev.position > 0 && row.position > 0 ? prev.position - row.position : 0;
+    const clickDrop = prev.clicks > 0 ? (row.clicks - prev.clicks) / prev.clicks : 0;
+    const imprDrop = prev.impressions > 0 ? (row.impressions - prev.impressions) / prev.impressions : 0;
+
+    let trend: PageInsight['trend'] = 'stable';
+    let action: string | null = null;
+    let actionLevel: PageInsight['actionLevel'] = null;
+
+    if (posMove <= -3) {
+      trend = 'down';
+      action = `Slipping ${Math.abs(Math.round(posMove))} spots — refresh the content and check it still matches search intent.`;
+      actionLevel = 'act';
+    } else if (clickDrop <= -0.2 && posMove >= -1) {
+      trend = 'down';
+      action = 'Clicks falling while rank holds — likely a CTR problem: rework the title and meta description.';
+      actionLevel = 'act';
+    } else if (imprDrop <= -0.3) {
+      trend = 'down';
+      action = 'Losing visibility — impressions are fading even where it ranks.';
+      actionLevel = 'watch';
+    } else if (posMove >= 2) {
+      trend = 'up';
+      if (onPageOne && prev.position > 10) {
+        action = 'Reached page 1 — hold it: keep the content fresh and watch for slips.';
+      } else {
+        action = `Climbed ${Math.round(posMove)} spots — on the right track.`;
+      }
+      actionLevel = 'win';
+    } else if (row.position > 10 && row.position <= 20 && row.impressions >= medianImpressions && medianImpressions > 0) {
+      action = 'Striking distance — a title and content tune-up could break it onto page 1.';
+      actionLevel = 'act';
+    }
+
+    return {
+      url: row.key,
+      clicks: row.clicks,
+      prevClicks: prev.clicks,
+      impressions: row.impressions,
+      prevImpressions: prev.impressions,
+      position: row.position,
+      prevPosition: prev.position,
+      onPageOne,
+      trend,
+      action,
+      actionLevel,
+    };
+  });
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 function toDateString(date: Date): string {
@@ -222,21 +314,36 @@ export class GoogleService {
     let byPage: GscRow[];
     let byDate: GscDateRow[];
     let prevRows: GscRow[];
+    let prevPages: GscRow[];
+    let pageDateRows: Array<{ url: string; date: string; clicks: number }>;
     try {
       const api = webmasters.searchanalytics;
-      const [q, p, d, prev] = await Promise.all([
+      const [q, p, d, prev, prevP, pd] = await Promise.all([
         api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['query'], rowLimit: 10 } }),
-        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['page'], rowLimit: 10 } }),
+        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['page'], rowLimit: 100 } }),
         api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['date'], rowLimit: 100 } }),
         api.query({ siteUrl: site, requestBody: { ...previous, rowLimit: 1000 } }),
+        api.query({ siteUrl: site, requestBody: { ...previous, dimensions: ['page'], rowLimit: 1000 } }),
+        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['page', 'date'], rowLimit: 5000 } }),
       ]);
       byQuery = (q.data.rows ?? []).map((r) => this.gscRow(r.keys?.[0] ?? '(unknown)', r));
       byPage = (p.data.rows ?? []).map((r) => this.gscRow(r.keys?.[0] ?? '(unknown)', r));
       byDate = (d.data.rows ?? []).map((r) => ({ ...this.gscRow(r.keys?.[0] ?? '', r), date: r.keys?.[0] ?? '' }));
       prevRows = (prev.data.rows ?? []).map((r) => this.gscRow('', r));
+      prevPages = (prevP.data.rows ?? []).map((r) => this.gscRow(r.keys?.[0] ?? '', r));
+      pageDateRows = (pd.data.rows ?? []).map((r) => ({
+        url: r.keys?.[0] ?? '',
+        date: r.keys?.[1] ?? '',
+        clicks: r.clicks ?? 0,
+      }));
     } catch (err) {
       throw new ServiceUnavailableException(`google-fetch-failed: Search Console query failed (${(err as Error).message})`);
     }
+
+    // Daily trends for the top pages only — a full page×date matrix would
+    // blow the row budget on large sites.
+    const topUrls = new Set([...byPage].sort((a, b) => b.clicks - a.clicks).slice(0, 8).map((r) => r.key));
+    const pageTrends = pageDateRows.filter((r) => r.url !== '' && topUrls.has(r.url));
 
     return {
       siteUrl: site,
@@ -246,6 +353,8 @@ export class GoogleService {
       byQuery,
       byPage,
       byDate,
+      pageInsights: buildPageInsights(byPage, prevPages),
+      pageTrends,
     };
   }
 

@@ -9,6 +9,7 @@ import { useClientProject } from '@/components/client/use-client-project';
 import { ConnectGoogle } from '@/components/google/ConnectGoogle';
 import { GaSection } from '@/components/google/GaSection';
 import { GscDashboard } from '@/components/google/GscDashboard';
+import { GscInsights } from '@/components/google/GscInsights';
 import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
 import { getGoogleStatus, getSearchConsole, listGscSites } from '@/lib/google-api';
@@ -187,7 +188,12 @@ export default function OrganicPage() {
           </CardContent>
         </Card>
       ) : null}
-      {gsc.status === 'ready' ? <GscDashboard overview={gsc.overview} /> : null}
+      {gsc.status === 'ready' ? (
+        <>
+          <GscInsights overview={gsc.overview} />
+          <GscDashboard overview={gsc.overview} />
+        </>
+      ) : null}
       <GaSection
         accessToken={accessToken}
         clientId={clientId}

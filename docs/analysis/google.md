@@ -52,12 +52,18 @@ request from the refresh token). No metrics stored — every read is live.
 - `POST /team/clients/:id/google/disconnect`
   (`manage_client_settings`) — revokes at Google, deletes the row.
 - `GET …/projects/:pid/google/search-console?days=28&siteUrl=…`
-  (`view_projects`) → `{ totals, previousTotals, byQuery[10], byPage[10],
-  byDate[] }` via `searchanalytics.query` (two ranges for deltas). Without
-  `siteUrl`, the account's sites are auto-matched to the project domain
-  (404 `google-no-site` when nothing matches); with it, the property must
-  belong to the account. `GET …/google/sites` lists every site for the
-  manual pick.
+  (`view_projects`) → `{ totals, previousTotals, byQuery[10], byPage[100],
+  byDate[], pageInsights[], pageTrends[] }` via `searchanalytics.query`
+  (current + previous ranges, plus per-page previous and page×date
+  matrices). `pageInsights` is the tab's value over raw Console:
+  per-page trend (up/down/new/stable), page-1 flag, and one deterministic
+  next step (slipping / CTR-drop / visibility-fade / striking-distance /
+  page-1-entry rules in `buildPageInsights` — heuristics, never model
+  judgments). `pageTrends` carries daily clicks for the top 8 pages.
+  Without `siteUrl`, the account's sites are auto-matched to the project
+  domain (404 `google-no-site` when nothing matches); with it, the
+  property must belong to the account. `GET …/google/sites` lists every
+  site for the manual pick.
 - `GET …/projects/:pid/google/analytics?days=28&propertyId=…`
   (`view_projects`) → `{ totals, previousTotals, byDate[] }` (sessions,
   activeUsers, screenPageViews) via the GA4 Data API; 404

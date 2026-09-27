@@ -4,8 +4,9 @@ import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../test/mocks/prisma.mock.js';
-import { matchGscSite, normalizeHost, GoogleService } from './google.service.js';
+import { matchGscSite, normalizeHost, buildPageInsights, GoogleService } from './google.service.js';
 import { GSC_SCOPE, GA_SCOPE } from './google.types.js';
+import type { GscRow } from './google.types.js';
 
 const KEY_HEX = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
@@ -150,5 +151,64 @@ describe('GoogleService', () => {
 
   it('uses the GA scope constant for GA checks (no silent scope drift)', () => {
     expect(GA_SCOPE).toBe('https://www.googleapis.com/auth/analytics.readonly');
+  });
+});
+
+describe('buildPageInsights', () => {
+  const row = (key: string, clicks: number, impressions: number, position: number): GscRow => ({
+    key,
+    clicks,
+    impressions,
+    ctr: impressions > 0 ? clicks / impressions : 0,
+    position,
+  });
+
+  it('flags climbers, page-1 entries, and new pages as wins', () => {
+    const out = buildPageInsights(
+      [row('/a', 100, 1000, 4), row('/b', 50, 500, 8), row('/c', 10, 100, 6)],
+      [row('/a', 60, 800, 12), row('/b', 40, 400, 15)],
+    );
+    const byUrl = new Map(out.map((i) => [i.url, i]));
+
+    expect(byUrl.get('/a')).toMatchObject({ trend: 'up', onPageOne: true, actionLevel: 'win' });
+    expect(byUrl.get('/a')?.action).toContain('page 1');
+    expect(byUrl.get('/b')).toMatchObject({ trend: 'up', onPageOne: true });
+    expect(byUrl.get('/c')).toMatchObject({ trend: 'new', actionLevel: 'win' });
+  });
+
+  it('flags slipping, CTR drops, and visibility drops with one action each', () => {
+    const out = buildPageInsights(
+      [
+        row('/slip', 50, 500, 14),
+        row('/ctr', 40, 500, 5),
+        row('/vis', 45, 300, 7),
+        row('/ok', 50, 500, 5),
+      ],
+      [
+        row('/slip', 60, 600, 9),
+        row('/ctr', 80, 520, 5),
+        row('/vis', 50, 900, 6),
+        row('/ok', 52, 510, 5),
+      ],
+    );
+    const byUrl = new Map(out.map((i) => [i.url, i]));
+
+    expect(byUrl.get('/slip')).toMatchObject({ trend: 'down', actionLevel: 'act' });
+    expect(byUrl.get('/slip')?.action).toContain('Slipping');
+    expect(byUrl.get('/ctr')?.action).toContain('CTR');
+    expect(byUrl.get('/vis')).toMatchObject({ trend: 'down', actionLevel: 'watch' });
+    expect(byUrl.get('/ok')).toMatchObject({ trend: 'stable', action: null, actionLevel: null });
+  });
+
+  it('flags striking distance for mid-rank pages with real impressions', () => {
+    const out = buildPageInsights(
+      [row('/strike', 10, 2000, 13), row('/long-tail', 2, 10, 25)],
+      [row('/strike', 10, 2000, 13), row('/long-tail', 2, 10, 25)],
+    );
+    const byUrl = new Map(out.map((i) => [i.url, i]));
+
+    expect(byUrl.get('/strike')?.action).toContain('Striking distance');
+    expect(byUrl.get('/strike')?.actionLevel).toBe('act');
+    expect(byUrl.get('/long-tail')?.action).toBeNull();
   });
 });

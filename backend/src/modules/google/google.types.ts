@@ -47,6 +47,28 @@ export interface GscOverview {
   byQuery: GscRow[];
   byPage: GscRow[];
   byDate: GscDateRow[];
+  /** Per-page period-over-period intelligence (see buildPageInsights). */
+  pageInsights: PageInsight[];
+  /** Daily clicks for the top pages (trend sparklines, capped server-side). */
+  pageTrends: Array<{ url: string; date: string; clicks: number }>;
+}
+
+export type PageTrend = 'up' | 'down' | 'new' | 'stable';
+export type InsightLevel = 'win' | 'watch' | 'act';
+
+export interface PageInsight {
+  url: string;
+  clicks: number;
+  prevClicks: number | null;
+  impressions: number;
+  prevImpressions: number | null;
+  position: number;
+  prevPosition: number | null;
+  onPageOne: boolean;
+  trend: PageTrend;
+  /** One next step, or null when there is nothing to do. */
+  action: string | null;
+  actionLevel: InsightLevel | null;
 }
 
 export interface GaTotals {
