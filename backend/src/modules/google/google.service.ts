@@ -14,7 +14,7 @@
  * @module google/google.service
  */
 
-import { BadRequestException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
@@ -46,6 +46,23 @@ export function normalizeHost(input: string): string {
   host = host.replace(/^sc-domain:/, '').replace(/^https?:\/\//, '').replace(/^www\./, '');
   host = host.split(/[/?#]/)[0]!;
   return host.replace(/[./]+$/, '');
+}
+
+/** True when Google rejected a call for missing grant scope (unchecked box, revoked grant). */
+export function isInsufficientScope(err: unknown): boolean {
+  const code = (err as { code?: unknown })?.code;
+  if (code === 403 || code === '403') return true;
+  const message = err instanceof Error ? err.message : String(err);
+  return /insufficient authentication scopes/i.test(message);
+}
+
+/** The provider scopes a granted scope string actually contains — the consent screen lets users uncheck boxes. */
+export function scopesFromGranted(scope: string | undefined): string[] {
+  const parts = (scope ?? '').split(/\s+/);
+  const out: string[] = [];
+  if (parts.includes(PROVIDER_SCOPES.gsc)) out.push(PROVIDER_SCOPES.gsc);
+  if (parts.includes(PROVIDER_SCOPES.ga)) out.push(PROVIDER_SCOPES.ga);
+  return out;
 }
 
 /** First GSC site containing the project domain, else null. Exact host wins over parent/subdomain matches. */
@@ -240,9 +257,11 @@ export class GoogleService {
 
     const oauth = this.oauthClient();
     let refreshToken: string | null | undefined;
+    let grantedScope: string | undefined;
     try {
       const { tokens } = await oauth.getToken(code);
       refreshToken = tokens.refresh_token;
+      grantedScope = tokens.scope;
     } catch (err) {
       throw new ServiceUnavailableException(`google-fetch-failed: Google rejected the authorization code (${(err as Error).message})`);
     }
@@ -250,14 +269,32 @@ export class GoogleService {
       throw new BadRequestException('Google did not return a refresh token — remove the Cailyx grant at myaccount.google.com/permissions and reconnect.');
     }
 
-    const existing = await this.prisma.googleConnection.findUnique({ where: { clientId: payload.clientId } });
-    const scopes = [...new Set([...(existing?.scopes ?? []), PROVIDER_SCOPES[payload.provider]])];
+    // Store what Google actually granted, not what was requested — the
+    // consent screen lets users uncheck boxes, and unchecking revokes that
+    // scope account-wide, so merging with old rows would preserve a lie.
+    // (Falls back to the requested scope only when Google omits the field.)
+    const granted = scopesFromGranted(grantedScope);
+    const scopes = granted.length > 0 ? granted : [PROVIDER_SCOPES[payload.provider]];
     await this.prisma.googleConnection.upsert({
       where: { clientId: payload.clientId },
       create: { clientId: payload.clientId, scopes, refreshTokenEncrypted: this.encrypt(refreshToken) },
       update: { scopes, refreshTokenEncrypted: this.encrypt(refreshToken) },
     });
     return { clientId: payload.clientId };
+  }
+
+  /**
+   * Maps a Google API failure to the honest error: revoked/unchecked
+   * grants surface as 403 `google-scope-missing` (reconnect fixes it),
+   * everything else as 503 `google-fetch-failed`.
+   */
+  private googleError(operation: string, err: unknown): never {
+    if (isInsufficientScope(err)) {
+      throw new ForbiddenException(
+        'google-scope-missing: this Google account has not granted the needed access — reconnect and check every box on the consent screen.',
+      );
+    }
+    throw new ServiceUnavailableException(`google-fetch-failed: ${operation} (${(err as Error).message})`);
   }
 
   /** Which providers are linked. Site/property matching is per project, reported by the overview endpoints. */
@@ -293,7 +330,7 @@ export class GoogleService {
       const sites = await google.webmasters({ version: 'v3', auth: oauth }).sites.list();
       return (sites.data.siteEntry ?? []).map((s) => s.siteUrl ?? '').filter(Boolean);
     } catch (err) {
-      throw new ServiceUnavailableException(`google-fetch-failed: could not list Search Console sites (${(err as Error).message})`);
+      this.googleError('could not list Search Console sites', err);
     }
   }
 
@@ -320,7 +357,7 @@ export class GoogleService {
       }
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
-      throw new ServiceUnavailableException(`google-fetch-failed: could not list Search Console sites (${(err as Error).message})`);
+      this.googleError('could not list Search Console sites', err);
     }
 
     const current = rangeDays(days);
@@ -352,7 +389,7 @@ export class GoogleService {
         clicks: r.clicks ?? 0,
       }));
     } catch (err) {
-      throw new ServiceUnavailableException(`google-fetch-failed: Search Console query failed (${(err as Error).message})`);
+      this.googleError('Search Console query failed', err);
     }
 
     // Daily trends for the top pages only — a full page×date matrix would
@@ -428,7 +465,7 @@ export class GoogleService {
     try {
       return await this.gaPropertyCandidates(google.analyticsadmin({ version: 'v1alpha', auth: oauth }));
     } catch (err) {
-      throw new ServiceUnavailableException(`google-fetch-failed: could not list Analytics properties (${(err as Error).message})`);
+      this.googleError('could not list Analytics properties', err);
     }
   }
 
@@ -455,7 +492,7 @@ export class GoogleService {
       }
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
-      throw new ServiceUnavailableException(`google-fetch-failed: could not list Analytics properties (${(err as Error).message})`);
+      this.googleError('could not list Analytics properties', err);
     }
 
     const current = rangeDays(days);
@@ -502,7 +539,7 @@ export class GoogleService {
       );
       return { propertyId: property, days, totals: sum(byDate), previousTotals: prevTotals, byDate };
     } catch (err) {
-      throw new ServiceUnavailableException(`google-fetch-failed: Analytics query failed (${(err as Error).message})`);
+      this.googleError('Analytics query failed', err);
     }
   }
 

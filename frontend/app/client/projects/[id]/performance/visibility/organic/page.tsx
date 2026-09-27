@@ -12,12 +12,12 @@ import { GscKpis, GscClicksChart, GscTopQueries, IndexCoverage } from '@/compone
 import { GscHighlights, GscPageTables } from '@/components/google/GscInsights';
 import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
-import { getGoogleStatus, getSearchConsole, listGscSites } from '@/lib/google-api';
+import { getGoogleStatus, getSearchConsole, listGscSites, startGoogleConnect } from '@/lib/google-api';
 import type { GoogleStatus, GscOverview } from '@/types/google';
 
 type GscState =
   | { status: 'loading' }
-  | { status: 'error'; message: string; noSite: boolean }
+  | { status: 'error'; message: string; noSite: boolean; scopeMissing: boolean }
   | { status: 'ready'; overview: GscOverview };
 
 function SitePicker({
@@ -112,7 +112,12 @@ export default function OrganicPage() {
       .catch((err) => {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : 'Failed to load Search Console';
-          setGsc({ status: 'error', message, noSite: message.includes('google-no-site') });
+          setGsc({
+            status: 'error',
+            message,
+            noSite: message.includes('google-no-site'),
+            scopeMissing: message.includes('google-scope-missing'),
+          });
         }
       });
 
@@ -120,6 +125,23 @@ export default function OrganicPage() {
       cancelled = true;
     };
   }, [accessToken, clientId, fetchKey, project, selectedSite]);
+
+  const canEdit = user?.role === 'CLIENT_POC';
+  const [pickingSite, setPickingSite] = useState(false);
+  const [reconnectPending, setReconnectPending] = useState(false);
+  const [reconnectError, setReconnectError] = useState<string | null>(null);
+
+  async function reconnectGsc() {
+    if (!accessToken || !clientId) return;
+    setReconnectError(null);
+    setReconnectPending(true);
+    try {
+      await startGoogleConnect(accessToken, clientId, 'gsc');
+    } catch (err) {
+      setReconnectError(err instanceof Error ? err.message : 'Something went wrong');
+      setReconnectPending(false);
+    }
+  }
 
   if (project === undefined || !user || !accessToken || !clientId || !googleStatus) {
     return (
@@ -144,8 +166,6 @@ export default function OrganicPage() {
     );
   }
 
-  const canEdit = user.role === 'CLIENT_POC';
-
   if (!googleStatus.gsc.connected) {
     return (
       <ConnectGoogle
@@ -159,10 +179,28 @@ export default function OrganicPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Organic</h1>
-        <p className="text-sm text-muted-foreground">{project.name} · Google Search Console</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-2xl font-semibold">Organic</h1>
+          <p className="text-sm text-muted-foreground">{project.name} · Google Search Console</p>
+        </div>
+        {gsc.status === 'ready' && canEdit ? (
+          <Button variant="outline" size="sm" onClick={() => setPickingSite((v) => !v)}>
+            {pickingSite ? 'Hide sites' : 'Switch site'}
+          </Button>
+        ) : null}
       </div>
+      {pickingSite ? (
+        <SitePicker
+          accessToken={accessToken}
+          clientId={clientId}
+          projectId={project.id}
+          onPick={(site) => {
+            setSitePick({ projectId: project.id, site });
+            setPickingSite(false);
+          }}
+        />
+      ) : null}
       {gsc.status === 'loading' ? (
         <Card>
           <CardContent className="pt-6">
@@ -178,7 +216,29 @@ export default function OrganicPage() {
           onPick={(site) => setSitePick({ projectId: project.id, site })}
         />
       ) : null}
-      {gsc.status === 'error' && !gsc.noSite ? (
+      {gsc.status === 'error' && gsc.scopeMissing ? (
+        <Card>
+          <CardContent className="flex flex-col gap-2 pt-6">
+            <p className="text-sm">
+              Search Console access was revoked or never fully granted — Google is refusing with
+              insufficient scope.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Reconnect and check every box on Google&apos;s consent screen.
+            </p>
+            <div>
+              <Button onClick={reconnectGsc} disabled={!canEdit || reconnectPending}>
+                {reconnectPending ? 'Redirecting…' : 'Reconnect Search Console'}
+              </Button>
+            </div>
+            {!canEdit ? (
+              <p className="text-sm text-muted-foreground">Only your account&apos;s POC can reconnect.</p>
+            ) : null}
+            {reconnectError ? <p className="text-sm text-destructive">{reconnectError}</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
+      {gsc.status === 'error' && !gsc.noSite && !gsc.scopeMissing ? (
         <Card>
           <CardContent className="flex flex-col gap-2 pt-6">
             <p className="text-sm text-destructive">{gsc.message}</p>

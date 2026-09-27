@@ -44,8 +44,10 @@ request from the refresh token). No metrics stored — every read is live.
   short-lived JWT (signed with `JWT_ACCESS_SECRET`, 10 min) carrying
   `{clientId, provider, nonce}` — stateless CSRF protection, no storage.
 - `GET /auth/google/callback?code&state` (public) — verifies state,
-  exchanges the code, upserts the connection (merging scopes), then 302s
-  to `${FRONTEND_URL}/client?google=connected`.
+  exchanges the code, upserts the connection (storing exactly what
+  Google granted — the consent screen lets users uncheck boxes, and
+  unchecking revokes, so merging with old rows would preserve a lie),
+  then 302s to `${FRONTEND_URL}/client?google=connected`.
 - `GET /team/clients/:id/google/status` (`view_projects`) →
   `{ gsc: { connected }, ga: { connected } }`. The matched site/property is
   reported by the overview endpoints below (matching is per project).

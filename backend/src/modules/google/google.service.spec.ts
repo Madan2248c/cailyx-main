@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../test/mocks/prisma.mock.js';
-import { matchGscSite, normalizeHost, buildPageInsights, sumSitemapCoverage, GoogleService } from './google.service.js';
+import { matchGscSite, normalizeHost, buildPageInsights, sumSitemapCoverage, isInsufficientScope, scopesFromGranted, GoogleService } from './google.service.js';
 import { GSC_SCOPE, GA_SCOPE } from './google.types.js';
 import type { GscRow } from './google.types.js';
 
@@ -154,6 +154,21 @@ describe('GoogleService', () => {
   });
 });
 
+describe('grant scope truth', () => {
+  it('reads granted scopes, not requested ones — unchecked boxes stay unchecked', () => {
+    expect(scopesFromGranted(`${GSC_SCOPE} https://www.googleapis.com/auth/userinfo.email`)).toEqual([GSC_SCOPE]);
+    expect(scopesFromGranted(`${GSC_SCOPE} ${GA_SCOPE}`)).toEqual([GSC_SCOPE, GA_SCOPE]);
+    expect(scopesFromGranted(undefined)).toEqual([]);
+    expect(scopesFromGranted('')).toEqual([]);
+  });
+
+  it('recognizes revoked/unchecked grants by 403 or message', () => {
+    expect(isInsufficientScope({ code: 403 })).toBe(true);
+    expect(isInsufficientScope(new Error('Request had insufficient authentication scopes.'))).toBe(true);
+    expect(isInsufficientScope(new Error('invalid_grant'))).toBe(false);
+    expect(isInsufficientScope(null)).toBe(false);
+  });
+});
 describe('sumSitemapCoverage', () => {
   it('sums contents across sitemaps and never reports negative gaps', () => {
     expect(

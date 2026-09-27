@@ -65,6 +65,7 @@ export function GaSection({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [propertyPick, setPropertyPick] = useState<{ projectId: string; propertyId: string } | null>(null);
+  const [pickingProperty, setPickingProperty] = useState(false);
   const selectedProperty =
     propertyPick && propertyPick.projectId === projectId ? propertyPick.propertyId : null;
 
@@ -107,14 +108,17 @@ export function GaSection({
   }
 
   if (!connected || (failure && !failure.includes('google-no-property'))) {
+    const scopeMissing = failure?.includes('google-scope-missing') ?? false;
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Google Analytics</CardTitle>
           <CardDescription>
-            {failure
-              ? 'Analytics is linked but its data could not be read — reconnecting usually fixes it.'
-              : 'Sessions and users — optional, adds on once connected.'}
+            {scopeMissing
+              ? 'Analytics access was revoked or never fully granted — reconnect and check every box on Google’s consent screen.'
+              : failure
+                ? 'Analytics is linked but its data could not be read — reconnecting usually fixes it.'
+                : 'Sessions and users — optional, adds on once connected.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -158,6 +162,26 @@ export function GaSection({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Property {overview.propertyId}</p>
+        {canEdit ? (
+          <Button variant="outline" size="sm" onClick={() => setPickingProperty((v) => !v)}>
+            {pickingProperty ? 'Hide properties' : 'Switch property'}
+          </Button>
+        ) : null}
+      </div>
+      {pickingProperty ? (
+        <GaPropertyPicker
+          accessToken={accessToken}
+          clientId={clientId}
+          projectId={projectId}
+          onPick={(propertyId) => {
+            setFailure(null);
+            setPropertyPick({ projectId, propertyId });
+            setPickingProperty(false);
+          }}
+        />
+      ) : null}
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
