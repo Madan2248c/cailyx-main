@@ -217,7 +217,7 @@ export function TechnicalTab({
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">PageSpeed Insights</CardTitle>
@@ -298,9 +298,7 @@ export function TechnicalTab({
             ))}
           </CardContent>
         </Card>
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Page structure</CardTitle>
@@ -351,7 +349,6 @@ export function TechnicalTab({
             </p>
           </CardContent>
         </Card>
-      </div>
 
       <Card>
         <CardHeader>
@@ -409,6 +406,7 @@ export function TechnicalTab({
           </CardContent>
         </Card>
       ) : null}
+      </div>
     </div>
   );
 }
