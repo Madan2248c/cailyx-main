@@ -21,6 +21,8 @@ describe('GoogleController', () => {
     disconnect: ReturnType<typeof vi.fn>;
     getSearchConsole: ReturnType<typeof vi.fn>;
     getAnalytics: ReturnType<typeof vi.fn>;
+    listGscSites: ReturnType<typeof vi.fn>;
+    listGaProperties: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
@@ -30,6 +32,8 @@ describe('GoogleController', () => {
       disconnect: vi.fn().mockResolvedValue({ success: true }),
       getSearchConsole: vi.fn().mockResolvedValue({}),
       getAnalytics: vi.fn().mockResolvedValue({}),
+      listGscSites: vi.fn().mockResolvedValue([]),
+      listGaProperties: vi.fn().mockResolvedValue([]),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -73,8 +77,14 @@ describe('GoogleController', () => {
     await controller.status('client-1');
     expect(google.getStatus).toHaveBeenCalledWith('client-1');
     await projectController.searchConsole('client-1', 'project-1', {});
-    expect(google.getSearchConsole).toHaveBeenCalledWith('client-1', 'project-1', 28);
+    expect(google.getSearchConsole).toHaveBeenCalledWith('client-1', 'project-1', 28, undefined);
+    await projectController.searchConsole('client-1', 'project-1', { siteUrl: 'sc-domain:x.com' });
+    expect(google.getSearchConsole).toHaveBeenCalledWith('client-1', 'project-1', 28, 'sc-domain:x.com');
     await projectController.analytics('client-1', 'project-1', { days: 7 });
-    expect(google.getAnalytics).toHaveBeenCalledWith('client-1', 'project-1', 7);
+    expect(google.getAnalytics).toHaveBeenCalledWith('client-1', 'project-1', 7, undefined);
+    await projectController.sites('client-1', 'project-1');
+    expect(google.listGscSites).toHaveBeenCalledWith('client-1', 'project-1');
+    await projectController.properties('client-1', 'project-1');
+    expect(google.listGaProperties).toHaveBeenCalledWith('client-1', 'project-1');
   });
 });

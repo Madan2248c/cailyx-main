@@ -36,8 +36,10 @@ export async function getSearchConsole(
   accessToken: string,
   clientId: string,
   projectId: string,
+  siteUrl?: string,
 ): Promise<GscOverview> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/search-console`, {
+  const params = siteUrl ? `?siteUrl=${encodeURIComponent(siteUrl)}` : '';
+  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/search-console${params}`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<GscOverview>(response);
@@ -47,9 +49,33 @@ export async function getAnalytics(
   accessToken: string,
   clientId: string,
   projectId: string,
+  propertyId?: string,
 ): Promise<GaOverview> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/analytics`, {
+  const params = propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : '';
+  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/analytics${params}`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<GaOverview>(response);
+}
+
+export async function listGscSites(
+  accessToken: string,
+  clientId: string,
+  projectId: string,
+): Promise<string[]> {
+  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/sites`, {
+    headers: authHeaders(accessToken),
+  });
+  return parseOrThrow<string[]>(response);
+}
+
+export async function listGaProperties(
+  accessToken: string,
+  clientId: string,
+  projectId: string,
+): Promise<Array<{ id: string; name: string }>> {
+  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/google/properties`, {
+    headers: authHeaders(accessToken),
+  });
+  return parseOrThrow<Array<{ id: string; name: string }>>(response);
 }

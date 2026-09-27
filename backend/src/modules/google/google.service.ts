@@ -178,19 +178,39 @@ export class GoogleService {
 
   // ─── Search Console ───────────────────────────────────────────────
 
-  async getSearchConsole(clientId: string, projectId: string, days: number): Promise<GscOverview> {
+  /** Every Search Console site on the linked account (manual-pick fallback). */
+  async listGscSites(clientId: string, projectId: string): Promise<string[]> {
+    await this.assertProjectInClient(projectId, clientId);
+    const oauth = await this.authorizedClientFor(clientId, PROVIDER_SCOPES.gsc);
+    try {
+      const sites = await google.webmasters({ version: 'v3', auth: oauth }).sites.list();
+      return (sites.data.siteEntry ?? []).map((s) => s.siteUrl ?? '').filter(Boolean);
+    } catch (err) {
+      throw new ServiceUnavailableException(`google-fetch-failed: could not list Search Console sites (${(err as Error).message})`);
+    }
+  }
+
+  async getSearchConsole(clientId: string, projectId: string, days: number, siteUrl?: string): Promise<GscOverview> {
     const project = await this.assertProjectInClient(projectId, clientId);
     const oauth = await this.authorizedClientFor(clientId, PROVIDER_SCOPES.gsc);
     const webmasters = google.webmasters({ version: 'v3', auth: oauth });
 
-    let siteUrl: string;
+    let site: string;
     try {
       const sites = await webmasters.sites.list();
-      const matched = matchGscSite((sites.data.siteEntry ?? []).map((s) => ({ siteUrl: s.siteUrl ?? null })), project.domain);
-      if (!matched) {
-        throw new NotFoundException(`google-no-site: this Google account has no Search Console property for ${project.domain}.`);
+      const available = (sites.data.siteEntry ?? []).map((s) => s.siteUrl ?? '').filter(Boolean);
+      if (siteUrl) {
+        if (!available.includes(siteUrl)) {
+          throw new NotFoundException('google-no-site: that property is not on this Google account.');
+        }
+        site = siteUrl;
+      } else {
+        const matched = matchGscSite(available.map((s) => ({ siteUrl: s })), project.domain);
+        if (!matched) {
+          throw new NotFoundException(`google-no-site: this Google account has no Search Console property for ${project.domain}.`);
+        }
+        site = matched;
       }
-      siteUrl = matched;
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
       throw new ServiceUnavailableException(`google-fetch-failed: could not list Search Console sites (${(err as Error).message})`);
@@ -205,10 +225,10 @@ export class GoogleService {
     try {
       const api = webmasters.searchanalytics;
       const [q, p, d, prev] = await Promise.all([
-        api.query({ siteUrl, requestBody: { ...current, dimensions: ['query'], rowLimit: 10 } }),
-        api.query({ siteUrl, requestBody: { ...current, dimensions: ['page'], rowLimit: 10 } }),
-        api.query({ siteUrl, requestBody: { ...current, dimensions: ['date'], rowLimit: 100 } }),
-        api.query({ siteUrl, requestBody: { ...previous, rowLimit: 1000 } }),
+        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['query'], rowLimit: 10 } }),
+        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['page'], rowLimit: 10 } }),
+        api.query({ siteUrl: site, requestBody: { ...current, dimensions: ['date'], rowLimit: 100 } }),
+        api.query({ siteUrl: site, requestBody: { ...previous, rowLimit: 1000 } }),
       ]);
       byQuery = (q.data.rows ?? []).map((r) => this.gscRow(r.keys?.[0] ?? '(unknown)', r));
       byPage = (p.data.rows ?? []).map((r) => this.gscRow(r.keys?.[0] ?? '(unknown)', r));
@@ -219,7 +239,7 @@ export class GoogleService {
     }
 
     return {
-      siteUrl,
+      siteUrl: site,
       days,
       totals: this.gscTotals(byDate),
       previousTotals: this.gscTotals(prevRows),
@@ -252,19 +272,38 @@ export class GoogleService {
 
   // ─── Analytics ────────────────────────────────────────────────────
 
-  async getAnalytics(clientId: string, projectId: string, days: number): Promise<GaOverview> {
+  /** Every Analytics property on the linked account (manual-pick fallback). */
+  async listGaProperties(clientId: string, projectId: string): Promise<Array<{ id: string; name: string }>> {
+    await this.assertProjectInClient(projectId, clientId);
+    const oauth = await this.authorizedClientFor(clientId, PROVIDER_SCOPES.ga);
+    try {
+      return await this.gaPropertyCandidates(google.analyticsadmin({ version: 'v1alpha', auth: oauth }));
+    } catch (err) {
+      throw new ServiceUnavailableException(`google-fetch-failed: could not list Analytics properties (${(err as Error).message})`);
+    }
+  }
+
+  async getAnalytics(clientId: string, projectId: string, days: number, propertyId?: string): Promise<GaOverview> {
     const project = await this.assertProjectInClient(projectId, clientId);
     const oauth = await this.authorizedClientFor(clientId, PROVIDER_SCOPES.ga);
     const admin = google.analyticsadmin({ version: 'v1alpha', auth: oauth });
     const data = google.analyticsdata({ version: 'v1beta', auth: oauth });
 
-    let propertyId: string;
+    let property: string;
     try {
-      const matched = await this.matchGaProperty(admin, project.domain);
-      if (!matched) {
-        throw new NotFoundException(`google-no-property: this Google account has no Analytics property for ${project.domain}.`);
+      if (propertyId) {
+        const candidates = await this.gaPropertyCandidates(admin);
+        if (!candidates.some((c) => c.id === propertyId)) {
+          throw new NotFoundException('google-no-property: that property is not on this Google account.');
+        }
+        property = propertyId;
+      } else {
+        const matched = await this.matchGaProperty(admin, project.domain);
+        if (!matched) {
+          throw new NotFoundException(`google-no-property: this Google account has no Analytics property for ${project.domain}.`);
+        }
+        property = matched;
       }
-      propertyId = matched;
     } catch (err) {
       if (err instanceof NotFoundException) throw err;
       throw new ServiceUnavailableException(`google-fetch-failed: could not list Analytics properties (${(err as Error).message})`);
@@ -275,7 +314,7 @@ export class GoogleService {
     try {
       const [cur, prev] = await Promise.all([
         data.properties.runReport({
-          property: propertyId,
+          property,
           requestBody: {
             dateRanges: [current],
             dimensions: [{ name: 'date' }],
@@ -285,7 +324,7 @@ export class GoogleService {
           },
         }),
         data.properties.runReport({
-          property: propertyId,
+          property,
           requestBody: {
             dateRanges: [previous],
             metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'screenPageViews' }],
@@ -312,10 +351,24 @@ export class GoogleService {
           screenPageViews: Number(r.metricValues?.[2]?.value ?? 0),
         })),
       );
-      return { propertyId, days, totals: sum(byDate), previousTotals: prevTotals, byDate };
+      return { propertyId: property, days, totals: sum(byDate), previousTotals: prevTotals, byDate };
     } catch (err) {
       throw new ServiceUnavailableException(`google-fetch-failed: Analytics query failed (${(err as Error).message})`);
     }
+  }
+
+  /** All properties on the account (id + display name) — shared by matching and listing. */
+  private async gaPropertyCandidates(
+    admin: ReturnType<typeof google.analyticsadmin>,
+  ): Promise<Array<{ id: string; name: string }>> {
+    const summaries = await admin.accountSummaries.list({ pageSize: 200 });
+    const candidates: Array<{ id: string; name: string }> = [];
+    for (const account of summaries.data.accountSummaries ?? []) {
+      for (const property of account.propertySummaries ?? []) {
+        if (property.property) candidates.push({ id: property.property, name: property.displayName ?? property.property });
+      }
+    }
+    return candidates;
   }
 
   /**
@@ -325,16 +378,10 @@ export class GoogleService {
    */
   private async matchGaProperty(admin: ReturnType<typeof google.analyticsadmin>, domain: string): Promise<string | null> {
     const stem = normalizeHost(domain).split('.')[0];
-    const summaries = await admin.accountSummaries.list({ pageSize: 200 });
-    const candidates: Array<{ path: string; name: string }> = [];
-    for (const account of summaries.data.accountSummaries ?? []) {
-      for (const property of account.propertySummaries ?? []) {
-        if (property.property) candidates.push({ path: property.property, name: property.displayName ?? '' });
-      }
-    }
+    const candidates = await this.gaPropertyCandidates(admin);
     return (
-      candidates.find((c) => c.name.toLowerCase().includes(stem))?.path ??
-      candidates[0]?.path ??
+      candidates.find((c) => c.name.toLowerCase().includes(stem))?.id ??
+      candidates[0]?.id ??
       null
     );
   }

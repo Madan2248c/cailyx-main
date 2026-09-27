@@ -5,13 +5,11 @@ type Params = { params: Promise<{ id: string; projectId: string }> };
 
 export async function GET(request: Request, { params }: Params) {
   const { id, projectId } = await params;
-  const search = new URL(request.url).searchParams;
-  const siteUrl = search.get('siteUrl');
-  const path =
-    `/team/clients/${id}/projects/${projectId}/google/search-console` +
-    (siteUrl ? `?siteUrl=${encodeURIComponent(siteUrl)}` : '');
   try {
-    const data = await authorizedBackendFetch(request, path);
+    const data = await authorizedBackendFetch(
+      request,
+      `/team/clients/${id}/projects/${projectId}/google/sites`,
+    );
     return NextResponse.json(data);
   } catch (error) {
     const { body, status } = backendErrorToResponseInit(error);

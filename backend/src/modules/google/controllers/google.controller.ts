@@ -45,7 +45,7 @@ export class GoogleController {
 export class GoogleProjectController {
   constructor(private readonly google: GoogleService) {}
 
-  /** GET …/google/search-console?days=28 — live GSC overview. */
+  /** GET …/google/search-console?days=28&siteUrl=… — live GSC overview. */
   @Get('search-console')
   @RequirePermission('view_projects')
   searchConsole(
@@ -53,10 +53,10 @@ export class GoogleProjectController {
     @Param('projectId') projectId: string,
     @Query() query: DaysQueryDto,
   ) {
-    return this.google.getSearchConsole(clientId, projectId, query.days ?? 28);
+    return this.google.getSearchConsole(clientId, projectId, query.days ?? 28, query.siteUrl);
   }
 
-  /** GET …/google/analytics?days=28 — live GA4 overview. */
+  /** GET …/google/analytics?days=28&propertyId=… — live GA4 overview. */
   @Get('analytics')
   @RequirePermission('view_projects')
   analytics(
@@ -64,7 +64,21 @@ export class GoogleProjectController {
     @Param('projectId') projectId: string,
     @Query() query: DaysQueryDto,
   ) {
-    return this.google.getAnalytics(clientId, projectId, query.days ?? 28);
+    return this.google.getAnalytics(clientId, projectId, query.days ?? 28, query.propertyId);
+  }
+
+  /** GET …/google/sites — every Search Console site on the account (manual pick). */
+  @Get('sites')
+  @RequirePermission('view_projects')
+  sites(@Param('clientId') clientId: string, @Param('projectId') projectId: string) {
+    return this.google.listGscSites(clientId, projectId);
+  }
+
+  /** GET …/google/properties — every Analytics property on the account (manual pick). */
+  @Get('properties')
+  @RequirePermission('view_projects')
+  properties(@Param('clientId') clientId: string, @Param('projectId') projectId: string) {
+    return this.google.listGaProperties(clientId, projectId);
   }
 }
 

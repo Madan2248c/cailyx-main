@@ -9,14 +9,53 @@ import { useClientProject } from '@/components/client/use-client-project';
 import { ConnectGoogle } from '@/components/google/ConnectGoogle';
 import { GaSection } from '@/components/google/GaSection';
 import { GscDashboard } from '@/components/google/GscDashboard';
+import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
-import { getGoogleStatus, getSearchConsole } from '@/lib/google-api';
+import { getGoogleStatus, getSearchConsole, listGscSites } from '@/lib/google-api';
 import type { GoogleStatus, GscOverview } from '@/types/google';
 
 type GscState =
   | { status: 'loading' }
-  | { status: 'error'; message: string }
+  | { status: 'error'; message: string; noSite: boolean }
   | { status: 'ready'; overview: GscOverview };
+
+function SitePicker({
+  accessToken,
+  clientId,
+  projectId,
+  onPick,
+}: {
+  accessToken: string;
+  clientId: string;
+  projectId: string;
+  onPick: (siteUrl: string) => void;
+}) {
+  const [sites, setSites] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    listGscSites(accessToken, clientId, projectId)
+      .then((list) => {
+        if (!cancelled) setSites(list);
+      })
+      .catch(() => {
+        if (!cancelled) setSites([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, clientId, projectId]);
+
+  return (
+    <PropertyPicker
+      title="Choose a Search Console property"
+      description="This account has no property matching the project domain — pick one to view its data."
+      items={(sites ?? []).map((s) => ({ key: s, label: s }))}
+      onPick={onPick}
+      isLoading={sites === null}
+    />
+  );
+}
 
 export default function OrganicPage() {
   const params = useParams<{ id: string }>();
@@ -27,10 +66,15 @@ export default function OrganicPage() {
 
   const clientId = user?.clientId ?? null;
 
-  // A new project or a fresh Google grant resets the data fetch (handled
-  // during render, not in an effect, so no stale fetch can win).
+  // A new project, a fresh Google grant, or a manual property pick resets
+  // the data fetch (handled during render, not in an effect, so no stale
+  // fetch can win). The pick is scoped to its project — switching projects
+  // never leaks another project's property in.
+  const [sitePick, setSitePick] = useState<{ projectId: string; site: string } | null>(null);
+  const selectedSite =
+    sitePick && project && sitePick.projectId === project.id ? sitePick.site : null;
   const fetchKey =
-    googleStatus?.gsc.connected && project ? `${project.id}` : null;
+    googleStatus?.gsc.connected && project ? `${project.id}:${selectedSite ?? 'auto'}` : null;
   const [fetchedKey, setFetchedKey] = useState<string | null>(null);
   if (fetchedKey !== fetchKey) {
     setFetchedKey(fetchKey);
@@ -57,22 +101,24 @@ export default function OrganicPage() {
   useEffect(() => {
     if (!accessToken || !clientId || !fetchKey || !project || project === null) return;
     const projectId = project.id;
+    const site = selectedSite;
     let cancelled = false;
 
-    getSearchConsole(accessToken, clientId, projectId)
+    getSearchConsole(accessToken, clientId, projectId, site ?? undefined)
       .then((overview) => {
         if (!cancelled) setGsc({ status: 'ready', overview });
       })
       .catch((err) => {
         if (!cancelled) {
-          setGsc({ status: 'error', message: err instanceof Error ? err.message : 'Failed to load Search Console' });
+          const message = err instanceof Error ? err.message : 'Failed to load Search Console';
+          setGsc({ status: 'error', message, noSite: message.includes('google-no-site') });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [accessToken, clientId, fetchKey, project]);
+  }, [accessToken, clientId, fetchKey, project, selectedSite]);
 
   if (project === undefined || !user || !accessToken || !clientId || !googleStatus) {
     return (
@@ -123,7 +169,15 @@ export default function OrganicPage() {
           </CardContent>
         </Card>
       ) : null}
-      {gsc.status === 'error' ? (
+      {gsc.status === 'error' && gsc.noSite && accessToken && clientId ? (
+        <SitePicker
+          accessToken={accessToken}
+          clientId={clientId}
+          projectId={project.id}
+          onPick={(site) => setSitePick({ projectId: project.id, site })}
+        />
+      ) : null}
+      {gsc.status === 'error' && !gsc.noSite ? (
         <Card>
           <CardContent className="flex flex-col gap-2 pt-6">
             <p className="text-sm text-destructive">{gsc.message}</p>

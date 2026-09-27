@@ -51,13 +51,19 @@ request from the refresh token). No metrics stored — every read is live.
   reported by the overview endpoints below (matching is per project).
 - `POST /team/clients/:id/google/disconnect`
   (`manage_client_settings`) — revokes at Google, deletes the row.
-- `GET …/projects/:pid/google/search-console?days=28`
+- `GET …/projects/:pid/google/search-console?days=28&siteUrl=…`
   (`view_projects`) → `{ totals, previousTotals, byQuery[10], byPage[10],
-  byDate[] }` via `searchanalytics.query` (two ranges for deltas).
-- `GET …/projects/:pid/google/analytics?days=28` (`view_projects`) →
-  `{ totals, previousTotals, byDate[] }` (sessions, activeUsers,
-  screenPageViews) via the GA4 Data API; 404 `ga-not-connected` when the
-  GA scope is missing (the UI keeps its connect card).
+  byDate[] }` via `searchanalytics.query` (two ranges for deltas). Without
+  `siteUrl`, the account's sites are auto-matched to the project domain
+  (404 `google-no-site` when nothing matches); with it, the property must
+  belong to the account. `GET …/google/sites` lists every site for the
+  manual pick.
+- `GET …/projects/:pid/google/analytics?days=28&propertyId=…`
+  (`view_projects`) → `{ totals, previousTotals, byDate[] }` (sessions,
+  activeUsers, screenPageViews) via the GA4 Data API; 404
+  `ga-not-connected` when the GA scope is missing (the UI keeps its
+  connect card), 404 `google-no-property` when nothing matches.
+  `GET …/google/properties` lists `{id, name}` for the manual pick.
 
 ## Matching
 
