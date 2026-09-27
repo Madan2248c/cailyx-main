@@ -68,7 +68,9 @@ export function ListEditor({
     <div className="flex flex-col gap-1.5">
       <Label>{label}</Label>
       {values.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing here yet — add the first one below.</p>
+        <p className="text-sm text-muted-foreground">
+          {disabled ? 'Nothing found.' : 'Nothing here yet — add the first one below.'}
+        </p>
       ) : (
         <ul className="flex flex-col gap-1.5">
           {values.map((value, index) => (
