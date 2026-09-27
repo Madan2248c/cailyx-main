@@ -3,6 +3,113 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — Reporting module (SOP-11): source assembly, editorial lifecycle, HTML render, live e2e (DB, backend, tests, docs)
+
+Built from the approved `docs/analysis/reporting.md`. Reads the latest
+completed run from every other audit module (Technical Audit, Social
+Activity, AEO Audit, Competitors, Gap Analysis — via their own exported
+services, no cross-module DB reads), assembles one report, renders it to
+a standalone HTML page, and gates client visibility through an editorial
+lifecycle that's independent of the report's `visibility`
+(PRIVATE/PUBLIC via share link).
+
+**What shipped**: `Report` / `ReportRevision` / `ReportShareLink`
+(append-only, revisions never edited in place); 5 collectors normalizing
+each source's latest completed run (a missing source is omitted, never
+fabricated — a project can generate with zero completed sources, never a
+409); pure content-assembly functions (`worstFirstOrder` — ranks only
+present sections by a per-section "how damning" score, ties broken by a
+fixed default order; `computeDeltas` — MONTHLY only, diffs a bounded set
+of already-computed numbers against the previous **RELEASED** report's
+frozen snapshot, never a module missing from either side);
+`ReportNarrativeService` (one LLM call, executive summary, "never state
+an uncited number" discipline, falls back to a placeholder on failure
+rather than blocking generation); Handlebars render pipeline (view-model
+built in TypeScript, templates stay dumb/data-driven; obsidian/linen/
+terracotta + Jost/Instrument-Sans/Fraunces design tokens ported from the
+old repo's style guide, not its differently-themed HTML template).
+
+**DAY1 bypasses the editorial gate entirely** — `generate()` creates it
+straight into RELEASED with `releasedRevisionId` already set. **MONTHLY**
+goes through the full state machine: `DRAFT → (review, re-collects+
+re-renders fresh) → IN_REVIEW → (approve) → RELEASED`, with
+`approve({approved:false})` returning to DRAFT. Both editorial-gate
+endpoints 409 on a DAY1 report. Public read (`/reports/public/:token`,
+no auth) and client-portal read (`/reports/:slug`, scoped to the
+caller's own `clientId` from their JWT, unscoped for ADMIN) both return
+raw HTML directly.
+
+**Two gaps in the analysis doc's 3-table schema, filled by decision, both
+noted in the module README**: `approve({approved:false, changesRequested})`
+accepts and logs `changesRequested` but doesn't persist it (no column
+for it); `withdraw()` has no explicit endpoint in the doc's API table
+despite the `status` enum including `WITHDRAWN` — added as the
+reasonable completion of the state machine.
+
+**Bug caught while writing, not by a later test**: the client-portal
+controller's first draft hardcoded `'*'` as the `clientId` passed to
+`ReportingService.getBySlug()` — but that route has no `:clientId` URL
+param, so a literal `'*'` would never match a real client and the
+endpoint would always 404 for non-ADMIN callers. Fixed by deriving the
+caller's own `clientId` from their JWT via `@CurrentUser()` (`null` for
+ADMIN = unscoped) and threading it through the service, which now fetches
+the report + correct revision directly instead of re-deriving ownership
+through the shared `getOwned()` helper (that helper takes a required
+`clientId`, wrong shape for this route).
+
+**Live end-to-end run** against Fello (project `Fello`, `fello.ai`) — all
+16 steps **PASS**, zero bugs found:
+1. `generate('DAY1')` → RELEASED immediately, `sectionOrder: [aeoAudit,
+   gapAnalysis, competitors]` (Technical Audit and Social Activity
+   correctly omitted — no completed runs exist for this project right
+   now, a real exercise of "missing source is omitted, never
+   fabricated," not a mock). Real executive summary, citing only real
+   numbers ("mentioned in 50% of 2 observations... cited in 50%... 0% of
+   judged answers recommended it as the top pick... 1 competitor
+   tracked").
+2. `getOne()` on the released report → frozen snapshot, `releasedRevisionId` set.
+3. `renderHtml()` → 10,983-byte standalone HTML page; spot-checked:
+   correct worst-first `<h2>` ordering, numerals, badge classes, and the
+   obsidian/linen/terracotta + Jost/Instrument-Sans/Fraunces tokens all
+   present.
+4. `list()` → 4 reports for the project (across this and a prior partial
+   run of the same script).
+5–6. Share link issued, public render returns the same HTML, revoke
+   correctly 404s the token afterward ("Link not found or revoked").
+7–9. `getBySlug()` scoping: the caller's own `clientId` resolves the
+   report; a **different** client's id correctly 404s ("Report not
+   found" — real cross-tenant isolation, not just a unit-test mock);
+   `null` (ADMIN, unscoped) resolves it too.
+10. `generate('MONTHLY')` (first one, no baseline) → DRAFT, real deltas
+   against the DAY1 release (AEO mention/citation rate, 0.5 → 0.5 — no
+   real movement between the two runs, correctly diffed as such rather
+   than omitted).
+11. `review()` on the DAY1 report correctly 409s ("DAY1 reports bypass
+   the editorial gate").
+12. `review()` on the MONTHLY draft → re-collects+re-renders fresh,
+   IN_REVIEW.
+13. `approve({approved:false})` → back to DRAFT, revision history kept.
+14. `review()` again, then `approve({approved:true})` → RELEASED,
+   `releasedRevisionId` set to the newest revision.
+15. `withdraw()` → WITHDRAWN.
+16. A fresh `generate('MONTHLY')` correctly picked the most recent
+   RELEASED report (the DAY1 one, since the MONTHLY was withdrawn) as
+   its delta baseline, and `sectionOrder` correctly led with `'deltas'`.
+
+**Verified**: `tsc --noEmit` clean, `nest build` clean, `oxlint
+--type-aware` 0 new warnings, backend 678 tests green (80 files, 34 new
+in reporting — pure content-assembly functions, orchestrator with every
+collaborator mocked, controller pass-through including a regression test
+for the `getBySlug` scoping bug above).
+
+**Known gaps**: no `docs/API.md` exists in this repo (never did — module
+READMEs' "Public API" tables are the convention, matching every prior
+module); `docs/features.md`'s per-module requirement tables stopped
+being maintained after Technical Audit and weren't restarted here,
+consistent with every module since Social Activity — not a Reporting-
+specific omission. HTML render only, no PDF, per the analysis doc's
+explicit scope for this pass.
+
 ## 2026-09-27 — Gap Analysis module (SOP-5): source consolidation, guardrails, API (DB, backend, tests, docs)
 
 Built from the approved `docs/analysis/gap-analysis.md`. The first and

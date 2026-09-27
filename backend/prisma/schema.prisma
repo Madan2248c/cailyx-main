@@ -82,6 +82,7 @@ model Project {
   competitors            Competitor[]
   gapAnalysisRuns        GapAnalysisRun[]
   competitorProfiles     CompetitorProfile[]
+  reports                Report[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -458,6 +459,7 @@ model TechnicalAuditRun {
   succeededBy   TechnicalAuditRun[] @relation("AuditChain")
   pages         AuditPage[]
   gapAnalysisRuns GapAnalysisRun[]
+  reports         Report[]
 
   @@index([projectId])
   @@index([previousAuditId])
@@ -576,6 +578,7 @@ model SocialActivityRun {
   succeededBy  SocialActivityRun[] @relation("SocialActivityChain")
   posts        SocialPost[]
   gapAnalysisRuns GapAnalysisRun[]
+  reports         Report[]
 
   @@index([projectId])
   @@index([previousRunId])
@@ -948,6 +951,7 @@ model AeoAudit {
   surfaceRuns AeoSurfaceRun[]
   stances     AeoStance[]
   gapAnalysisRuns GapAnalysisRun[]
+  reports         Report[]
 
   @@index([projectId])
   @@index([querySetId])
@@ -1080,6 +1084,7 @@ model GapAnalysisRun {
   sourceSocialActivity SocialActivityRun?        @relation(fields: [sourceSocialActivityRunId], references: [id])
   sourceAeoAudit       AeoAudit?                 @relation(fields: [sourceAeoAuditId], references: [id])
   recommendations      GapAnalysisRecommendation[]
+  reports              Report[]
 
   @@index([projectId])
   @@map("gap_analysis_runs")
@@ -1157,4 +1162,113 @@ model CompetitorProfile {
   @@index([competitorId])
   @@index([projectId])
   @@map("competitor_profiles")
+}
+
+// --- Reporting module (SOP-11) ---
+// See backend/src/modules/reporting/README.md. Assembles a report from the
+// latest completed run of Technical Audit, Social Activity, AEO Audit,
+// Competitors, and Gap Analysis (read-only, via each module's own exported
+// service — a missing source is omitted, never fabricated, same discipline
+// as Gap Analysis). One `kind` column (DAY1/MONTHLY), not two systems: both
+// share this table, the render pipeline, and the share-link mechanism.
+//
+// Two independent axes, never derived from each other: `visibility`
+// (public sharing) and `status` (editorial gate). DAY1 bypasses the
+// editorial gate entirely (generates straight into RELEASED, per explicit
+// operator decision — the first report a new client sees has had zero
+// human review, traded for a fully automatic onboarding flow). MONTHLY
+// keeps the full DRAFT -> IN_REVIEW -> RELEASED state machine.
+
+enum ReportKind {
+  DAY1
+  MONTHLY
+}
+
+enum ReportStatus {
+  DRAFT
+  IN_REVIEW
+  RELEASED
+  WITHDRAWN
+}
+
+enum ReportVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+model Report {
+  id         String           @id @default(uuid()) @db.Uuid
+  projectId  String           @map("project_id") @db.Uuid
+  kind       ReportKind
+  slug       String           @unique
+  status     ReportStatus     @default(DRAFT)
+  visibility ReportVisibility @default(PRIVATE)
+  title      String
+  /// LLM-written, cited-numbers-only — same discipline as AEO Audit's
+  /// narrative. Never invents a figure not already in a collected source.
+  executiveSummary String  @map("executive_summary")
+  /// MONTHLY only — the prior report this one diffs against. Null for
+  /// DAY1 (this report IS the baseline) and for a project's first MONTHLY.
+  previousReportId String? @map("previous_report_id") @db.Uuid
+
+  sourceTechnicalAuditRunId String? @map("source_technical_audit_run_id") @db.Uuid
+  sourceSocialActivityRunId String? @map("source_social_activity_run_id") @db.Uuid
+  sourceAeoAuditId          String? @map("source_aeo_audit_id") @db.Uuid
+  sourceGapAnalysisRunId    String? @map("source_gap_analysis_run_id") @db.Uuid
+
+  /// Set once released — the revision a client actually sees. A report can
+  /// be regenerated/re-reviewed after this without changing what's already
+  /// been shown; only release moves this pointer.
+  releasedRevisionId String? @unique @map("released_revision_id") @db.Uuid
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  releasedAt DateTime? @map("released_at")
+
+  project             Project              @relation(fields: [projectId], references: [id])
+  previousReport       Report?             @relation("ReportChain", fields: [previousReportId], references: [id])
+  succeededBy          Report[]            @relation("ReportChain")
+  sourceTechnicalAudit TechnicalAuditRun?  @relation(fields: [sourceTechnicalAuditRunId], references: [id])
+  sourceSocialActivity SocialActivityRun?  @relation(fields: [sourceSocialActivityRunId], references: [id])
+  sourceAeoAudit       AeoAudit?           @relation(fields: [sourceAeoAuditId], references: [id])
+  sourceGapAnalysisRun GapAnalysisRun?     @relation(fields: [sourceGapAnalysisRunId], references: [id])
+  revisions            ReportRevision[]    @relation("ReportRevisions")
+  releasedRevision     ReportRevision?     @relation("ReleasedRevision", fields: [releasedRevisionId], references: [id])
+  shareLinks           ReportShareLink[]
+
+  @@index([projectId])
+  @@index([previousReportId])
+  @@map("reports")
+}
+
+model ReportRevision {
+  id             String   @id @default(uuid()) @db.Uuid
+  reportId       String   @map("report_id") @db.Uuid
+  revisionNumber Int      @map("revision_number")
+  /// The frozen, fully-rendered content as of this revision — what a
+  /// client actually saw. Recomputing the report later never changes what
+  /// an already-released revision shows.
+  contentSnapshot Json    @default("{}") @map("content_snapshot")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  report         Report  @relation("ReportRevisions", fields: [reportId], references: [id])
+  releasedFor    Report? @relation("ReleasedRevision")
+
+  @@unique([reportId, revisionNumber])
+  @@index([reportId])
+  @@map("report_revisions")
+}
+
+model ReportShareLink {
+  id        String    @id @default(uuid()) @db.Uuid
+  reportId  String    @map("report_id") @db.Uuid
+  token     String    @unique
+  revokedAt DateTime? @map("revoked_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  report Report @relation(fields: [reportId], references: [id])
+
+  @@index([reportId])
+  @@map("report_share_links")
 }

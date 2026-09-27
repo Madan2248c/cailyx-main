@@ -1,0 +1,120 @@
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
+import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
+import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
+import { Roles } from '../../../common/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
+import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { RolesGuard } from '../../../common/guards/roles.guard.js';
+import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
+import { Role } from '../../../generated/prisma/enums.js';
+import { ApproveReportDto, GenerateReportDto } from '../dto/reporting.dto.js';
+import { ReportingService } from '../services/reporting.service.js';
+
+/**
+ * Staff-facing report generation, nested under a project. `DAY1` is
+ * normally triggered by the Day-1 pipeline's own final step, not called
+ * directly here — the endpoint exists for retries.
+ */
+@Controller('team/clients/:clientId/projects/:projectId/reports')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+export class ReportsController {
+  constructor(private readonly reporting: ReportingService) {}
+
+  @Post()
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  generate(@Param('clientId') clientId: string, @Param('projectId') projectId: string, @Body() dto: GenerateReportDto) {
+    return this.reporting.generate(clientId, projectId, dto.kind);
+  }
+
+  @Get()
+  @RequirePermission('view_projects')
+  list(@Param('clientId') clientId: string, @Param('projectId') projectId: string, @Query('kind') kind?: 'DAY1' | 'MONTHLY') {
+    return this.reporting.list(clientId, projectId, kind);
+  }
+}
+
+/** Report-id-scoped: read, editorial lifecycle, share links. A globally unique, unguessable id. */
+@Controller('team/clients/:clientId/reports/:id')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+export class ReportController {
+  constructor(private readonly reporting: ReportingService) {}
+
+  @Get()
+  @RequirePermission('view_projects')
+  getOne(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.reporting.getOne(clientId, id);
+  }
+
+  /** MONTHLY only — locks the current content into a new revision for review. 409 on DAY1. */
+  @Post('review')
+  @Roles(Role.ADMIN)
+  review(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.reporting.review(clientId, id);
+  }
+
+  /** MONTHLY only — `{approved:true}` releases, `{approved:false, changesRequested}` back to draft. 409 on DAY1. */
+  @Post('approve')
+  @Roles(Role.ADMIN)
+  approve(@Param('clientId') clientId: string, @Param('id') id: string, @Body() dto: ApproveReportDto) {
+    return this.reporting.approve(clientId, id, dto);
+  }
+
+  /** Pulls a released report from client visibility. */
+  @Post('withdraw')
+  @Roles(Role.ADMIN)
+  withdraw(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.reporting.withdraw(clientId, id);
+  }
+
+  @Post('share-links')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  createShareLink(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.reporting.createShareLink(clientId, id);
+  }
+
+  @Delete('share-links/:linkId')
+  @Roles(Role.ADMIN)
+  revokeShareLink(@Param('clientId') clientId: string, @Param('id') id: string, @Param('linkId') linkId: string) {
+    return this.reporting.revokeShareLink(clientId, id, linkId);
+  }
+}
+
+/**
+ * Public, token-only render — no auth, no guards. HTML directly: no
+ * reporting frontend consumes structured JSON yet, and the render
+ * pipeline already produces a complete standalone page.
+ */
+@Controller('reports/public')
+export class PublicReportController {
+  constructor(private readonly reporting: ReportingService) {}
+
+  @Get(':token')
+  async getPublic(@Param('token') token: string, @Res() res: Response) {
+    const { html } = await this.reporting.getPublic(token);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  }
+}
+
+/** Client-portal read by slug, `view_projects` scoped — HTML directly, same reasoning as the public route. */
+@Controller('reports')
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+export class ClientPortalReportController {
+  constructor(private readonly reporting: ReportingService) {}
+
+  @Get(':slug')
+  @RequirePermission('view_projects')
+  async getBySlug(@Param('slug') slug: string, @CurrentUser() user: AccessTokenPayload, @Res() res: Response) {
+    const report = await this.reporting.getBySlug(user.clientId, slug).catch(() => null);
+    if (!report) {
+      res.status(404).send('Report not found.');
+      return;
+    }
+    const html = await this.reporting.renderHtml(report.content);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  }
+}

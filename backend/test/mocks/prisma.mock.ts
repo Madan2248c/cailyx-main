@@ -192,6 +192,26 @@ function buildRawPrismaMock() {
       findMany: vi.fn(),
       create: vi.fn(),
     },
+    // --- Reporting module ---
+    report: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    reportRevision: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+    },
+    reportShareLink: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   };
 }
 

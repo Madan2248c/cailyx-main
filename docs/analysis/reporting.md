@@ -75,12 +75,45 @@ fork.
 | `technical-audit` | latest run's composite score + findings + narrative |
 | `social-activity` | latest run's per-platform findings + deltas |
 | `aeo-audit` | latest completed audit's verdict headlines + stance + competitor standing |
+| `competitors` | latest `/gap` comparison — tech stack, SEO score, review rating, AEO standing vs each tracked rival (built 2026-09-27, closes gap #1 below) |
 | `gap-analysis` | latest run's ranked recommendations (the "what to do now" section) |
 
 Same discipline as Gap Analysis: a project missing one or more sources
 still generates a report (the section is omitted, not fabricated) — this
 matters especially for `DAY1`, since the pipeline that feeds it can finish
 some stages before others.
+
+## Visual design system for the render layer
+
+Investigated 2026-09-27 (via the session that hand-built the one-off Day-1
+prospect PDFs at `docs/day1-report-pdf-style-guide.md`): that system is a
+**one-off styling exercise, not a mechanism to reuse** — every one of
+those PDFs is a fresh, hand-written HTML file per client with no
+data-binding, rendered via Playwright + `pdfunite`. None of that mechanism
+belongs in this module; `report-document.ts` → `report-pdf.ts` /
+`report-html.hbs`'s content-assembly architecture (one `ReportDocument`
+feeding both an HTML render and, later, a PDF render, so they can't
+disagree) is already the right shape and is what step 4 below builds on.
+
+**What is worth porting from that exercise is the brand system and
+component vocabulary**, since it's genuinely good and otherwise this
+module has no visual design of its own:
+
+- **Palette**: `--obsidian:#14120D` (ink), `--linen:#F7F3EA` (page bg),
+  `--white`, `--terracotta:#B8703F` (the one accent — numerals, bars,
+  quote rules). Derived `--ink-70/45/15/08` for secondary text/borders.
+- **Type**: Jost (labels/headers/table headers, uppercase, tracked),
+  Instrument Sans (body), Fraunces italic (display numerals only — score
+  figures, section numerals — never body text).
+- **Components** (implemented as real Handlebars partials / React
+  components here, not copy-pasted raw HTML): `.kpi-row`/`.kpi` (4-up stat
+  tiles, `.kpi.emph` for the single worst stat), `.dimrow` (meter bars for
+  scored dimensions), `.barlist` (share-of-voice/comparison bars),
+  severity `.badge`s (`b-high`/`b-medium`/`b-low`/`b-strength`/
+  `b-opportunity`), `blockquote`/`.quote-src` (real quoted evidence only —
+  never paraphrased), `.callout` (bordered "why this matters" aside).
+- **Section ordering**: worst-finding-first for `DAY1` (no baseline to
+  lead with), matching this doc's existing "Report kinds" table.
 
 ## Generation pipeline
 
@@ -164,19 +197,15 @@ review, it's already released.
 
 ## Known gaps (explicitly not solved by this doc)
 
-1. **No `competitors` module exists in this rebuild's plan.** The old
-   codebase had a dedicated module producing a full `CompetitorProfile`
-   per rival: tech-stack scan, schema/JSON-LD read, homepage SEO/content
-   score on the **same rubric the client is scored on**, review ratings,
-   plus AEO presence — "what do our competitors run, where do they
-   already beat us." This is distinct from AEO Audit's `Competitor` table
-   in this rebuild, which only tracks who gets named/recommended over the
-   client **inside answer-engine responses** — a much narrower lens.
-   Reporting's "competitor standing" content in this doc is AEO Audit's
-   narrow version only. The broader tech/SEO/reviews comparison is not
-   built anywhere yet and needs its own analysis doc + build pass before
-   a report can show it — flagged for a decision rather than silently
-   included or silently dropped.
+1. ~~No `competitors` module~~ — **resolved 2026-09-27.** Built at
+   `docs/analysis/competitors.md` (commit `ec4806d`), functionally
+   complete and unit-tested; the one open item is a live e2e run, which
+   the operator explicitly waived — marked done, not blocking Reporting.
+   Two real limitations carried over from that module, worth knowing when
+   reading a report's competitor section: review ratings only surface
+   when a competitor's own homepage embeds one directly (no G2/Trustpilot
+   auto-discovery in v1), and the comparison is homepage-only, not a full
+   Technical Audit per competitor.
 2. **No email module exists.** Invite links today are only
    `Logger.debug`-logged (per `auth` module's own README). The Day-1
    pipeline's "send the client a magic link" step (see
