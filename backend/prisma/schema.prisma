@@ -80,6 +80,7 @@ model Project {
   measurementRuns        MeasurementRun[]
   aeoAudits              AeoAudit[]
   competitors            Competitor[]
+  gapAnalysisRuns        GapAnalysisRun[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -455,6 +456,7 @@ model TechnicalAuditRun {
   previousAudit TechnicalAuditRun?  @relation("AuditChain", fields: [previousAuditId], references: [id])
   succeededBy   TechnicalAuditRun[] @relation("AuditChain")
   pages         AuditPage[]
+  gapAnalysisRuns GapAnalysisRun[]
 
   @@index([projectId])
   @@index([previousAuditId])
@@ -572,6 +574,7 @@ model SocialActivityRun {
   previousRun  SocialActivityRun?  @relation("SocialActivityChain", fields: [previousRunId], references: [id])
   succeededBy  SocialActivityRun[] @relation("SocialActivityChain")
   posts        SocialPost[]
+  gapAnalysisRuns GapAnalysisRun[]
 
   @@index([projectId])
   @@index([previousRunId])
@@ -938,6 +941,7 @@ model AeoAudit {
   querySet    QuerySet       @relation(fields: [querySetId], references: [id])
   surfaceRuns AeoSurfaceRun[]
   stances     AeoStance[]
+  gapAnalysisRuns GapAnalysisRun[]
 
   @@index([projectId])
   @@index([querySetId])
@@ -1026,4 +1030,76 @@ model Competitor {
 
   @@index([projectId])
   @@map("competitors")
+}
+
+// --- Gap Analysis module (SOP-5) ---
+// See backend/src/modules/gap-analysis/README.md. The first and only place
+// a recommendation gets generated in this pipeline: reads the latest
+// completed run from Technical Audit, AEO Audit, and Social Activity via
+// their own exported services (no cross-module DB reads), then one LLM
+// call consolidates every finding into a ranked list of concrete next
+// steps. No new taxonomy, no re-derived findings, no invented numbers —
+// a deliberate departure from the old repo's rules-engine classifier.
+
+enum GapAnalysisStatus {
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum RecommendationStatus {
+  OPEN
+  DONE
+  DISMISSED
+}
+
+model GapAnalysisRun {
+  id        String            @id @default(uuid()) @db.Uuid
+  projectId String            @map("project_id") @db.Uuid
+  status    GapAnalysisStatus @default(RUNNING)
+  /// Which source run of each kind was consolidated, if any — a project
+  /// missing a completed run from one or more sources is not an error,
+  /// just a narrower run (this column then stays null for that source).
+  sourceTechnicalAuditRunId String? @map("source_technical_audit_run_id") @db.Uuid
+  sourceSocialActivityRunId String? @map("source_social_activity_run_id") @db.Uuid
+  sourceAeoAuditId          String? @map("source_aeo_audit_id") @db.Uuid
+  error     String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  project             Project                    @relation(fields: [projectId], references: [id])
+  sourceTechnicalAudit TechnicalAuditRun?        @relation(fields: [sourceTechnicalAuditRunId], references: [id])
+  sourceSocialActivity SocialActivityRun?        @relation(fields: [sourceSocialActivityRunId], references: [id])
+  sourceAeoAudit       AeoAudit?                 @relation(fields: [sourceAeoAuditId], references: [id])
+  recommendations      GapAnalysisRecommendation[]
+
+  @@index([projectId])
+  @@map("gap_analysis_runs")
+}
+
+model GapAnalysisRecommendation {
+  id               String                @id @default(uuid()) @db.Uuid
+  gapAnalysisRunId String                @map("gap_analysis_run_id") @db.Uuid
+  title            String
+  description      String
+  /// Ordinal only, 1 = most influential. Never a fabricated numeric score.
+  priorityRank     Int                   @map("priority_rank")
+  /// [{ module: 'technical-audit'|'social-activity'|'aeo-audit', findingRef: string }]
+  /// — the grounding citations, checked against the collected source data
+  /// at generation time (a citation that doesn't exist is rejected before
+  /// this row is ever created).
+  sourceFindings   Json                  @default("[]") @map("source_findings")
+  /// The one mutable field on this table — operator-tracked, never
+  /// regenerated. A run is never edited after it completes; this is the
+  /// deliberate exception, because staff need to record what's been done.
+  status           RecommendationStatus  @default(OPEN)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  run GapAnalysisRun @relation(fields: [gapAnalysisRunId], references: [id])
+
+  @@index([gapAnalysisRunId])
+  @@map("gap_analysis_recommendations")
 }

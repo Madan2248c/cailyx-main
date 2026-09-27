@@ -174,6 +174,18 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       update: vi.fn(),
     },
+    // --- Gap Analysis module ---
+    gapAnalysisRun: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    gapAnalysisRecommendation: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   };
 }
 
