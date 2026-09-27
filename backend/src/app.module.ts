@@ -18,9 +18,10 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
-    // Module job queues (Discovery, Technical Audit). They share the same
-    // Redis instance the fetcher module's cache/rate-limiter use — one Redis
-    // config, independent consumers of it. See docs/analysis/discovery.md.
+    // Module job queues (Discovery, Technical Audit, Social Activity). They
+    // share the same Redis instance the fetcher module's cache/rate-limiter
+    // use — one Redis config, independent consumers of it. See
+    // docs/analysis/discovery.md.
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
