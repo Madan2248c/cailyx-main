@@ -84,6 +84,8 @@ model Project {
   competitorProfiles     CompetitorProfile[]
   reports                Report[]
   day1PipelineRun        Day1PipelineRun?
+  remediationRuns        RemediationRun[]
+  fixSpecs               FixSpec[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -1313,4 +1315,173 @@ model Day1PipelineRun {
 
   @@index([clientId])
   @@map("day1_pipeline_runs")
+}
+
+// --- Remediation ("Fix Plan") module ---
+// See docs/analysis/remediation.md for the full design. Turns audit findings
+// into tracked fix specs (evidence + generated fix + steps + a
+// machine-checkable acceptance check) and proves fixes on the live site.
+// `remediation_runs` and `fix_spec_events` are append-only; `fix_specs` is the
+// one living record, upserted by fingerprint, because a real fix moves
+// through stages. Source-run ids and the gap recommendation id are plain
+// UUID columns (no FK) so this module adds no relation fields to other
+// modules' models.
+
+enum RemediationRunStatus {
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+enum FixClass {
+  CODE
+  CONFIG
+  CONTENT
+  OFF_SITE
+  INVESTIGATE
+}
+
+enum FixMethod {
+  GENERATED
+  LLM_DRAFT
+  INSTRUCTIONS
+  HUMAN
+}
+
+enum FixLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FixStatus {
+  OPEN
+  AWAITING_DECISION
+  IN_PROGRESS
+  APPLIED
+  VERIFIED
+  REGRESSED
+  DISMISSED
+}
+
+enum FixDecision {
+  APPROVED
+  DECLINED
+}
+
+model RemediationRun {
+  id                        String               @id @default(uuid()) @db.Uuid
+  projectId                 String               @map("project_id") @db.Uuid
+  status                    RemediationRunStatus @default(RUNNING)
+  /// Which source run of each kind was read, if any.
+  sourceTechnicalAuditRunId String?              @map("source_technical_audit_run_id") @db.Uuid
+  sourceSocialActivityRunId String?              @map("source_social_activity_run_id") @db.Uuid
+  sourceAeoAuditId          String?              @map("source_aeo_audit_id") @db.Uuid
+  sourceGapAnalysisRunId    String?              @map("source_gap_analysis_run_id") @db.Uuid
+  createdCount              Int                  @default(0) @map("created_count")
+  updatedCount              Int                  @default(0) @map("updated_count")
+  verifiedCount             Int                  @default(0) @map("verified_count")
+  regressedCount            Int                  @default(0) @map("regressed_count")
+  /// Guardrail drops: [{ problemKey, target, reason }].
+  droppedDrafts             Json                 @default("[]") @map("dropped_drafts")
+  triggeredBy               String?              @map("triggered_by") @db.Uuid
+  error                     String?
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@map("remediation_runs")
+}
+
+model FixSpec {
+  id                  String       @id @default(uuid()) @db.Uuid
+  projectId           String       @map("project_id") @db.Uuid
+  /// sha256(projectId | problemKey | target) — a re-sync updates, never duplicates.
+  fingerprint         String       @unique
+  /// e.g. robots.unblock-ai-crawlers, schema.organization-missing, page.meta-missing
+  problemKey          String       @map("problem_key")
+  /// Page URL, or the site origin for site-level problems.
+  target              String
+  fixClass            FixClass     @map("fix_class")
+  method              FixMethod
+  /// Batching key (one PR / one work session fixes a whole group).
+  groupKey            String       @map("group_key")
+  severity            FixLevel
+  effort              FixLevel
+  title               String
+  /// What the audit observed (a copy, so the spec reads on its own).
+  evidence            Json         @default("{}")
+  /// The generated fix: { kind, path?, language?, placement?, content }. Null when none.
+  artifact            Json?
+  /// Why no artifact could be built when one was expected — never guessed.
+  artifactError       String?      @map("artifact_error")
+  /// string[] — numbered human steps, also agent context.
+  steps               Json         @default("[]")
+  /// AcceptanceCheck — the machine-checkable end state.
+  acceptance          Json
+  /// Latest LLM copy draft, on request only. A re-sync never overwrites it.
+  llmDraft            Json?        @map("llm_draft")
+  needsClientDecision Boolean      @default(false) @map("needs_client_decision")
+  decision            FixDecision?
+  decisionNote        String?      @map("decision_note")
+  status              FixStatus    @default(OPEN)
+  /// GapAnalysisRecommendation that cites the same finding (plain id, no FK).
+  gapRecommendationId String?      @map("gap_recommendation_id") @db.Uuid
+  prUrl               String?      @map("pr_url")
+  dismissedReason     String?      @map("dismissed_reason")
+  /// The newest source run that reported this problem.
+  lastReportedAt      DateTime     @map("last_reported_at")
+  lastVerifiedAt      DateTime?    @map("last_verified_at")
+  lastVerifyResult    Json?        @map("last_verify_result")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project         @relation(fields: [projectId], references: [id])
+  sources FixSpecSource[]
+  events  FixSpecEvent[]
+
+  @@index([projectId, status])
+  @@index([projectId, groupKey])
+  @@map("fix_specs")
+}
+
+model FixSpecSource {
+  id         String @id @default(uuid()) @db.Uuid
+  fixSpecId  String @map("fix_spec_id") @db.Uuid
+  /// 'technical-audit' | 'social-activity' | 'aeo-audit'
+  module     String
+  runId      String @map("run_id") @db.Uuid
+  /// Same ref format Gap Analysis cites, e.g. 'robots', 'linkedin:dormant'.
+  findingRef String @map("finding_ref")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fixSpec FixSpec @relation(fields: [fixSpecId], references: [id], onDelete: Cascade)
+
+  @@unique([fixSpecId, module, findingRef])
+  @@map("fix_spec_sources")
+}
+
+model FixSpecEvent {
+  id         String     @id @default(uuid()) @db.Uuid
+  fixSpecId  String     @map("fix_spec_id") @db.Uuid
+  /// 'status' | 'decision' | 'verify' | 'draft' | 'sync'
+  kind       String
+  fromStatus FixStatus? @map("from_status")
+  toStatus   FixStatus? @map("to_status")
+  /// user id | 'system'
+  actor      String
+  detail     Json       @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  fixSpec FixSpec @relation(fields: [fixSpecId], references: [id], onDelete: Cascade)
+
+  @@index([fixSpecId])
+  @@map("fix_spec_events")
 }

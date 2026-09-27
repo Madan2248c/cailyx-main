@@ -432,6 +432,78 @@ Errors: `404` set not found.
 
 ---
 
+## Remediation ("Fix Plan") — requires `Authorization` header
+
+Turns audit findings into fix specs and verifies them. Reads need
+`view_projects`; every write is **ADMIN only**. Full design:
+`docs/analysis/remediation.md`.
+
+A fix spec (as returned by every fix endpoint):
+```json
+{
+  "id": "uuid", "projectId": "uuid", "fingerprint": "sha256",
+  "problemKey": "robots.unblock-ai-crawlers", "target": "https://acme.com",
+  "fixClass": "CODE|CONFIG|CONTENT|OFF_SITE|INVESTIGATE",
+  "method": "GENERATED|LLM_DRAFT|INSTRUCTIONS|HUMAN",
+  "groupKey": "robots", "severity": "LOW|MEDIUM|HIGH", "effort": "LOW|MEDIUM|HIGH",
+  "title": "string", "evidence": {},
+  "artifact": { "kind": "file|html-snippet|json-ld|copy", "path": "/robots.txt", "language": "text", "placement": "string?", "content": "string" },
+  "artifactError": "string|null", "steps": ["string"],
+  "acceptance": { "kind": "robots-exists|robots-allows|robots-declares-sitemap|json-ld-has|page-issue-absent|finding-absent" },
+  "llmDraft": null, "needsClientDecision": false, "decision": "APPROVED|DECLINED|null",
+  "status": "OPEN|AWAITING_DECISION|IN_PROGRESS|APPLIED|VERIFIED|REGRESSED|DISMISSED",
+  "gapRecommendationId": "uuid|null", "prUrl": "string|null",
+  "lastReportedAt": "iso", "lastVerifiedAt": "iso|null", "lastVerifyResult": {},
+  "sources": [{ "module": "technical-audit", "runId": "uuid", "findingRef": "robots" }]
+}
+```
+
+### `POST /team/clients/:clientId/projects/:projectId/remediation/sync` — **ADMIN only**
+Builds/updates fix specs from the latest completed Technical Audit, Social
+Activity and AEO Audit runs. No LLM, no paid call. Response `201`:
+`{ runId, created, updated, verified, regressed, dropped }`. Errors: `404`
+project; `409` no completed source run.
+
+### `GET /team/clients/:clientId/projects/:projectId/remediation/runs` — requires `view_projects`
+### `GET /team/clients/:clientId/remediation/runs/:id` — requires `view_projects`
+
+### `GET /team/clients/:clientId/projects/:projectId/remediation/fixes` — requires `view_projects`
+Query (all optional): `status` (comma-separated), `fixClass`, `groupKey`,
+`severity`. Most severe first. `400` on an unknown value.
+
+### `GET /team/clients/:clientId/projects/:projectId/remediation/summary` — requires `view_projects`
+`{ total, byStatus: {OPEN: n, …}, byClass: {CODE: n, …}, openHigh }`
+
+### `GET /team/clients/:clientId/projects/:projectId/remediation/export?format=md|json` — requires `view_projects`
+Fix pack of every non-dismissed fix. `md` (default) is a Markdown download;
+`json` is `{ project, generatedAt, fixes: [...] }`.
+
+### `GET /team/clients/:clientId/remediation/fixes/:id` — requires `view_projects`
+One fix with `sources` and `events` (full history).
+
+### `PATCH /team/clients/:clientId/remediation/fixes/:id/status` — **ADMIN only**
+Request: `{ "status": "OPEN|IN_PROGRESS|APPLIED|DISMISSED", "reason"?: string (required for DISMISSED), "prUrl"?: url, "note"?: string }`.
+Errors: `400` VERIFIED requested (only `/verify` sets it) or missing
+dismissal reason; `409` transition not allowed.
+
+### `POST /team/clients/:clientId/remediation/fixes/:id/decision` — **ADMIN only**
+Request: `{ "decision": "APPROVED|DECLINED", "note"?: string }`. APPROVED →
+`OPEN`, DECLINED → `DISMISSED`. Errors: `400` fix needs no decision; `409`
+not `AWAITING_DECISION`.
+
+### `POST /team/clients/:clientId/remediation/fixes/:id/verify` — **ADMIN only**
+Fresh live re-check of the acceptance check. Pass → `VERIFIED`; fail on an
+`APPLIED` fix → `OPEN`. Result stored in `lastVerifyResult`. Errors: `409`
+for `finding-absent` fixes (settled by the next audit + sync) or a status
+that can't be verified.
+
+### `POST /team/clients/:clientId/remediation/fixes/:id/draft` — **ADMIN only**
+One LLM copy draft, stored on `llmDraft` (`kind: title|meta|answer-page`).
+Errors: `400` fix has no copy to draft; `422` draft failed guardrails
+(length band / invented numbers); `429` per-project daily cap
+(`REMEDIATION_MAX_DRAFTS_PER_DAY`, default 20); `503` no LLM provider.
+
+---
 
 ## Roles & permissions
 
