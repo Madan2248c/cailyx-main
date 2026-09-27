@@ -60,6 +60,13 @@ export default function DashboardPage() {
               render={<Link href="/admin/clients">Manage clients</Link>}
             />
           ) : null}
+          {user.role === 'CLIENT_POC' || user.role === 'CLIENT_MEMBER' ? (
+            <Button
+              variant="secondary"
+              nativeButton={false}
+              render={<Link href="/client">Open workspace</Link>}
+            />
+          ) : null}
           {user.role === 'CLIENT_POC' ? (
             <Button
               variant="secondary"
