@@ -117,5 +117,13 @@ across keys treating a failing key as 0. `MeasurementService` tested with
 mocked adapters + Prisma: surface/runCount/active-set validation, cost-cap
 mid-run stop, failed-run retry wiping stale observations, per-observation
 isolation, empty-cohort null rates. Controller scope pass-through covered.
-One live end-to-end run against a real project with real Cloro spend is
-recorded in `docs/chagelog.md`.
+
+**Live end-to-end run** against a real project (Fello/fello.ai) with real
+Cloro spend — recorded in `docs/chagelog.md`. A small manually-created
+2-prompt query set was activated and measured against `cloro_chatgpt`
+(runCount 1): both observations completed, $0.004 total real spend, one
+prompt correctly scored `mentioned: false, cited: false` (a generic
+industry question that didn't surface the business), the other correctly
+scored `mentioned: true, cited: true` (a branded question naming the
+business directly) — confirming the mention/citation extraction logic
+against real model output, not just fixtures.

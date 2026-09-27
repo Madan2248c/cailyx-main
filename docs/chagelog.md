@@ -3,6 +3,77 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — Live end-to-end: Discovery → Query Set generation → Cloro measurement, real chain against Fello
+
+Ran the actual downstream chain against Fello (fello.ai), the one real
+project in the DB, closing the open live-e2e items for both Discovery,
+Query Set and Measurement in one pass.
+
+**Discovery** (Fello had zero prior runs — likely created while Redis was
+down): ran live, `MANUAL_REVIEW_REQUIRED` in 433s (25 services extracted,
+overall confidence 0.769, completeness 0.95) — a real, usable
+`CompanyContextProfile`, first one this repo has produced.
+
+**Query Set generate()**: two attempts genuinely failed and were
+correctly rejected by the bucket-count guardrail (15 buckets, then 20 —
+both over the 4–14 max) before any generation budget was spent on them.
+Root cause: the propose-buckets LLM prompt never told the model the
+bound. Fixed (`PROPOSE_SYSTEM` now states the exact 4–14 bucket / 5–40
+per-bucket limits) and verified against the full test suite before
+retrying live. Third attempt: 14 buckets (in bounds), the tier-scaling
+guardrail correctly fired on a genuinely over-budget proposal (250
+prompts proposed vs the 60-prompt starter tier, scaled by 0.24), 74
+items generated and persisted. This is the guardrail chain working
+exactly as designed against real, non-deterministic model output — not a
+fixture.
+
+**Measurement live e2e**: a small manually-created 2-prompt query set
+(kept separate from the full generated set to control real spend) was
+activated and measured against `cloro_chatgpt`. Both observations
+completed, **$0.004 total real Cloro spend**: one generic-industry prompt
+correctly scored `mentioned: false, cited: false`, one branded prompt
+correctly scored `mentioned: true, cited: true` — the mention/citation
+extraction logic confirmed against real model output. Cloro account
+balance checked beforehand (475 credits) to size the test safely.
+
+Also fixed along the way: the live-run harness script needed
+`GlobalJwtModule` (used by every controller's guards) and the
+`configuration` loader (namespaces env vars for `GlobalJwtModule`'s own
+`ConfigService.getOrThrow` calls) — both missing on the first two boot
+attempts, same class of gap as the earlier Technical Audit live-run
+script.
+
+## 2026-09-27 — Measurement module (SOP-2): Cloro wiring, orchestrator, API (DB, backend, tests, docs)
+
+Built per explicit operator instruction, ahead of a written analysis
+doc — every other module in this repo went analysis-doc-first, this one
+didn't. Ported from the old repo's `measurement` module: `CloroClient`
+(multi-key fallback across separate cloro.dev accounts, FIFO concurrency
+limiter, async submit→poll→COMPLETED lifecycle) + 5 surface adapters
+(chatgpt/perplexity/gemini/ai-overview/ai-mode), `MeasurementService`
+orchestrator (`createRun` only accepts an ACTIVE query set — immutability
+is what makes the cohort comparable — cost-capped `executeRun` that stops
+and marks failed when `MEASUREMENT_MAX_COST_PER_RUN` is crossed,
+failed-run retry wipes stale observations, per-observation isolation),
+pure `observation-scoring` (mention/citation extraction, no I/O).
+
+**Known gap, documented in the module README**: no share-of-voice /
+competitor detection — the old repo read `Project.competitors`, a column
+that doesn't exist in this schema. `shareOfVoice` is always `[]`.
+
+Also narrower surface scope than the old repo (Cloro only, no
+claude/perplexity first-party or `*-browser` Playwright adapters — not
+asked for), and `runCount` floor lowered to 1 (ported the old code's
+actual behavior, not its stale "n>=5, no exceptions" README claim — the
+code itself had already been changed on a prior explicit operator
+override).
+
+**Verified**: `tsc --noEmit` clean, `nest build` clean, `oxlint
+--type-aware` 0 errors, backend 539 tests green (57 files, 30 new in
+measurement — pure scoring, `CloroClient` against a mocked `fetch`,
+orchestrator against mocked adapters + Prisma, controller pass-through).
+Live end-to-end run recorded in the entry above.
+
 ## 2026-09-27 — Query Set module (SOP-1): two-step LLM generation, guardrails, API (DB, backend, tests, docs)
 
 Built from the approved `docs/analysis/query-set.md`. Prompt generation

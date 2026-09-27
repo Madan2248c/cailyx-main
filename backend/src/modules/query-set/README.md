@@ -106,6 +106,15 @@ The orchestrator is tested with a mocked generation service and Prisma
 mock (draft-only mutation, 409 without a profile, 409 on guardrail
 rejection without auto-fixing, per-bucket generation failure never
 aborting the whole set, fork copying). Controller scope pass-through
-covered. One live end-to-end run against a real project (with a real
-Discovery `CompanyContextProfile`) is required before this is marked
-verified.
+covered.
+
+**Live end-to-end run** against a real project (Fello/fello.ai, real
+`CompanyContextProfile` from a live Discovery run) — recorded in
+`docs/chagelog.md`. Two attempts were correctly rejected by the
+bucket-count guardrail (15 then 20 buckets proposed, vs the 4–14 bound) —
+a real gap this run surfaced: the generation prompt never stated the
+bound to the model. Fixed by adding the exact limits to `PROPOSE_SYSTEM`;
+the third attempt proposed 14 buckets (within bounds), the tier-scaling
+guardrail correctly fired on a genuinely over-budget proposal (250
+proposed vs a 60-prompt starter tier, scaled by 0.24), and 74 items were
+generated and persisted.
