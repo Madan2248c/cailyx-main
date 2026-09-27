@@ -79,3 +79,6 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 # vercel
 .vercel
+
+# Google OAuth client secret (wired into backend/.env, never commit)
+client_secret_*.json

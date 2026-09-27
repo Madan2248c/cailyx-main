@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +11,8 @@ import type { Project } from '@/types/project';
 
 export default function ClientProjectsPage() {
   const { user, accessToken } = useAuth();
+  const searchParams = useSearchParams();
+  const googleResult = searchParams.get('google');
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,6 +56,16 @@ export default function ClientProjectsPage() {
         <h1 className="text-xl font-semibold">Projects</h1>
         <p className="text-sm text-muted-foreground">Select a project to open its workspace.</p>
       </div>
+      {googleResult === 'connected' ? (
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+          Google account connected — open a project to see its Organic dashboard.
+        </p>
+      ) : null}
+      {googleResult === 'error' ? (
+        <p className="rounded-lg border border-border px-3 py-2 text-sm text-destructive">
+          Google connection failed — please try connecting again.
+        </p>
+      ) : null}
       {projects.length === 0 ? (
         <Card>
           <CardContent className="pt-6">

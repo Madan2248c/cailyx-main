@@ -199,7 +199,10 @@ correction endpoints, read-only for members) have UI in `frontend/`.
 Nothing exists yet for: discovery progress, technical-audit results,
 social-activity results, query-set builder/viewer, measurement runs,
 aeo-audit verdict/narrative, gap-analysis recommendations list,
-competitors comparison, or the report viewer (client-facing). Each module's own README documents its REST API surface — that's
+competitors comparison, or the report viewer (client-facing). The Organic
+tab exists with connect-gated Search Console / Analytics dashboards
+(`docs/analysis/google.md`); it shows connect cards until the client's
+Google account is linked. Each module's own README documents its REST API surface — that's
 the contract to build the frontend against.
 
 ## Reference docs, in build order

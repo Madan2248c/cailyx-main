@@ -70,6 +70,14 @@ export const validationSchema = Joi.object({
   // backend/src/modules/aeo-audit/README.md.
   AEO_MAX_COST_PER_AUDIT: Joi.number().positive().optional(),
 
+  // Google module (Search Console + Analytics). Optional — GoogleService
+  // fails closed (503 google-unconfigured / 404 google-not-connected)
+  // when unset or unlinked. See docs/analysis/google.md.
+  GOOGLE_CLIENT_ID: Joi.string().optional(),
+  GOOGLE_CLIENT_SECRET: Joi.string().optional(),
+  GOOGLE_REDIRECT_URI: Joi.string().uri().default('http://localhost:3001/auth/google/callback'),
+  GOOGLE_TOKEN_ENCRYPTION_KEY: Joi.string().optional(),
+
   // Day-1 pipeline orchestrator. Optional — DAY1_SURFACES selects the
   // answer-engine surfaces for the automatic audit (validated per-surface
   // by AEO Audit at creation); the poll interval only tunes how often the

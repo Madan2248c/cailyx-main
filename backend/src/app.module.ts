@@ -12,6 +12,7 @@ import { AeoAuditModule } from './modules/aeo-audit/aeo-audit.module.js';
 import { CompetitorsModule } from './modules/competitors/competitors.module.js';
 import { EmailModule } from './modules/email/email.module.js';
 import { Day1PipelineModule } from './modules/day1-pipeline/day1-pipeline.module.js';
+import { GoogleModule } from './modules/google/google.module.js';
 import { GapAnalysisModule } from './modules/gap-analysis/gap-analysis.module.js';
 import { MeasurementModule } from './modules/measurement/measurement.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
@@ -50,6 +51,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     ReportingModule,
     EmailModule,
     Day1PipelineModule,
+    GoogleModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ObserveModule.forRoot({

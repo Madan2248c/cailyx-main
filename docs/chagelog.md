@@ -3,6 +3,22 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Google module (Search Console + Analytics) + Organic tab
+
+Per-client OAuth (incremental scopes, refresh token AES-256-GCM at rest,
+stateless signed state, no metrics stored) + live GSC overview (totals +
+previous period, top queries/pages, daily) and GA4 overview (sessions,
+users, pageviews, daily) with per-project domain matching. Migration
+`add_google_connections`. Organic tab: connect cards (GSC unlocks, GA
+adds on), KPI tiles with previous-period deltas, area charts, top
+tables; POC-only connect, members read.
+
+**Verified**: 14 backend tests (mocked), full suite 753 passed,
+`tsc`/`oxlint`/`eslint` clean; live (unlinked account): status
+all-false, real consent URL with signed state, honest 404
+`google-not-connected`. Live grant still open: redirect URI registration
++ browser click-through (operator steps, see `docs/analysis/google.md`).
+
 ## 2026-09-28 — Discovery Step 20 synthesis: profiles written from understanding, not transcription
 
 Implements the reference workflow's final synthesis (Call F) as a new

@@ -48,6 +48,7 @@ model Client {
   users        User[]              @relation("ClientUsers")
   featureFlags ClientFeatureFlag[]
   projects     Project[]
+  googleConnection GoogleConnection?
 
   @@map("clients")
 }
@@ -1313,4 +1314,23 @@ model Day1PipelineRun {
 
   @@index([clientId])
   @@map("day1_pipeline_runs")
+}
+
+// --- Google module (Search Console + Analytics) ---
+// See docs/analysis/google.md. One row per client: the Google account's
+// refresh token (AES-256-GCM, never plaintext) and granted scopes. No
+// metrics are stored — every read is live against Google's APIs.
+
+model GoogleConnection {
+  id                    String   @id @default(uuid()) @db.Uuid
+  clientId              String   @unique @map("client_id") @db.Uuid
+  scopes                String[]
+  refreshTokenEncrypted String   @map("refresh_token_encrypted") @db.Text
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client Client @relation(fields: [clientId], references: [id])
+
+  @@map("google_connections")
 }

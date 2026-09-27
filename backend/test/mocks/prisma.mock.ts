@@ -198,6 +198,12 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       update: vi.fn(),
     },
+    // --- Google module ---
+    googleConnection: {
+      findUnique: vi.fn(),
+      upsert: vi.fn(),
+      delete: vi.fn(),
+    },
     // --- Reporting module ---
     report: {      findFirst: vi.fn(),
       findUnique: vi.fn(),
