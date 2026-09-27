@@ -30,6 +30,7 @@ import { CATEGORY_FIELDS } from '../../discovery.constants.js';
 import type { ReconciledFact } from '../../discovery.types.js';
 import { LlmService } from '../../../llm/llm.service.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
+import { matchSynthesisFacts } from './synthesize.stage.js';
 
 /** One category as the verifier returns it. */
 interface VerifiedCategory {
@@ -38,6 +39,7 @@ interface VerifiedCategory {
   summary: string | null;
   issues: string[];
   confidencePenalty: number;
+  synthesis: Array<{ key: string; value: string; keep: boolean; note: string | null }>;
 }
 
 @Injectable()
@@ -67,6 +69,15 @@ export class VerifyStage {
         excerpt: f.sources.find((src) => src.excerpt)?.excerpt ?? null,
         factType: f.factType,
       })),
+      // Step 20 labels with the verbatim inputs each fuses — checked like
+      // claims, against the cited inputs' excerpts rather than raw pages.
+      synthesis: this.synthesisInState(ctx).map((item) => ({
+        key: item.key,
+        value: item.value,
+        evidence: matchSynthesisFacts(facts, item.basedOn).flatMap((f) =>
+          f.sources.map((src) => src.excerpt ?? null),
+        ).filter((e): e is string => typeof e === 'string' && e.length > 0).slice(0, 5),
+      })),
     }));
 
     try {
@@ -84,8 +95,11 @@ export class VerifyStage {
             'as if they were the same statement.\n' +
             'Never add a new claim. Return only claims/summaries you keep — omit ones you drop. confidencePenalty is 0 ' +
             'when nothing is wrong, up to 1 when the summary is mostly unsupported.\n' +
-            'Respond with ONLY JSON: {"categories":[{"category":string,"claims":string[],"summary":string|null,' +
-            '"issues":string[],"confidencePenalty":number}]}',
+            'For each synthesis entry: keep is true only when the label says nothing beyond its cited evidence ' +
+            'inputs (same checks as claims). Respond with ONLY JSON: {"categories":[{"category":string,' +
+            '"claims":string[],"summary":string|null,' +
+            '"issues":string[],"confidencePenalty":number,' +
+            '"synthesis":[{"key":string,"value":string,"keep":boolean,"note":string|null}]}]}',
           user: 'Categories to verify:\n' + JSON.stringify(payload),
         },
         (raw) => this.validateVerification(raw),
@@ -150,12 +164,41 @@ export class VerifyStage {
         );
       }
     }
+
+    // Step 20 labels: same remove-or-penalise discipline, matched by key +
+    // value. A verdict the model never returned counts as dropped, like an
+    // omitted claim above.
+    const verdicts = new Map<string, { keep: boolean; note: string | null }>();
+    for (const c of verified) {
+      for (const v of c.synthesis) {
+        verdicts.set(`${v.key}|||${v.value.trim().toLowerCase()}`, { keep: v.keep, note: v.note });
+      }
+    }
+    for (const entry of ctx.state.synthesis ?? []) {
+      for (const item of entry.items) {
+        if (item.status !== 'supported') continue;
+        const verdict = verdicts.get(`${entry.key}|||${item.value.trim().toLowerCase()}`);
+        if (!verdict || !verdict.keep) {
+          item.status = 'dropped';
+          item.note = verdict?.note ?? 'Removed by independent verification: not supported by the cited inputs.';
+        }
+      }
+    }
   }
 
   /** Facts belonging to a category — by consolidate's assignment, else by field membership. */
   private factsInCategory(facts: ReconciledFact[], category: string): ReconciledFact[] {
     const fields = CATEGORY_FIELDS[category] ?? [];
     return facts.filter((f) => (f.category ? f.category === category : fields.includes(f.field)));
+  }
+
+  /** Step 20 labels awaiting verification, flattened with their profile-path keys. */
+  private synthesisInState(ctx: DiscoveryRunContext): Array<{ key: string; value: string; basedOn: string[] }> {
+    return (ctx.state.synthesis ?? []).flatMap((entry) =>
+      entry.items
+        .filter((item) => item.status === 'supported')
+        .map((item) => ({ key: entry.key, value: item.value, basedOn: item.basedOn })),
+    );
   }
 
   private claimsInCategory(facts: ReconciledFact[], category: string): string[] {
@@ -201,6 +244,17 @@ export class VerifyStage {
         summary: typeof e.summary === 'string' ? e.summary.trim().slice(0, 500) : null,
         issues: strArr(e.issues),
         confidencePenalty: Number.isFinite(penaltyRaw) ? Math.max(0, Math.min(1, penaltyRaw)) : 0,
+        synthesis: Array.isArray(e.synthesis)
+          ? (e.synthesis as Record<string, unknown>[])
+              .filter((v) => v && typeof v === 'object')
+              .map((v) => ({
+                key: typeof v.key === 'string' ? v.key : '',
+                value: typeof v.value === 'string' ? v.value.trim().slice(0, 500) : '',
+                keep: v.keep === true,
+                note: typeof v.note === 'string' ? v.note.slice(0, 300) : null,
+              }))
+              .filter((v) => v.key !== '' && v.value !== '')
+          : [],
       });
     }
     return out;

@@ -481,6 +481,7 @@ export const STAGE_ORDER = [
   'EXTERNAL_ENRICH',
   'CONSOLIDATE',
   'GAP_RESEARCH',
+  'SYNTHESIZE',
   'VERIFY',
   'COMPILE',
 ] as const;

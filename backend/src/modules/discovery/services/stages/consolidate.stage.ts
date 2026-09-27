@@ -424,6 +424,11 @@ export class ConsolidateStage {
             'heading, or a site-section name ("Everything in your control", "Full visibility", "Frequently asked ' +
             'questions", "Security & privacy", "Analyze and track performance")\n' +
             '  * a vague promise with no named thing in it ("Beyond expectations")\n' +
+            '  * a content-free slogan that names no concrete outcome ("Marketing that runs itself", "Always ' +
+            'sounds human") — a claim counts only if a buyer could say what concretely happens differently\n' +
+            '  * feature microcopy: UI mechanics and how-to-use instructions ("One-tap Google Sign-In", "Tap a ' +
+            'shared link to open the right screen") where the field asks for what the product does for the buyer, ' +
+            'not how its interface works\n' +
             '  * a price or plan line — for example "Domains - $20 / mo" or "Automations · $0.0015 / per run" — ' +
             'where the field asks for the thing itself: the offering is the thing, the price is a detail the ' +
             'site states elsewhere\n' +

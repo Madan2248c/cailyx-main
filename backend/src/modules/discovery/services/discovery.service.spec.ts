@@ -17,6 +17,7 @@ import { InspectStage } from './stages/inspect.stage.js';
 import { ReconcileStage } from './stages/reconcile.stage.js';
 import { SelectStage } from './stages/select.stage.js';
 import { SocialDiscoveryStage } from './stages/social-discovery.stage.js';
+import { SynthesizeStage } from './stages/synthesize.stage.js';
 import { ValidateStage } from './stages/validate.stage.js';
 import { VerifyStage } from './stages/verify.stage.js';
 
@@ -84,6 +85,7 @@ describe('DiscoveryService', () => {
       externalEnrich: { run: vi.fn() },
       consolidate: { run: vi.fn() },
       gapResearch: { run: vi.fn() },
+      synthesize: { run: vi.fn() },
       verify: { run: vi.fn() },
       compile: { run: vi.fn() },
     };
@@ -104,6 +106,7 @@ describe('DiscoveryService', () => {
         { provide: ExternalEnrichStage, useValue: stages.externalEnrich },
         { provide: ConsolidateStage, useValue: stages.consolidate },
         { provide: GapResearchStage, useValue: stages.gapResearch },
+        { provide: SynthesizeStage, useValue: stages.synthesize },
         { provide: VerifyStage, useValue: stages.verify },
         { provide: CompileStage, useValue: stages.compile },
       ],
@@ -130,7 +133,7 @@ describe('DiscoveryService', () => {
 
       expect(stages.discover.run).toHaveBeenCalledTimes(1);
       expect(stages.compile.run).toHaveBeenCalledTimes(1);
-      expect(ranStages()).toHaveLength(12);
+      expect(ranStages()).toHaveLength(13);
     });
 
     it('resumes from the stage after the last completed one, never re-running an earlier stage', async () => {
@@ -149,6 +152,7 @@ describe('DiscoveryService', () => {
         'externalEnrich',
         'consolidate',
         'gapResearch',
+        'synthesize',
         'verify',
         'compile',
       ]);
@@ -174,7 +178,7 @@ describe('DiscoveryService', () => {
 
       await service.executeRun('run-1', { onProgress });
 
-      expect(onProgress.mock.calls.map(([stage]) => stage)).toEqual(['VERIFY', 'COMPILE']);
+      expect(onProgress.mock.calls.map(([stage]) => stage)).toEqual(['SYNTHESIZE', 'VERIFY', 'COMPILE']);
     });
   });
 

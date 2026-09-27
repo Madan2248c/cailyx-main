@@ -93,7 +93,8 @@ logged-out automation — so the code is right and the examples above are stale.
    judge one value at a time — keep or drop, with a reason for "drop" drawn
    from a list of concrete patterns (call to action, benefit claim, slogan,
    section heading, price line, third-party voice, support/community/academy
-   channel in an offerings field) — the same model correctly
+   channel in an offerings field, feature microcopy and content-free slogans
+   in value-claim fields) — the same model correctly
    dropped 14 of 28 values on a first pass, and continued to perform well once
    wired into the real stage. Variants of one capability are merged
    aggressively (keep the fullest wording, mark the rest duplicates) rather

@@ -3,6 +3,24 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Discovery Step 20 synthesis: profiles written from understanding, not transcription
+
+Implements the reference workflow's final synthesis (Call F) as a new
+`SYNTHESIZE` stage (migration `20260927193551_add_synthesize_stage`):
+after gap research, one small call per group reads the verified facts
+like an analyst and writes descriptions (one_line/short/detailed),
+offerings.services, the positioning lists and icp_summary in plain buyer
+language. Every label fuses verbatim inputs (`basedOn`, enforced
+deterministically — unmapped inputs survive verbatim, ungroundable labels
+are dropped); verification now checks synthesized labels against their
+cited evidence; compile assembles from verified synthesis with merged
+evidence, falling back to verbatim paths whenever synthesis is absent.
+No profile-shape change; existing profiles untouched (a re-run writes a
+new version).
+
+**Verified**: 8 synthesize + 3 compile + 1 verify tests, full suite 739
+passed, `tsc`/`oxlint` clean. Takes effect on the next discovery run.
+
 ## 2026-09-28 — Discovery consolidate: voice guard + variant merging + auxiliary drop rule
 
 Prompt-level fix for profile quality (business context read as raw

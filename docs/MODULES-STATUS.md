@@ -15,7 +15,7 @@ them — read a module's own two docs for real detail.
 ```
 ✅ auth            → login, RBAC, invite-by-admin, seat limits
 ✅ projects        → client → project(s), name+domain only
-✅ discovery       → company context profile (12-stage pipeline)
+✅ discovery       → company context profile (13-stage pipeline)
 ✅ technical-audit → 8 site checks, composite score
 ✅ social-activity → Apify social-cadence audit
 ✅ query-set       → LLM-invented prompt buckets → prompts
@@ -45,7 +45,7 @@ project, not a client directly.
 
 **`discovery`** — given a project's domain, crawls it and builds a
 `CompanyContextProfile`: services, ICP, pains, outcomes, competitors,
-verified social profile URLs. A 12-stage resumable pipeline (`DISCOVER →
+verified social profile URLs. A 13-stage resumable pipeline (`DISCOVER →
 INSPECT → SELECT → EXTRACT → RECONCILE → VALIDATE → SOCIAL_DISCOVERY →
 EXTERNAL_ENRICH → CONSOLIDATE → GAP_RESEARCH → VERIFY → COMPILE`). This
 profile is the grounding input almost every later module reads from.

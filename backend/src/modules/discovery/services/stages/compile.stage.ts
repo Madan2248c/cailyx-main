@@ -54,8 +54,10 @@ import type {
   ScalarField,
   SourceRegistryEntry,
   SourceType,
+  SynthesizedItem,
 } from '../../discovery.types.js';
 import type { DiscoveryRunContext } from '../pipeline-context.js';
+import { matchSynthesisFacts } from './synthesize.stage.js';
 import { PLATFORM_GROUP } from '../presence.types.js';
 import type { PresencePlatform } from '../presence.types.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
@@ -242,7 +244,12 @@ export class CompileStage {
   /**
    * Place every validated fact into the spec schema.
    *
-   * Placements that are not one-for-one with the pipeline's fields:
+   * Step 20 synthesis first: descriptions, offerings.services, the
+   * positioning lists and `customers.icp_summary` assemble from the
+   * synthesize stage's grounded labels (model wording fused from cited
+   * inputs, verification-checked), falling back to the verbatim paths below
+   * when synthesis is absent. Placements that are not one-for-one with the
+   * pipeline's fields:
    * - `category` (what the company *is*) → `descriptions.one_line`, the closest
    *   thing the schema has to "the company in a phrase". It is a supported fact
    *   moved to its best-fitting slot, never a synthesised sentence.
@@ -330,14 +337,21 @@ export class CompileStage {
       },
       descriptions: {
         // `category` is the pipeline's "what this company is" fact; the schema's
-        // one-line description is its natural home.
-        one_line: scalar('category'),
-        short: this.summaryValue(ctx, 'descriptions', registry, ids, now),
-        detailed: description ? this.toFactValue(description, registry, ids, now) : this.homepageDescription(pages, registry, ids, now),
+        // one-line description is its natural home — via Step 20 synthesis
+        // when present, verbatim otherwise.
+        one_line: this.synthesizedScalar(ctx, 'descriptions.one_line', facts, registry, ids, now, () =>
+          scalar('category'),
+        ),
+        short: this.synthesizedScalar(ctx, 'descriptions.short', facts, registry, ids, now, () =>
+          this.summaryValue(ctx, 'descriptions', registry, ids, now),
+        ),
+        detailed: this.synthesizedScalar(ctx, 'descriptions.detailed', facts, registry, ids, now, () =>
+          description ? this.toFactValue(description, registry, ids, now) : this.homepageDescription(pages, registry, ids, now),
+        ),
       },
       offerings: {
         products: [],
-        services: array('services', CAPS.services),
+        services: this.synthesizedArray(ctx, 'offerings.services', 'services', facts, registry, ids, now, CAPS.services),
         solutions: [],
         packages: [],
         delivery_model: null,
@@ -347,15 +361,17 @@ export class CompileStage {
         demo_available: null,
       },
       positioning: {
-        value_propositions: array('valueProps', CAPS.valueProps),
-        differentiators: array('differentiator', CAPS.expanded),
-        problems_solved: array('painPoints', CAPS.painPoints),
-        outcomes_promised: array('outcomes', CAPS.outcomes),
+        value_propositions: this.synthesizedArray(ctx, 'positioning.value_propositions', 'valueProps', facts, registry, ids, now, CAPS.valueProps),
+        differentiators: this.synthesizedArray(ctx, 'positioning.differentiators', 'differentiator', facts, registry, ids, now, CAPS.expanded),
+        problems_solved: this.synthesizedArray(ctx, 'positioning.problems_solved', 'painPoints', facts, registry, ids, now, CAPS.painPoints),
+        outcomes_promised: this.synthesizedArray(ctx, 'positioning.outcomes_promised', 'outcomes', facts, registry, ids, now, CAPS.outcomes),
         key_messages: [],
         claims_and_proof: [],
       },
       customers: {
-        icp_summary: this.summaryValue(ctx, 'customers', registry, ids, now) ?? scalar('icp'),
+        icp_summary: this.synthesizedScalar(ctx, 'customers.icp_summary', facts, registry, ids, now, () =>
+          this.summaryValue(ctx, 'customers', registry, ids, now) ?? scalar('icp'),
+        ),
         company_sizes: [],
         industries: array('vertical', CAPS.expanded),
         buyer_roles: [],
@@ -488,9 +504,101 @@ export class CompileStage {
     };
   }
 
-  /** The consolidate stage's prose summary for a category, carrying that category's facts as evidence. */
-  private summaryValue(
+  /**
+   * Step 20 assembly: a synthesized label fused from its cited inputs, with
+   * merged evidence. Anything the inputs cannot support never reaches here —
+   * synthesis drops ungroundable entries and verification drops unsupported
+   * labels, so an empty list means "nothing survived", never "nothing found".
+   */
+  private synthesisItems(ctx: DiscoveryRunContext, key: string): SynthesizedItem[] {
+    return (
+      (ctx.state.synthesis ?? []).find((s) => s.key === key)?.items.filter((i) => i.status === 'supported') ?? []
+    );
+  }
+
+  /** One synthesized label → one evidence-bearing FactValue, or null when its grounding evaporated. */
+  private synthesizedValue(
+    item: SynthesizedItem,
+    field: string,
+    facts: ReconciledFact[],
+    registry: SourceLookup,
+    ids: IdAllocator,
+    now: string,
+  ): FactValue | null {
+    const sources = matchSynthesisFacts(facts, item.basedOn);
+    if (sources.length === 0) return null;
+    const seen = new Set<string>();
+    const deduped: FactSource[] = [];
+    for (const source of sources.flatMap((f) => f.sources)) {
+      if (!source.url || seen.has(source.url)) continue;
+      seen.add(source.url);
+      deduped.push(source);
+    }
+    const evidence = deduped
+      .slice(0, MAX_EVIDENCE_PER_FACT)
+      .map((source) => this.toEvidenceItem(source, sources[0].sourceType, registry, ids))
+      .filter((e): e is EvidenceValue => e !== null);
+    const confidence = Number(
+      (sources.reduce((sum, f) => sum + f.confidence, 0) / sources.length).toFixed(3),
+    );
+    return {
+      fact_id: this.nextFactId(ids, field),
+      value: item.value,
+      status: 'supported',
+      // Reworded by design (Step 20) — explicit only when every fused input
+      // was stated outright; otherwise the aggregate it honestly is.
+      fact_type: sources.every((f) => f.factType === 'explicit') ? 'explicit' : 'strong_inference',
+      confidence,
+      last_checked_at: now,
+      evidence_ids: evidence.map((e) => e.evidence_id),
+      evidence,
+    };
+  }
+
+  /** Synthesized list assembly, falling back to verbatim when synthesis is absent. */
+  private synthesizedArray(
     ctx: DiscoveryRunContext,
+    key: string,
+    field: FactField,
+    facts: ReconciledFact[],
+    registry: SourceLookup,
+    ids: IdAllocator,
+    now: string,
+    cap: number,
+  ): ArrayField {
+    const out: ArrayField = [];
+    for (const item of this.synthesisItems(ctx, key)) {
+      const built = this.synthesizedValue(item, field, facts, registry, ids, now);
+      if (built) out.push(built);
+      if (out.length >= cap) break;
+    }
+    // No synthesis (old in-flight run, LLM-less run, or every label dropped
+    // in verification) — the verbatim path, not an empty field.
+    if (out.length === 0) {
+      return this.values(facts, field, cap).map((f) => this.toFactValue(f, registry, ids, now));
+    }
+    return out;
+  }
+
+  /** Synthesized scalar assembly, falling back to the given verbatim path. */
+  private synthesizedScalar(
+    ctx: DiscoveryRunContext,
+    key: string,
+    facts: ReconciledFact[],
+    registry: SourceLookup,
+    ids: IdAllocator,
+    now: string,
+    fallback: () => ScalarField,
+  ): ScalarField {
+    const item = this.synthesisItems(ctx, key)[0];
+    if (!item) return fallback();
+    return (
+      this.synthesizedValue(item, key, facts, registry, ids, now) ?? fallback()
+    );
+  }
+
+  /** The consolidate stage's prose summary for a category, carrying that category's facts as evidence. */
+  private summaryValue(    ctx: DiscoveryRunContext,
     category: string,
     registry: SourceLookup,
     ids: IdAllocator,

@@ -385,12 +385,36 @@ export interface CategorySummary {
    * one claim. Compile uses this list to filter the facts it assembles the
    * profile from; values are never reworded, which is what keeps every surviving
    * value traceable to its evidence.
+   *
+   * (Synthesis may reword: see {@link FieldSynthesis} — but only with a
+   * `basedOn` trail back to these verbatim values, enforced deterministically.)
    */
   facts: string[];
   /** Fields consolidate reported as having zero facts. */
   missingFields: FactField[];
   /** Human-readable notes for each real conflict consolidate found. */
   conflictNotes: string[];
+}
+
+/**
+ * One model-written canonical value (Step 20 synthesis): the label is the
+ * model's own buyer-language wording of its understanding — not a site
+ * quote — and `basedOn` is the verbatim input values it fuses, enforced
+ * deterministically (every entry must cite inputs, every input must be
+ * fused or dropped-with-reason).
+ */
+export interface SynthesizedItem {
+  value: string;
+  basedOn: string[];
+  status: 'supported' | 'dropped';
+  note?: string;
+}
+
+/** Step 20 output for one profile path (`offerings.services`, `descriptions.one_line`, …). */
+export interface FieldSynthesis {
+  key: string;
+  items: SynthesizedItem[];
+  dropped: Array<{ value: string; reason: string }>;
 }
 
 // ─── Social profiles ────────────────────────────────────────────────────────
@@ -481,6 +505,8 @@ export interface RunPipelineState {
   facts?: ReconciledFact[];
   /** Category summaries from consolidate, refreshed once after gap research. */
   summaries?: CategorySummary[];
+  /** Step 20 synthesis output (one entry per synthesized profile path), for verify + compile. */
+  synthesis?: FieldSynthesis[];
   /** The select stage's coverage plan, for the run notes and debugging. */
   coveragePlan?: Record<string, { target: number; filled: number }>;
   /** Pages inspected/fetched/analyzed counts, for `research_metadata`. */

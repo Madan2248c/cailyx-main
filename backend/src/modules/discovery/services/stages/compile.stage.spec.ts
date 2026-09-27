@@ -407,6 +407,59 @@ describe('CompileStage', () => {
       expect(ctx.notes.join(' ')).toContain('below the 0.8 floor');
     });
   });
+
+  describe('step 20 synthesis assembly', () => {
+    it('assembles synthesized labels with merged evidence instead of verbatim values', async () => {
+      const ctx = context({
+        facts: [fact('services', '1:1 emails', 'homepage'), fact('services', 'Email builder', 'homepage')],
+        summaries: summariesAllCompleteExcept(),
+        synthesis: [
+          {
+            key: 'offerings.services',
+            items: [{ value: 'Managed 1:1 email', basedOn: ['1:1 emails', 'Email builder'], status: 'supported' }],
+            dropped: [],
+          },
+        ],
+      });
+      await stage.run(ctx);
+
+      const services = createdProfile().profileJson.offerings.services;
+      expect(services.map((f) => f.value)).toEqual(['Managed 1:1 email']);
+      // Evidence merged from both fused inputs (same page here, so one entry).
+      expect(services[0].evidence.length).toBeGreaterThan(0);
+      expect(services[0].fact_type).toBe('explicit');
+    });
+
+    it('falls back to verbatim assembly when synthesis is absent', async () => {
+      const ctx = context({
+        facts: [fact('services', '1:1 emails', 'services')],
+        summaries: summariesAllCompleteExcept(),
+      });
+      await stage.run(ctx);
+
+      const services = createdProfile().profileJson.offerings.services;
+      expect(services.map((f) => f.value)).toEqual(['1:1 emails']);
+    });
+
+    it('skips synthesized items whose grounding evaporated', async () => {
+      const ctx = context({
+        facts: [fact('services', '1:1 emails', 'services')],
+        summaries: summariesAllCompleteExcept(),
+        synthesis: [
+          {
+            key: 'offerings.services',
+            items: [{ value: 'Ghost label', basedOn: ['Something never extracted'], status: 'supported' }],
+            dropped: [],
+          },
+        ],
+      });
+      await stage.run(ctx);
+
+      // Grounding gone → the verbatim fallback, never the unsupported label.
+      const services = createdProfile().profileJson.offerings.services;
+      expect(services.map((f) => f.value)).toEqual(['1:1 emails']);
+    });
+  });
 });
 
 /** A validated fact sourced from a page that exists in the run's page rows. */

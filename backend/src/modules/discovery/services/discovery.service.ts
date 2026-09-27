@@ -56,6 +56,7 @@ import { InspectStage } from './stages/inspect.stage.js';
 import { ReconcileStage } from './stages/reconcile.stage.js';
 import { SelectStage } from './stages/select.stage.js';
 import { SocialDiscoveryStage } from './stages/social-discovery.stage.js';
+import { SynthesizeStage } from './stages/synthesize.stage.js';
 import { ValidateStage } from './stages/validate.stage.js';
 import { VerifyStage } from './stages/verify.stage.js';
 
@@ -169,6 +170,7 @@ export class DiscoveryService {
     externalEnrich: ExternalEnrichStage,
     consolidate: ConsolidateStage,
     gapResearch: GapResearchStage,
+    synthesize: SynthesizeStage,
     verify: VerifyStage,
     compile: CompileStage,
   ) {
@@ -183,6 +185,7 @@ export class DiscoveryService {
       EXTERNAL_ENRICH: externalEnrich,
       CONSOLIDATE: consolidate,
       GAP_RESEARCH: gapResearch,
+      SYNTHESIZE: synthesize,
       VERIFY: verify,
       COMPILE: compile,
     };

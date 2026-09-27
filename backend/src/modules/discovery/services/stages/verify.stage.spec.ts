@@ -192,6 +192,43 @@ describe('VerifyStage', () => {
 
       expect(ctx.state.summaries?.[0]).toEqual(s);
     });
+
+    it('drops synthesized labels the verifier rejects and keeps grounded ones', async () => {
+      modelSays({
+        categories: [
+          {
+            category: 'offerings',
+            claims: ['Email delivery'],
+            summary: 'Email.',
+            issues: [],
+            confidencePenalty: 0,
+            synthesis: [{ key: 'offerings.services', value: 'Managed email', keep: true, note: null }],
+          },
+        ],
+      });
+
+      const ctx = context({
+        summaries: [summary()],
+        facts: [fact('services', 'Email delivery')],
+        synthesis: [
+          {
+            key: 'offerings.services',
+            items: [
+              { value: 'Managed email', basedOn: ['Email delivery'], status: 'supported' },
+              { value: 'Invented suite', basedOn: ['Email delivery'], status: 'supported' },
+            ],
+            dropped: [],
+          },
+        ],
+      });
+      await stage.run(ctx);
+
+      const items = ctx.state.synthesis?.[0]?.items ?? [];
+      expect(items.find((i) => i.value === 'Managed email')?.status).toBe('supported');
+      const dropped = items.find((i) => i.value === 'Invented suite');
+      expect(dropped?.status).toBe('dropped');
+      expect(dropped?.note).toContain('independent verification');
+    });
   });
 
   describe('failure handling', () => {

@@ -34,6 +34,7 @@ import { InspectStage } from './services/stages/inspect.stage.js';
 import { ReconcileStage } from './services/stages/reconcile.stage.js';
 import { SelectStage } from './services/stages/select.stage.js';
 import { SocialDiscoveryStage } from './services/stages/social-discovery.stage.js';
+import { SynthesizeStage } from './services/stages/synthesize.stage.js';
 import { ValidateStage } from './services/stages/validate.stage.js';
 import { VerifyStage } from './services/stages/verify.stage.js';
 
@@ -61,7 +62,7 @@ import { VerifyStage } from './services/stages/verify.stage.js';
     // gap-research stages (one implementation, two callers).
     BoundedSearchService,
 
-    // The twelve pipeline stages, in pipeline order.
+    // The thirteen pipeline stages, in pipeline order.
     DiscoverStage,
     InspectStage,
     SelectStage,
@@ -72,6 +73,7 @@ import { VerifyStage } from './services/stages/verify.stage.js';
     ExternalEnrichStage,
     ConsolidateStage,
     GapResearchStage,
+    SynthesizeStage,
     VerifyStage,
     CompileStage,
   ],

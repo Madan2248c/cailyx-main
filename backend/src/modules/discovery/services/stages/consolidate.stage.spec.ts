@@ -102,6 +102,9 @@ describe('ConsolidateStage', () => {
       // Variants of one capability must merge; support/community/academy are not offerings.
       expect(judgement?.system).toContain('Merge variants of the same capability aggressively');
       expect(judgement?.system).toContain('not a purchased offering');
+      // Microcopy and content-free slogans are not value claims.
+      expect(judgement?.system).toContain('feature microcopy');
+      expect(judgement?.system).toContain('names no concrete outcome');
     });
 
     it('judges values in a separate call, and keeps every value it does not rule on', async () => {
