@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { vi } from 'vitest';
 import { ClientStatus, Role, UserStatus } from '../../../generated/prisma/enums.js';
@@ -7,6 +7,8 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../../test/mocks/prisma.mock.js';
 import { TeamService } from './team.service.js';
 import { TokenService } from './token.service.js';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from '../../email/email.service.js';
 
 describe('TeamService', () => {
   let service: TeamService;
@@ -15,6 +17,7 @@ describe('TeamService', () => {
     generateOpaqueToken: ReturnType<typeof vi.fn>;
     inviteTokenExpiry: ReturnType<typeof vi.fn>;
   };
+  let emailService: { send: ReturnType<typeof vi.fn>; isConfigured: ReturnType<typeof vi.fn> };
 
   const admin: AccessTokenPayload = { sub: 'admin-1', role: Role.ADMIN, clientId: null };
   const poc: AccessTokenPayload = { sub: 'poc-1', role: Role.CLIENT_POC, clientId: 'client-1' };
@@ -38,11 +41,29 @@ describe('TeamService', () => {
       inviteTokenExpiry: vi.fn(() => new Date(Date.now() + 60 * 60 * 1000)),
     };
 
+    emailService = {
+      send: vi.fn(() => Promise.resolve({ sent: true, providerId: 'mail_1' })),
+      isConfigured: vi.fn(() => true),
+    };
+
+    const configService = {
+      get: vi.fn((key: string, fallback?: unknown) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:3000';
+        return fallback;
+      }),
+      getOrThrow: vi.fn((key: string) => {
+        if (key === 'auth.inviteTokenTtlHours') return 72;
+        throw new Error(`Unexpected config key in test: ${key}`);
+      }),
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         TeamService,
         { provide: PrismaService, useValue: asPrismaService(prisma) },
         { provide: TokenService, useValue: tokenService },
+        { provide: ConfigService, useValue: configService },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
 
@@ -129,6 +150,11 @@ describe('TeamService', () => {
         },
       });
       expect(prisma.authToken.create).toHaveBeenCalled();
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'poc@acme.com',
+        subject: "You've been invited to Cailyx",
+        html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
+      });
       expect(result.poc.email).toBe('target@test.com');
     });
 
@@ -141,6 +167,20 @@ describe('TeamService', () => {
       expect(prisma.client.create).toHaveBeenCalledWith({
         data: { name: 'Acme', createdBy: 'admin-1', seatLimit: undefined },
       });
+    });
+
+    it('skips the invite entirely when deferInvite is set — the Day-1 pipeline sends it later', async () => {
+      prisma.client.create.mockResolvedValue({ id: 'client-1', name: 'Acme', seatLimit: 1 });
+      prisma.user.create.mockResolvedValue(buildTargetUser({ id: 'poc-1', role: Role.CLIENT_POC }));
+
+      const result = await service.createClientWithPoc(
+        { name: 'Acme', pocEmail: 'poc@acme.com', deferInvite: true },
+        'admin-1',
+      );
+
+      expect(prisma.authToken.create).not.toHaveBeenCalled();
+      expect(emailService.send).not.toHaveBeenCalled();
+      expect(result.poc.email).toBe('target@test.com');
     });
   });
 
@@ -206,6 +246,11 @@ describe('TeamService', () => {
         },
       });
       expect(prisma.authToken.create).toHaveBeenCalled();
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'member@acme.com',
+        subject: "You've been invited to Cailyx",
+        html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
+      });
     });
   });
 
@@ -234,7 +279,89 @@ describe('TeamService', () => {
       prisma.user.findFirst.mockResolvedValue(buildTargetUser());
       const result = await service.resendInvite('target-1', poc);
       expect(prisma.authToken.create).toHaveBeenCalled();
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'target@test.com',
+        subject: "You've been invited to Cailyx",
+        html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
+      });
       expect(result).toEqual({ success: true });
+    });
+
+    it('skips sending but still succeeds when email is unconfigured', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser());
+      emailService.isConfigured.mockReturnValueOnce(false);
+
+      const result = await service.resendInvite('target-1', poc);
+
+      expect(emailService.send).not.toHaveBeenCalled();
+      expect(result).toEqual({ success: true });
+    });
+
+    it('throws 503 when the send fails — no silent loss', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser());
+      emailService.send.mockRejectedValueOnce(new Error('down'));
+
+      await expect(service.resendInvite('target-1', poc)).rejects.toThrow(
+        ServiceUnavailableException,
+      );
+    });
+  });
+
+  describe('sendDay1ReadyEmail', () => {
+    it('returns no-poc when the client has no POC on file', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      const result = await service.sendDay1ReadyEmail('client-1');
+
+      expect(result).toEqual({ sent: false, reason: 'no-poc' });
+      expect(emailService.send).not.toHaveBeenCalled();
+    });
+
+    it('returns email-unconfigured without sending when email is down', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser({ status: UserStatus.ACTIVE }));
+      emailService.isConfigured.mockReturnValueOnce(false);
+
+      const result = await service.sendDay1ReadyEmail('client-1');
+
+      expect(result).toEqual({ sent: false, reason: 'email-unconfigured' });
+      expect(emailService.send).not.toHaveBeenCalled();
+    });
+
+    it('sends a login-link ready email when the POC is already ACTIVE', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser({ status: UserStatus.ACTIVE }));
+
+      const result = await service.sendDay1ReadyEmail('client-1');
+
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'target@test.com',
+        subject: 'Your Day-1 audit is ready',
+        html: expect.stringContaining('http://localhost:3000/login'),
+      });
+      expect(prisma.authToken.create).not.toHaveBeenCalled();
+      expect(result).toEqual({ sent: true, kind: 'ready' });
+    });
+
+    it('issues a fresh invite with ready context when the POC is still INVITED', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser({ status: UserStatus.INVITED }));
+
+      const result = await service.sendDay1ReadyEmail('client-1');
+
+      expect(prisma.authToken.create).toHaveBeenCalled();
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'target@test.com',
+        subject: 'Your Day-1 audit is ready — set up your account',
+        html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
+      });
+      expect(result).toEqual({ sent: true, kind: 'invite' });
+    });
+
+    it('throws 503 when the ready send fails', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildTargetUser({ status: UserStatus.ACTIVE }));
+      emailService.send.mockRejectedValueOnce(new Error('down'));
+
+      await expect(service.sendDay1ReadyEmail('client-1')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
   });
 

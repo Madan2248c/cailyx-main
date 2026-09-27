@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ClientStatus, Role, UserStatus } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
@@ -6,9 +6,13 @@ import type { CreateClientDto } from '../dto/create-client.dto.js';
 import type { InviteTeamMemberDto } from '../dto/invite-team-member.dto.js';
 import type { UpdateSeatLimitDto } from '../dto/update-seat-limit.dto.js';
 import { TokenService } from './token.service.js';
+import { ConfigService } from '@nestjs/config';
+import { EmailService } from '../../email/email.service.js';
 
 /** Statuses that occupy a seat. A DISABLED or soft-deleted user frees theirs up. */
 const SEAT_OCCUPYING_STATUSES: UserStatus[] = [UserStatus.INVITED, UserStatus.ACTIVE];
+/** Code-level fallback — validation.schema.ts carries the same default. */
+const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
 
 @Injectable()
 export class TeamService {
@@ -17,6 +21,8 @@ export class TeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
+    private readonly config: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   /** Lists all non-deleted clients with their active POC and seat usage, newest first. Admin-only (enforced by the controller's guard). */
@@ -65,7 +71,7 @@ export class TeamService {
     };
   }
 
-  /** Creates a new client and its POC (INVITED status), then issues the POC's initial invite. */
+  /** Creates a new client and its POC (INVITED status), then issues the POC's initial invite — unless deferred for the Day-1 pipeline. */
   async createClientWithPoc(dto: CreateClientDto, adminId: string) {
     const email = this.normalizeEmail(dto.pocEmail);
 
@@ -83,7 +89,14 @@ export class TeamService {
       },
     });
 
-    await this.issueInvite(poc.id, adminId);
+    if (dto.deferInvite) {
+      // Silent creation: the Day-1 pipeline's final step sends the first
+      // invite with "your audit is ready" context. Logged so a deferred
+      // POC is visible (and resendable) before the pipeline finishes.
+      this.logger.log(`Invite deferred for POC ${poc.id} (client ${client.id}) — the Day-1 pipeline will send it.`);
+    } else {
+      await this.issueInvite(poc.id, adminId, email);
+    }
 
     return { client, poc: this.publicUser(poc) };
   }
@@ -131,7 +144,7 @@ export class TeamService {
       },
     });
 
-    await this.issueInvite(member.id, caller.sub);
+    await this.issueInvite(member.id, caller.sub, email);
 
     return this.publicUser(member);
   }
@@ -144,7 +157,7 @@ export class TeamService {
       throw new BadRequestException('This user has already completed onboarding.');
     }
 
-    await this.issueInvite(target.id, caller.sub);
+    await this.issueInvite(target.id, caller.sub, target.email);
     return { success: true };
   }
 
@@ -211,7 +224,112 @@ export class TeamService {
     return { success: true };
   }
 
-  private async issueInvite(userId: string, createdBy: string): Promise<void> {
+  /**
+   * Issues (or re-issues) an invite token, then delivers it by email. When
+   * email is unconfigured the token is debug-logged (dev path, keeps the
+   * flow testable without infrastructure). A failed send throws 503 — the
+   * caller sees the failure instead of a silent loss; the invite itself is
+   * persisted, so a resend can retry delivery.
+   */
+  private async issueInvite(userId: string, createdBy: string, email: string): Promise<void> {
+    const raw = await this.persistInviteToken(userId, createdBy);
+
+    if (!this.emailService.isConfigured()) {
+      // Dev path: no email infrastructure — keep the flow testable end-to-end.
+      this.logger.debug(`Invite token for user ${userId}: ${raw}`);
+      return;
+    }
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL', DEFAULT_FRONTEND_URL);
+    const ttlHours = this.config.getOrThrow<number>('auth.inviteTokenTtlHours');
+    const link = `${frontendUrl}/accept-invite?token=${raw}`;
+    try {
+      await this.emailService.send({
+        to: email,
+        subject: "You've been invited to Cailyx",
+        html:
+          `<p>You've been invited to join Cailyx.</p>` +
+          `<p><a href="${link}">Set up your account</a></p>` +
+          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
+          `If you weren't expecting this, you can safely ignore it.</p>`,
+      });
+    } catch (err) {
+      this.logger.error(`Invite email to ${email} failed: ${(err as Error).message}`);
+      throw new ServiceUnavailableException(`email-send-failed: ${(err as Error).message}`);
+    }
+  }
+
+  /**
+   * Day-1 pipeline's final step: delivers the "your audit is ready" email to
+   * the client's POC. Still-INVITED → a fresh invite carrying the ready
+   * context (this is the deferred first invite); already-ACTIVE → a plain
+   * ready email with a login link. No POC, or email unconfigured → honest
+   * `{ sent: false }`, never a throw for missing infrastructure (the caller
+   * records it); a failed send throws 503 like any other invite send.
+   */
+  async sendDay1ReadyEmail(clientId: string): Promise<{ sent: true; kind: 'invite' | 'ready' } | { sent: false; reason: string }> {
+    const poc = await this.getPocContact(clientId);
+    if (!poc) {
+      this.logger.warn(`Day-1 ready email skipped for client ${clientId}: no POC on file.`);
+      return { sent: false, reason: 'no-poc' };
+    }
+    if (!this.emailService.isConfigured()) {
+      this.logger.debug(`Day-1 ready email for ${poc.email} not sent: email unconfigured.`);
+      return { sent: false, reason: 'email-unconfigured' };
+    }
+
+    const frontendUrl = this.config.get<string>('FRONTEND_URL', DEFAULT_FRONTEND_URL);
+    if (poc.status === UserStatus.ACTIVE) {
+      try {
+        await this.emailService.send({
+          to: poc.email,
+          subject: 'Your Day-1 audit is ready',
+          html:
+            `<p>Your Day-1 audit is ready.</p>` +
+            `<p><a href="${frontendUrl}/login">Log in to Cailyx</a> to view it.</p>`,
+        });
+      } catch (err) {
+        this.logger.error(`Day-1 ready email to ${poc.email} failed: ${(err as Error).message}`);
+        throw new ServiceUnavailableException(`email-send-failed: ${(err as Error).message}`);
+      }
+      return { sent: true, kind: 'ready' };
+    }
+
+    const raw = await this.persistInviteToken(poc.id, null);
+    const ttlHours = this.config.getOrThrow<number>('auth.inviteTokenTtlHours');
+    const link = `${frontendUrl}/accept-invite?token=${raw}`;
+    try {
+      await this.emailService.send({
+        to: poc.email,
+        subject: 'Your Day-1 audit is ready — set up your account',
+        html:
+          `<p>Your Day-1 audit is ready.</p>` +
+          `<p><a href="${link}">Set up your account</a> to view it.</p>` +
+          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
+          `If you weren't expecting this, you can safely ignore it.</p>`,
+      });
+    } catch (err) {
+      this.logger.error(`Day-1 ready email to ${poc.email} failed: ${(err as Error).message}`);
+      throw new ServiceUnavailableException(`email-send-failed: ${(err as Error).message}`);
+    }
+    return { sent: true, kind: 'invite' };
+  }
+
+  /** The client's POC contact (read-only) — what the Day-1 notify step addresses. */
+  async getPocContact(clientId: string): Promise<{ id: string; email: string; status: UserStatus } | null> {
+    const poc = await this.prisma.user.findFirst({
+      where: { clientId, role: Role.CLIENT_POC, deletedAt: null },
+      select: { id: true, email: true, status: true },
+    });
+    return poc;
+  }
+
+  /**
+   * Invalidates earlier unconsumed invites and persists a fresh token,
+   * returning the raw value for the email link. The raw value is never
+   * stored — only its hash.
+   */
+  private async persistInviteToken(userId: string, createdBy: string | null): Promise<string> {
     // A resend must invalidate any earlier unconsumed invite for this user.
     await this.prisma.authToken.updateMany({
       where: { userId, type: 'INITIAL_INVITE', consumedAt: null, deletedAt: null },
@@ -232,10 +350,7 @@ export class TeamService {
         createdBy,
       },
     });
-
-    // TODO: send this via the email module once it exists. Logged for now
-    // so the invite flow is testable end-to-end without email infrastructure.
-    this.logger.debug(`Invite token for user ${userId}: ${token.raw}`);
+    return token.raw;
   }
 
   private async getScopedUser(targetUserId: string, caller: AccessTokenPayload) {

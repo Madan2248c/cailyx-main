@@ -79,8 +79,10 @@ Response `200`:
 ```
 
 ### `POST /team/clients` — **ADMIN only**
-Creates a client and invites its POC.
-Request: `{ "name": string, "pocEmail": string, "seatLimit"?: number }` — `seatLimit` defaults to `1` if omitted (min `1`; counts the POC as a seat).
+Creates a client and invites its POC — unless `deferInvite` holds the
+invite for the Day-1 pipeline (which sends the first invite with "your
+audit is ready" context when the report releases).
+Request: `{ "name": string, "pocEmail": string, "seatLimit"?: number, "deferInvite"?: boolean }` — `seatLimit` defaults to `1` if omitted (min `1`; counts the POC as a seat).
 Response `200`:
 ```json
 {
@@ -138,13 +140,17 @@ exactly one client; everything about it beyond name/domain is inferred by
 later pipeline modules, not this one.
 
 ### `POST /team/clients/:clientId/projects` — **ADMIN only**
-Creates a project under a client.
-Request: `{ "name": string, "domain": string }`
+Creates a project under a client — and starts its Day-1 pipeline
+automatically (see `docs/analysis/day1-pipeline.md`).
+Request: `{ "name": string, "domain": string, "day1SpendConsent": true, "day1SpendCeilingUsd"?: number }` — consent is mandatory (creating a
+project authorizes the automatic Day-1 spend); the ceiling is optional
+(omitted = uncapped at this layer, per-module caps still apply).
 Response `201`: `{ id, clientId, name, domain: "<normalized>", createdAt }`
 Domain is normalized before storage/lookup: lowercase, strip `http(s)://`
 and `www.`, keep only the hostname, drop a trailing `.`/`/`.
 Errors: `404` client not found; `400` domain already active for this client
-(one client can't have two active projects on the same normalized domain).
+(one client can't have two active projects on the same normalized domain),
+or consent missing/false.
 
 ### `GET /team/clients/:clientId/projects` — ADMIN, or requires `view_projects` permission scoped to own client
 Lists the client's non-deleted projects, newest first.
@@ -155,6 +161,18 @@ Errors: `404` client not found; `403` caller's `clientId` doesn't match (non-adm
 Soft-deletes a project. No body. Response `200`: `{ "success": true }`.
 Its domain becomes reusable for a new project under the same client.
 Errors: `404` project not found (wrong client, already archived, or doesn't exist).
+
+### `GET /team/clients/:clientId/projects/:id/day1` — **ADMIN only**
+Day-1 pipeline status for a project (recovery ops). Response `200`: the
+`day1_pipeline_runs` row (`status`, `currentStage`, per-stage `stages`).
+Errors: `404` project not found.
+
+### `POST /team/clients/:clientId/projects/:id/day1/retry` — **ADMIN only**
+Re-enqueues a stalled (`QUEUED`) or failed Day-1 pipeline. Rejects
+`COMPLETE`/`RUNNING` rows (`409` — retrying those would double-spend);
+creates the row for legacy projects without one. No body.
+Response `200`: the pipeline row.
+Errors: `404` project not found; `409` already completed/running.
 
 ---
 

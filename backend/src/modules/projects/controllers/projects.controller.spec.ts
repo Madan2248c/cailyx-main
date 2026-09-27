@@ -18,6 +18,8 @@ describe('ProjectsController', () => {
       createProject: vi.fn().mockResolvedValue({ id: 'project-1' }),
       listProjects: vi.fn().mockResolvedValue(['project-list']),
       archiveProject: vi.fn().mockResolvedValue({ success: true }),
+      getDay1Status: vi.fn().mockResolvedValue({ id: 'pipeline-1' }),
+      retryDay1Pipeline: vi.fn().mockResolvedValue({ id: 'pipeline-1' }),
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -36,7 +38,7 @@ describe('ProjectsController', () => {
   });
 
   it('createProject delegates the client id, DTO, and caller id', async () => {
-    const dto = { name: 'Acme', domain: 'acme.com' };
+    const dto = { name: 'Acme', domain: 'acme.com', day1SpendConsent: true };
     await controller.createProject('client-1', dto, admin);
     expect(projectsService.createProject).toHaveBeenCalledWith('client-1', dto, admin.sub);
   });
@@ -50,5 +52,15 @@ describe('ProjectsController', () => {
   it('archiveProject delegates the client id and project id', async () => {
     await controller.archiveProject('client-1', 'project-1');
     expect(projectsService.archiveProject).toHaveBeenCalledWith('client-1', 'project-1');
+  });
+
+  it('getDay1Status delegates the client id and project id', async () => {
+    await controller.getDay1Status('client-1', 'project-1');
+    expect(projectsService.getDay1Status).toHaveBeenCalledWith('client-1', 'project-1');
+  });
+
+  it('retryDay1Pipeline delegates the client id and project id', async () => {
+    await controller.retryDay1Pipeline('client-1', 'project-1');
+    expect(projectsService.retryDay1Pipeline).toHaveBeenCalledWith('client-1', 'project-1');
   });
 });

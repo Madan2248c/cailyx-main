@@ -1,6 +1,7 @@
 /** Typed, parsed view over process.env. Values are validated by validation.schema.ts before this runs. */
 export default () => ({
   databaseUrl: process.env.DATABASE_URL,
+  frontendUrl: process.env.FRONTEND_URL,
   auth: {
     jwtAccessSecret: process.env.JWT_ACCESS_SECRET,
     jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,

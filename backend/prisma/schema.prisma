@@ -83,6 +83,7 @@ model Project {
   gapAnalysisRuns        GapAnalysisRun[]
   competitorProfiles     CompetitorProfile[]
   reports                Report[]
+  day1PipelineRun        Day1PipelineRun?
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -1271,4 +1272,44 @@ model ReportShareLink {
 
   @@index([reportId])
   @@map("report_share_links")
+}
+
+// --- Day-1 pipeline orchestrator ---
+// See docs/analysis/day1-pipeline.md for the full design. One row per
+// project: the automatic end-to-end run (discovery → technical-audit →
+// social-activity → query-set → aeo-audit → competitors → gap-analysis →
+// reporting DAY1 → ready email). A row is never edited after terminal —
+// retries resume the same row, skipping recorded stages.
+
+enum Day1PipelineStatus {
+  QUEUED
+  RUNNING
+  COMPLETE
+  FAILED
+}
+
+model Day1PipelineRun {
+  id         String            @id @default(uuid()) @db.Uuid
+  projectId  String            @unique @map("project_id") @db.Uuid
+  clientId   String            @map("client_id") @db.Uuid
+  status     Day1PipelineStatus @default(QUEUED)
+  /// Stage key the processor is working on (observability + resume cursor).
+  currentStage String? @map("current_stage")
+  /// Per-stage record: { [stage]: { status, runId?, error?, skippedReason? } }.
+  stages Json @default("{}")
+  /// Admin's optional Day-1 spend ceiling from project creation (null = uncapped).
+  spendCeilingUsd Float? @map("spend_ceiling_usd")
+  spendAuthorizedAt DateTime @map("spend_authorized_at")
+  reportId String? @map("report_id") @db.Uuid
+  error    String?
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([clientId])
+  @@map("day1_pipeline_runs")
 }

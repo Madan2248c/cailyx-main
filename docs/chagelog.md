@@ -3,6 +3,63 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — Day-1 pipeline orchestrator: auto-chain, spend pre-auth, deferred invite, live e2e pending
+
+Built from `docs/analysis/day1-pipeline.md` (operator calls: deferred
+invite (A), ChatGPT-only Day-1 surfaces). New `day1-pipeline` module:
+`Day1PipelineRun` row per project (migration
+`20260927175118_add_day1_pipeline_module`), BullMQ `day1-pipeline` queue
+(concurrency 1, 3 attempts), 9 stages run sequentially — Discovery →
+Technical Audit → Social Activity → Query Set (generate → activate) →
+AEO Audit → Competitors → Gap Analysis → Reporting (DAY1, auto-RELEASED)
+→ notify. Only `reporting` is fatal; every other stage failure is
+recorded and the pipeline continues (COMPLETE = report released).
+Retries resume past recorded stages; `GET`/`POST …/projects/:id/day1[/retry]`
+(admin) inspect and re-enqueue, rejecting COMPLETE/RUNNING rows.
+
+**Spend**: project creation now requires `day1SpendConsent: true` (+
+optional `day1SpendCeilingUsd`, enforced best-effort before the paid
+stages off social/AEO reported costs); `DAY1_SURFACES` defaults to
+`cloro_chatgpt`. **Invite**: `POST /team/clients` gains opt-in
+`deferInvite` (silent creation); the pipeline's final step sends the
+first invite with ready context (`TeamService.sendDay1ReadyEmail`,
+ACTIVE POC → login-link email instead). **Trigger refactor**:
+`ProjectsService.createProject` now starts the pipeline instead of
+calling Discovery directly. Frontend: consent checkbox + ceiling on the
+project dialog, defer checkbox on the client dialog (BFF passes through).
+
+**Verified**: 13 orchestrator + 9 projects/auth-delta tests (mocked
+stages/queues), full suite 714 passed, `tsc`/`oxlint`/`nest build` clean.
+Live end-to-end run against a real domain deliberately deferred to the
+scheduled full-repo E2E pass (real spend + 30–60 min wall-clock).
+
+## 2026-09-27 — Email module (Plunk) + auth invite/reset delivery
+
+Built from the approved `docs/analysis/email.md`. Thin leaf `EmailModule`
+(`EmailService.send({to,subject,html})`, raw `fetch`, no SDK, no controller,
+no persistence) with the spec's honest guards: unconfigured → 503
+`email-unconfigured`, Plunk non-2xx/transport failure → 503
+`email-send-failed`.
+
+**Two live findings while verifying**: the current Plunk base URL is
+`https://next-api.useplunk.com/v1/send` (the old `https://api.useplunk.com`
+host now 401s), and `from` is mandatory (422 without it — the old API fell
+back to the project sender). Both are documented in the module README.
+Verified domain: `rothenhall.com`; sender `noreply@rothenhall.com`.
+
+**Auth follow-up patch**: `AuthModule` imports `EmailModule`; invite
+(`createClientWithPoc`/`inviteTeamMember`/`resendInvite`) and
+`forgotPassword` now email real links (`FRONTEND_URL` +
+`/accept-invite?token=…` / `/reset-password?token=…`, new env var defaulting
+to `http://localhost:3000`). Failure semantics: reset keeps its generic
+response either way (unconfigured → debug-logged token, send failure →
+error-logged and swallowed — no enumeration, no leak); invite throws 503
+on send failure (no silent loss, persisted invite retryable via resend).
+
+**Verified**: 6 email + 4 new auth tests (mocked `fetch`/services), full
+suite 688 passed, `tsc`/`oxlint` clean, plus a live curl send delivered to
+a real inbox before building.
+
 ## 2026-09-27 — Reporting module (SOP-11): source assembly, editorial lifecycle, HTML render, live e2e (DB, backend, tests, docs)
 
 Built from the approved `docs/analysis/reporting.md`. Reads the latest

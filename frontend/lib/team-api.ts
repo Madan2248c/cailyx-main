@@ -22,11 +22,12 @@ export async function createClient(
   name: string,
   pocEmail: string,
   seatLimit?: number,
+  deferInvite?: boolean,
 ): Promise<{ client: ClientSummary }> {
   const response = await fetch('/api/team/clients', {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, pocEmail, seatLimit }),
+    body: JSON.stringify({ name, pocEmail, seatLimit, deferInvite }),
   });
   return parseOrThrow<{ client: ClientSummary }>(response);
 }

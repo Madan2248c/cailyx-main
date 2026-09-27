@@ -10,6 +10,10 @@ export const validationSchema = Joi.object({
   LOGIN_MAX_ATTEMPTS: Joi.number().positive().default(5),
   LOGIN_LOCKOUT_MINUTES: Joi.number().positive().default(15),
 
+  // Where emailed links (invite, password reset) point. App-level, not
+  // module-specific — auth composes absolute frontend links from this.
+  FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+
   // Discovery / company-context module. Optional — the services that read
   // these (fetcher's cache, the LLM client, the DataForSEO client) all fail
   // closed (disabled, not broken) when unset, per docs/analysis/discovery.md.
@@ -65,4 +69,17 @@ export const validationSchema = Joi.object({
   // per explicit operator instruction, same as Measurement. See
   // backend/src/modules/aeo-audit/README.md.
   AEO_MAX_COST_PER_AUDIT: Joi.number().positive().optional(),
+
+  // Day-1 pipeline orchestrator. Optional — DAY1_SURFACES selects the
+  // answer-engine surfaces for the automatic audit (validated per-surface
+  // by AEO Audit at creation); the poll interval only tunes how often the
+  // orchestrator checks its queued stages. See docs/analysis/day1-pipeline.md.
+  DAY1_SURFACES: Joi.string().default('cloro_chatgpt'),
+  DAY1_POLL_INTERVAL_MS: Joi.number().positive().optional(),
+
+  // Email module. Optional — EmailService fails closed (503
+  // email-unconfigured, nothing sent) when unset. See
+  // docs/analysis/email.md.
+  PLUNK_SECRET_KEY: Joi.string().optional(),
+  PLUNK_SENDER_EMAIL: Joi.string().email().optional(),
 });

@@ -8,6 +8,7 @@ import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../../
 import { AuthService } from './auth.service.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
+import { EmailService } from '../../email/email.service.js';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -21,6 +22,7 @@ describe('AuthService', () => {
     inviteTokenExpiry: ReturnType<typeof vi.fn>;
     resetTokenExpiry: ReturnType<typeof vi.fn>;
   };
+  let emailService: { send: ReturnType<typeof vi.fn>; isConfigured: ReturnType<typeof vi.fn> };
 
   const meta = { userAgent: 'test-agent', ipAddress: '127.0.0.1' };
 
@@ -66,12 +68,19 @@ describe('AuthService', () => {
     };
 
     const configService = {
+      get: vi.fn((key: string, fallback?: unknown) => {
+        if (key === 'FRONTEND_URL') return 'http://localhost:3000';
+        return fallback;
+      }),
       getOrThrow: vi.fn((key: string) => {
         if (key === 'auth.loginMaxAttempts') return 5;
         if (key === 'auth.loginLockoutMinutes') return 15;
+        if (key === 'auth.resetTokenTtlHours') return 1;
         throw new Error(`Unexpected config key in test: ${key}`);
       }),
     };
+
+    emailService = { send: vi.fn(), isConfigured: vi.fn(() => true) };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -80,6 +89,7 @@ describe('AuthService', () => {
         { provide: PasswordService, useValue: passwordService },
         { provide: TokenService, useValue: tokenService },
         { provide: ConfigService, useValue: configService },
+        { provide: EmailService, useValue: emailService },
       ],
     }).compile();
 
@@ -368,16 +378,17 @@ describe('AuthService', () => {
   });
 
   describe('forgotPassword', () => {
-    it('returns the same generic message when no user matches, without creating a token', async () => {
+    it('returns the same generic message when no user matches, without creating a token or sending', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
 
       const result = await service.forgotPassword({ email: 'ghost@test.com' });
 
       expect(result).toEqual({ message: 'If that email exists, a reset link has been sent.' });
       expect(prisma.authToken.create).not.toHaveBeenCalled();
+      expect(emailService.send).not.toHaveBeenCalled();
     });
 
-    it('soft-deletes prior unconsumed reset tokens and issues a new one for a real user', async () => {
+    it('soft-deletes prior unconsumed reset tokens, issues a new one, and emails the reset link', async () => {
       prisma.user.findFirst.mockResolvedValue(buildUser());
 
       const result = await service.forgotPassword({ email: 'user@test.com' });
@@ -392,6 +403,30 @@ describe('AuthService', () => {
         data: { deletedAt: expect.any(Date) },
       });
       expect(prisma.authToken.create).toHaveBeenCalled();
+      expect(emailService.send).toHaveBeenCalledWith({
+        to: 'user@test.com',
+        subject: 'Reset your Cailyx password',
+        html: expect.stringContaining('http://localhost:3000/reset-password?token=raw-token'),
+      });
+      expect(result).toEqual({ message: 'If that email exists, a reset link has been sent.' });
+    });
+
+    it('still returns the generic message when the send fails — no enumeration, no leak', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildUser());
+      emailService.send.mockRejectedValueOnce(new Error('down'));
+
+      const result = await service.forgotPassword({ email: 'user@test.com' });
+
+      expect(result).toEqual({ message: 'If that email exists, a reset link has been sent.' });
+    });
+
+    it('debug-logs the token instead of sending when email is unconfigured', async () => {
+      prisma.user.findFirst.mockResolvedValue(buildUser());
+      emailService.isConfigured.mockReturnValueOnce(false);
+
+      const result = await service.forgotPassword({ email: 'user@test.com' });
+
+      expect(emailService.send).not.toHaveBeenCalled();
       expect(result).toEqual({ message: 'If that email exists, a reset link has been sent.' });
     });
   });

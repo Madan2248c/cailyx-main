@@ -24,11 +24,12 @@ export async function createProject(
   clientId: string,
   name: string,
   domain: string,
+  opts: { day1SpendConsent: boolean; day1SpendCeilingUsd?: number },
 ): Promise<Project> {
   const response = await fetch(`/api/team/clients/${clientId}/projects`, {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, domain }),
+    body: JSON.stringify({ name, domain, ...opts }),
   });
   return parseOrThrow<Project>(response);
 }

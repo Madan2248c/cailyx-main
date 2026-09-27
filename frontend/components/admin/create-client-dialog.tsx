@@ -26,6 +26,7 @@ export function CreateClientDialog({
   const [name, setName] = useState('');
   const [pocEmail, setPocEmail] = useState('');
   const [seatLimit, setSeatLimit] = useState('1');
+  const [deferInvite, setDeferInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -34,10 +35,11 @@ export function CreateClientDialog({
     setError(null);
     setIsSubmitting(true);
     try {
-      await createClient(accessToken, name, pocEmail, Number(seatLimit));
+      await createClient(accessToken, name, pocEmail, Number(seatLimit), deferInvite || undefined);
       setName('');
       setPocEmail('');
       setSeatLimit('1');
+      setDeferInvite(false);
       setOpen(false);
       onCreated();
     } catch (err) {
@@ -54,7 +56,8 @@ export function CreateClientDialog({
         <DialogHeader>
           <DialogTitle>Create a new client</DialogTitle>
           <DialogDescription>
-            Their POC will get an invite link to set up their password and onboard.
+            Their POC will get an invite link to set up their password and onboard — now,
+            or with the Day-1 audit if held below.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -83,6 +86,18 @@ export function CreateClientDialog({
               onChange={(e) => setSeatLimit(e.target.value)}
             />
           </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={deferInvite}
+              onChange={(e) => setDeferInvite(e.target.checked)}
+            />
+            <span>
+              Hold the invite until the Day-1 audit is ready — the POC gets one email
+              with the report, instead of an invite now and a report later.
+            </span>
+          </label>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

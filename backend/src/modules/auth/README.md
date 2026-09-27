@@ -68,11 +68,9 @@ See `docs/Readme.md` for full request/response shapes. Summary:
 
 ## Dependencies
 
-- **Modules**: `PrismaModule` (global), `GlobalJwtModule` (global), `ConfigModule`.
+- **Modules**: `PrismaModule` (global), `GlobalJwtModule` (global), `ConfigModule`, `EmailModule` (leaf — invite/reset delivery).
 - **npm packages**: `argon2`, `@nestjs/jwt`, `class-validator`, `class-transformer`, `joi`.
-- **External services**: none yet — invite/reset links are logged via `Logger.debug`
-  (see the `// TODO: send this via the email module` comments) until an email
-  module exists.
+- **External services**: Plunk via `EmailService` — invite/resend/reset links are emailed; when email is unconfigured the token is `Logger.debug`-logged instead (dev path).
 
 ## Environment variables
 
@@ -85,6 +83,7 @@ See `docs/Readme.md` for full request/response shapes. Summary:
 | `RESET_TOKEN_TTL_HOURS` | `1` | Password-reset link lifetime. |
 | `LOGIN_MAX_ATTEMPTS` | `5` | Failed logins before lockout. |
 | `LOGIN_LOCKOUT_MINUTES` | `15` | Lockout duration. |
+| `FRONTEND_URL` | `http://localhost:3000` | Base URL emailed invite/reset links point at (`/accept-invite?token=…`, `/reset-password?token=…`). |
 
 ## Consumers
 
@@ -102,7 +101,7 @@ know who's logged in will depend on `JwtAuthGuard` / `CurrentUser` from
 | Admin can fully suspend a client | ✅ | `PATCH /team/clients/:id/suspend`, bulk-revokes sessions. |
 | Per-client seat limit (POC + members) | ✅ | Added 2026-09-25. `clients.seat_limit` (default 1, includes the POC), enforced in `inviteTeamMember`, admin-adjustable via `PATCH /team/clients/:id/seats`. This is auth-module *configuration*, distinct from the deferred product-feature toggles — see `docs/context.md`. |
 | Admins only addable via DB access | ✅ | No admin-creation endpoint exists; bootstrapped by direct insert. |
-| Admin adds client POC, sends magic link | ✅ | `POST /team/clients`; link delivery itself is logged, not emailed — email module doesn't exist yet. |
+| Admin adds client POC, sends magic link | ✅ | `POST /team/clients`; delivered by email (Plunk), debug-logged only when email is unconfigured. |
 | POC can add their own team | ✅ | `POST /team/invite`, permission-gated. |
 | Admin can resend links ̦| ✅ | `POST /team/users/:id/resend-invite` (also usable by POC for their own team). |
 | Soft deletes throughout | ✅ | Every table has `deleted_at`; nothing is hard-deleted. |

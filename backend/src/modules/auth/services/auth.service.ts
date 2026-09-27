@@ -16,6 +16,7 @@ import type { RefreshTokenDto } from '../dto/refresh-token.dto.js';
 import type { ResetPasswordDto } from '../dto/reset-password.dto.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
+import { EmailService } from '../../email/email.service.js';
 
 type UserWithClient = UserModel & { client: ClientModel | null };
 
@@ -39,6 +40,8 @@ export interface Session {
 const INVALID_CREDENTIALS = 'Invalid email or password';
 const GENERIC_INVITE_ERROR = 'This invite link is invalid or has expired.';
 const GENERIC_RESET_ERROR = 'This reset link is invalid or has expired.';
+/** Code-level fallback — validation.schema.ts carries the same default. */
+const DEFAULT_FRONTEND_URL = 'http://localhost:3000';
 
 @Injectable()
 export class AuthService {
@@ -49,6 +52,7 @@ export class AuthService {
     private readonly passwordService: PasswordService,
     private readonly tokenService: TokenService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {}
 
   /** Verifies credentials, enforces lockout/status/client-suspension rules, and issues a new session. */
@@ -234,14 +238,41 @@ export class AuthService {
         },
       });
 
-      // TODO: send this via the email module once it exists. Logged for now
-      // so the flow is testable end-to-end without email infrastructure.
-      this.logger.debug(`Password reset token for ${email}: ${token.raw}`);
+      await this.sendResetEmail(email, token.raw);
     }
 
     // Always the same response, whether or not the email exists — this
     // endpoint must not be usable to enumerate accounts.
     return { message: 'If that email exists, a reset link has been sent.' };
+  }
+
+  /**
+   * Sends the reset link. Email trouble never leaks through the generic
+   * response above: when email is unconfigured the token is debug-logged
+   * (dev path, keeps the flow testable without infrastructure); a failed
+   * send is error-logged and swallowed.
+   */
+  private async sendResetEmail(email: string, rawToken: string): Promise<void> {
+    if (!this.emailService.isConfigured()) {
+      this.logger.debug(`Password reset token for ${email}: ${rawToken}`);
+      return;
+    }
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', DEFAULT_FRONTEND_URL);
+    const ttlHours = this.configService.getOrThrow<number>('auth.resetTokenTtlHours');
+    const link = `${frontendUrl}/reset-password?token=${rawToken}`;
+    try {
+      await this.emailService.send({
+        to: email,
+        subject: 'Reset your Cailyx password',
+        html:
+          `<p>Someone requested a password reset for your Cailyx account.</p>` +
+          `<p><a href="${link}">Reset your password</a></p>` +
+          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
+          `If you didn't ask for this, you can safely ignore it.</p>`,
+      });
+    } catch (err) {
+      this.logger.error(`Password reset email to ${email} failed: ${(err as Error).message}`);
+    }
   }
 
   /** Consumes a password-reset token, sets the new password, revokes every existing session, and logs the user in. */

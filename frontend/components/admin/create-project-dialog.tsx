@@ -27,17 +27,29 @@ export function CreateProjectDialog({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
+  const [spendConsent, setSpendConsent] = useState(false);
+  const [spendCeiling, setSpendCeiling] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (!spendConsent) {
+      setError('Confirm the Day-1 spend to create the project.');
+      return;
+    }
     setIsSubmitting(true);
     try {
-      await createProject(accessToken, clientId, name, domain);
+      const ceiling = spendCeiling.trim() === '' ? undefined : Number(spendCeiling);
+      await createProject(accessToken, clientId, name, domain, {
+        day1SpendConsent: true,
+        ...(ceiling !== undefined && Number.isFinite(ceiling) ? { day1SpendCeilingUsd: ceiling } : {}),
+      });
       setName('');
       setDomain('');
+      setSpendConsent(false);
+      setSpendCeiling('');
       setOpen(false);
       onCreated();
     } catch (err) {
@@ -72,6 +84,31 @@ export function CreateProjectDialog({
               onChange={(e) => setDomain(e.target.value)}
             />
           </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="spendCeiling">Day-1 spend ceiling in USD (optional)</Label>
+            <Input
+              id="spendCeiling"
+              type="number"
+              min={0}
+              step="any"
+              placeholder="No cap"
+              value={spendCeiling}
+              onChange={(e) => setSpendCeiling(e.target.value)}
+            />
+          </div>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={spendConsent}
+              onChange={(e) => setSpendConsent(e.target.checked)}
+            />
+            <span>
+              Creating this project starts the automatic Day-1 audit run, which spends on
+              crawls and AI answer engines. I authorize that spend
+              {spendCeiling.trim() === '' ? '' : ` up to $${spendCeiling}`} for this project.
+            </span>
+          </label>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
             <Button type="submit" disabled={isSubmitting}>

@@ -45,4 +45,19 @@ export class ProjectsController {
   archiveProject(@Param('clientId') clientId: string, @Param('id') id: string) {
     return this.projectsService.archiveProject(clientId, id);
   }
+
+  /** GET /team/clients/:clientId/projects/:id/day1 — Day-1 pipeline status. Admin-only. */
+  @Get(':id/day1')
+  @Roles(Role.ADMIN)
+  getDay1Status(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.projectsService.getDay1Status(clientId, id);
+  }
+
+  /** POST /team/clients/:clientId/projects/:id/day1/retry — re-enqueue a stalled/failed Day-1 pipeline. Admin-only. */
+  @Post(':id/day1/retry')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  retryDay1Pipeline(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.projectsService.retryDay1Pipeline(clientId, id);
+  }
 }

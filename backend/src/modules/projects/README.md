@@ -5,9 +5,11 @@ domains/brands under one account). Everything downstream — the Day-1
 report pipeline and every module after it — keys off a project, not a
 client directly.
 
-Admin creates a project by entering **name + domain only**; everything
-else about it (business details, ICP, competitors, etc.) is inferred by
-later pipeline modules, not this one.
+Admin creates a project by entering **name + domain + Day-1 spend
+consent** (plus an optional spend ceiling); everything else about it
+(business details, ICP, competitors, etc.) is inferred by later pipeline
+modules, not this one. Creating a project starts the Day-1 pipeline
+automatically — see `docs/analysis/day1-pipeline.md`.
 
 ## Architecture
 
@@ -37,13 +39,17 @@ See `docs/Readme.md` for full request/response shapes. Summary:
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| POST | `/team/clients/:clientId/projects` | ADMIN | `{ name, domain }` |
+| POST | `/team/clients/:clientId/projects` | ADMIN | `{ name, domain, day1SpendConsent: true, day1SpendCeilingUsd? }` — starts the Day-1 pipeline |
 | GET | `/team/clients/:clientId/projects` | ADMIN, or `view_projects` scoped to own client | |
 | PATCH | `/team/clients/:clientId/projects/:id/archive` | ADMIN | soft delete |
+| GET | `/team/clients/:clientId/projects/:id/day1` | ADMIN | pipeline status (recovery ops) |
+| POST | `/team/clients/:clientId/projects/:id/day1/retry` | ADMIN | re-enqueue a stalled/failed pipeline |
 
 ## Dependencies
 
-- **Modules**: `PrismaModule` (global), auth module's guards/decorators from `common/`.
+- **Modules**: `PrismaModule` (global), `Day1PipelineModule` (project
+  creation starts the pipeline), auth module's guards/decorators from
+  `common/`.
 - **New permission**: `view_projects`, seeded onto `CLIENT_POC` and
   `CLIENT_MEMBER` (see `prisma/seed.ts`) — re-run `npm run db:seed` after
   pulling this module if your DB doesn't have it yet.
@@ -67,7 +73,7 @@ as their unit of work.
 | Requirement | Status | Notes |
 |---|---|---|
 | Client can have multiple projects (domains/brands) | ✅ | `Project.clientId`, no cardinality limit. |
-| Admin creates project with name + domain only | ✅ | Everything else deferred to later pipeline modules. |
+| Admin creates project with name + domain only | ✅ | Plus Day-1 spend consent (+ optional ceiling). Everything else deferred to pipeline modules. |
 | One active domain per client | ✅ | Partial unique index `(client_id, domain)` WHERE `deleted_at IS NULL`. |
 | POC/member can view their own client's projects | ✅ | `view_projects` permission, scoped in `ProjectsService.assertCanView`. |
 | Soft deletes throughout | ✅ | "Archive" = `deletedAt` set; no hard deletes. |

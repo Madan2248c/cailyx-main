@@ -192,9 +192,14 @@ function buildRawPrismaMock() {
       findMany: vi.fn(),
       create: vi.fn(),
     },
+    // --- Day-1 pipeline orchestrator ---
+    day1PipelineRun: {
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
     // --- Reporting module ---
-    report: {
-      findFirst: vi.fn(),
+    report: {      findFirst: vi.fn(),
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       findMany: vi.fn(),
