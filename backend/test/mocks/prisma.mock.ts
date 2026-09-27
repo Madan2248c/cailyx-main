@@ -33,6 +33,7 @@ function buildRawPrismaMock() {
     },
     project: {
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -131,10 +132,12 @@ function buildRawPrismaMock() {
       create: vi.fn(),
       createMany: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
     },
     // --- Measurement module ---
     measurementRun: {
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
@@ -145,6 +148,31 @@ function buildRawPrismaMock() {
       findMany: vi.fn(),
       create: vi.fn(),
       deleteMany: vi.fn(),
+    },
+    // --- AEO Audit module ---
+    aeoAudit: {
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    aeoSurfaceRun: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    aeoStance: {
+      findMany: vi.fn(),
+      create: vi.fn(),
+    },
+    competitor: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
     },
   };
 }

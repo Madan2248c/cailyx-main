@@ -78,6 +78,8 @@ model Project {
   socialActivitySchedule SocialActivitySchedule?
   querySets              QuerySet[]
   measurementRuns        MeasurementRun[]
+  aeoAudits              AeoAudit[]
+  competitors            Competitor[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -708,6 +710,7 @@ model QuerySet {
   buckets           QuerySetBucket[]
   items             QuerySetItem[]
   measurementRuns   MeasurementRun[]
+  aeoAudits         AeoAudit[]
 
   @@index([projectId])
   @@index([generationContextId])
@@ -819,6 +822,7 @@ model MeasurementRun {
   project      Project       @relation(fields: [projectId], references: [id])
   querySet     QuerySet      @relation(fields: [querySetId], references: [id])
   observations Observation[]
+  aeoSurfaceRuns AeoSurfaceRun[]
 
   @@index([projectId])
   @@index([querySetId])
@@ -851,8 +855,175 @@ model Observation {
 
   run  MeasurementRun @relation(fields: [runId], references: [id])
   item QuerySetItem   @relation(fields: [itemId], references: [id])
+  aeoStance AeoStance?
 
   @@index([runId])
   @@index([itemId])
   @@map("observations")
+}
+
+// --- AEO Audit module ---
+// See backend/src/modules/aeo-audit/README.md. Ties an ACTIVE query set to
+// one or more Measurement runs (one per surface x market), judges each
+// resulting Observation's stance (a separate LLM call, distinct from
+// Measurement's deterministic mentioned/cited scoring), and assembles a
+// verdict: raw rate slices + plain-language headlines. No composite score —
+// ported faithfully from the old repo, which computed none either (rates,
+// never a single number). Never generates its own query set — consumes one
+// Query Set already built, per the layering decision recorded there.
+
+enum AeoAuditStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+enum AeoSurfaceRunStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+/// Distinct from Measurement's deterministic mentioned/cited/characterization
+/// — this is the LLM's read of HOW the subject was positioned, not just
+/// whether it appeared.
+enum Stance {
+  recommended_primary
+  recommended_alternative
+  mentioned_neutral
+  mentioned_negative
+  absent
+}
+
+enum CompetitorStatus {
+  tracked
+  candidate
+}
+
+enum CompetitorSource {
+  manual
+  stance_discovered
+}
+
+model AeoAudit {
+  id         String         @id @default(uuid()) @db.Uuid
+  projectId  String         @map("project_id") @db.Uuid
+  querySetId String         @map("query_set_id") @db.Uuid
+  surfaces   MeasurementSurface[]
+  /// Country codes, e.g. ["US", "GB"]. Default single-market.
+  markets    String[]       @default(["US"])
+  status     AeoAuditStatus @default(pending)
+
+  promptCount   Int   @default(0) @map("prompt_count")
+  observations  Int   @default(0)
+  stanceJudged  Int   @default(0) @map("stance_judged")
+  /// Audit-wide spend across every surface x market measurement run plus
+  /// stance plus narrative — a separate, wider ceiling than any one
+  /// MeasurementRun's own MEASUREMENT_MAX_COST_PER_RUN.
+  costUsd       Float @default(0) @map("cost_usd")
+  error         String?
+  /// {counted: SliceMetrics + shareOfVoice + competitorStanding, judged:
+  /// stance counts + losing/winning prompts, headlines: string[], narrative?:
+  /// string[]} — see aeo-audit.types.ts. Recomputable from stored rows at any
+  /// time (GET .../verdict), so this is a cache, not the source of truth.
+  verdict       Json  @default("{}")
+
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  project     Project        @relation(fields: [projectId], references: [id])
+  querySet    QuerySet       @relation(fields: [querySetId], references: [id])
+  surfaceRuns AeoSurfaceRun[]
+  stances     AeoStance[]
+
+  @@index([projectId])
+  @@index([querySetId])
+  @@map("aeo_audits")
+}
+
+model AeoSurfaceRun {
+  id                String              @id @default(uuid()) @db.Uuid
+  auditId           String              @map("audit_id") @db.Uuid
+  surface           MeasurementSurface
+  market            String
+  /// Set once the underlying MeasurementRun is created — null while pending.
+  measurementRunId  String?             @map("measurement_run_id") @db.Uuid
+  status            AeoSurfaceRunStatus @default(pending)
+  observations      Int                 @default(0)
+  stanceJudged      Int                 @default(0) @map("stance_judged")
+  costUsd           Float               @default(0) @map("cost_usd")
+  /// Typed reason for a failed surface — one surface failing never voids the
+  /// audit as long as at least one other completes.
+  failureKind       String?             @map("failure_kind")
+  error             String?
+
+  startedAt  DateTime? @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  audit          AeoAudit        @relation(fields: [auditId], references: [id])
+  measurementRun MeasurementRun? @relation(fields: [measurementRunId], references: [id])
+
+  @@unique([auditId, surface, market])
+  @@index([auditId])
+  @@map("aeo_surface_runs")
+}
+
+model AeoStance {
+  id              String   @id @default(uuid()) @db.Uuid
+  auditId         String   @map("audit_id") @db.Uuid
+  observationId   String   @unique @map("observation_id") @db.Uuid
+  surface         MeasurementSurface
+  stance          Stance
+  /// 1-based position among the brands the model named, or null when the
+  /// subject wasn't ranked against anything. Diagnostics only, same rule as
+  /// Observation.position — never a headline number.
+  rankAmongBrands Int?     @map("rank_among_brands")
+  brandsNamed     String[] @map("brands_named")
+  /// Named rivals the subject placed above/below — filtered through the
+  /// project's known Competitor list before being recorded here (an unknown
+  /// name goes to otherNamesSeen instead, never guessed into a rivalry).
+  recommendedOver String[] @map("recommended_over")
+  losesTo         String[] @map("loses_to")
+  /// Names the model used that matched no known competitor, non-competitor
+  /// platform, or the subject's own brand — queued as Competitor(candidate)
+  /// rows for an operator to confirm, never auto-promoted.
+  otherNamesSeen  String[] @map("other_names_seen")
+  evidenceQuote   String?  @map("evidence_quote")
+  rationale       String?
+  judgeModel      String   @map("judge_model")
+  costUsd         Float    @map("cost_usd")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  audit       AeoAudit    @relation(fields: [auditId], references: [id])
+  observation Observation @relation(fields: [observationId], references: [id])
+
+  @@index([auditId])
+  @@map("aeo_stances")
+}
+
+/// Single source of truth for a project's known competitors — deliberately
+/// NOT the old repo's design (a seed JSON column that never synced with a
+/// separate candidates table). Every rival name stance judging is allowed
+/// to attribute a rivalry to comes from here; every unrecognized name stance
+/// judging sees becomes a `candidate` row here, confirmable by an operator.
+model Competitor {
+  id        String           @id @default(uuid()) @db.Uuid
+  projectId String           @map("project_id") @db.Uuid
+  name      String
+  domain    String?
+  status    CompetitorStatus @default(tracked)
+  source    CompetitorSource @default(manual)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  project Project @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@map("competitors")
 }

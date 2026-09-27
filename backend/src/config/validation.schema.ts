@@ -60,4 +60,9 @@ export const validationSchema = Joi.object({
   CLORO_MAX_CONCURRENCY: Joi.number().positive().optional(),
   MEASUREMENT_MAX_COST_PER_RUN: Joi.number().positive().optional(),
   MEASUREMENT_ALLOW_MOCK: Joi.string().valid('0', '1').optional(),
+
+  // AEO Audit module. Optional — built ahead of a written analysis doc,
+  // per explicit operator instruction, same as Measurement. See
+  // backend/src/modules/aeo-audit/README.md.
+  AEO_MAX_COST_PER_AUDIT: Joi.number().positive().optional(),
 });

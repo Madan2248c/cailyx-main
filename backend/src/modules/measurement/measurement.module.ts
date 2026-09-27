@@ -28,6 +28,6 @@ import { MeasurementService } from './services/measurement.service.js';
     MockSurfaceAdapter,
     MeasurementService,
   ],
-  exports: [MeasurementService],
+  exports: [MeasurementService, CloroClient],
 })
 export class MeasurementModule {}
