@@ -3,6 +3,49 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — Gap Analysis module (SOP-5): source consolidation, guardrails, API (DB, backend, tests, docs)
+
+Built from the approved `docs/analysis/gap-analysis.md`. The first and
+only place a recommendation gets generated in this pipeline — reads the
+latest completed run from Technical Audit, Social Activity, and AEO
+Audit via their own exported services (no cross-module DB reads), then
+one LLM call consolidates every finding into a ranked list of concrete
+next steps. No new taxonomy, no re-derived findings, no invented numbers
+— a deliberate departure from the old repo's rules-engine classifier.
+
+**What shipped**: three collectors flattening each source's latest
+completed run into citable `(module, findingRef, summary)` rows,
+`GapAnalysisGenerationService` (the one LLM call), deterministic
+guardrails (rationale-grounding per citation against the collected data;
+no-fabricated-numbers scoped to what each recommendation actually cites,
+not the whole pool; 3–15 item count bound, rejected not auto-padded),
+orchestrator (409 on zero completed sources, 409 on an out-of-range
+guardrail-passed count, contiguous re-ranking after drops),
+`GapAnalysisRecommendation.status` (OPEN/DONE/DISMISSED) as the one
+mutable field on an otherwise append-only run.
+
+**Noted in the module README**: Technical Audit's `AuditFinding.recommendedFix`
+is genuinely populated per check, contrary to the analysis doc's stated
+premise ("none of the three source modules currently emit a recommended
+action"). Doesn't change scope — the module's value is the cross-source
+merge + single ranked list, not whether one source already suggests
+something in isolation.
+
+**Live end-to-end run** against Fello: **COMPLETE**, 3 recommendations,
+1 source available (AEO Audit only — Social Activity's and Technical
+Audit's completed runs for Fello had been cleaned up by their own
+earlier live-test scripts, a real exercise of the "missing source is not
+an error" path, not a bug). All 3 recommendations correctly grounded —
+every citation resolved to a real AEO Audit headline/competitor
+reference, no fabricated numbers, contiguous ranks 1–3. One
+recommendation correctly merged all 8 co-mentioned competitor names from
+`competitorStanding` into a single "build comparison pages" action item
+— the cross-source/cross-finding merge this module exists to do.
+
+**Verified**: `tsc --noEmit` clean, `nest build` clean, `oxlint
+--type-aware` 0 errors, backend 617 tests green (71 files, 31 new in
+gap-analysis).
+
 ## 2026-09-27 — AEO Audit live end-to-end run against Fello + a real bug found and fixed
 
 Ran the full pipeline against Fello's already-active 2-prompt query set:

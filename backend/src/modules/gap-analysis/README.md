@@ -126,5 +126,15 @@ The orchestrator is tested with every collaborator mocked: 409 on zero
 sources, running on a single available source (a missing source is not
 an error), 409 on an out-of-range guardrail-passed count (never
 auto-fixed), ungrounded items dropped with contiguous re-ranking.
-Controller pass-through covered. One live end-to-end run against a real
-project is recorded in `docs/chagelog.md`.
+Controller pass-through covered.
+
+**Live end-to-end run** against Fello — recorded in `docs/chagelog.md`:
+COMPLETE, 3 grounded recommendations from the one available source
+(AEO Audit — Social Activity's and Technical Audit's completed runs for
+Fello had been cleaned up by their own earlier live tests, a real
+exercise of the "missing source is not an error" path). Every citation
+resolved to a real headline/competitor reference, no fabricated numbers,
+contiguous ranks. One recommendation correctly merged all 8 co-mentioned
+competitor names from `competitorStanding` into a single "build
+comparison pages" action item — the cross-finding merge this module
+exists to do.
