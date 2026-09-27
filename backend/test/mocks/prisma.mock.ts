@@ -113,10 +113,26 @@ function buildRawPrismaMock() {
       findUnique: vi.fn(),
       upsert: vi.fn(),
     },
+    // --- Query Set module ---
+    querySet: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
+    querySetBucket: {
+      create: vi.fn(),
+    },
+    querySetItem: {
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      createMany: vi.fn(),
+      delete: vi.fn(),
+    },
   };
 }
 
-export type PrismaMock = ReturnType<typeof buildRawPrismaMock>;
+export type PrismaMock = ReturnType<typeof buildRawPrismaMock> & { $transaction: ReturnType<typeof vi.fn> };
 
 /**
  * A fully mocked PrismaService — every delegate method any module's service
@@ -124,9 +140,15 @@ export type PrismaMock = ReturnType<typeof buildRawPrismaMock>;
  * genuinely unused by the code under test does not need an entry, and adding
  * one for every generated model would be noise. Add a delegate (and the methods
  * a service actually calls on it) when a test needs it.
+ *
+ * `$transaction` runs its callback against this same mock (no real
+ * transaction semantics) — good enough for a service whose test doubles for
+ * every delegate the callback touches are already set up on this object.
  */
 export function createPrismaMock(): PrismaMock {
-  return buildRawPrismaMock();
+  const mock = buildRawPrismaMock() as PrismaMock;
+  mock.$transaction = vi.fn((arg: unknown) => (typeof arg === 'function' ? (arg as (tx: PrismaMock) => unknown)(mock) : Promise.all(arg as unknown[])));
+  return mock;
 }
 
 /** Casts a PrismaMock for use as the `useValue` when overriding PrismaService in a TestingModule. */

@@ -3,6 +3,50 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-27 — Query Set module (SOP-1): two-step LLM generation, guardrails, API (DB, backend, tests, docs)
+
+Built from the approved `docs/analysis/query-set.md`. Prompt generation
+moves from AEO Audit into its own module (layering fix); buckets are no
+longer a fixed enum — invented per project by an LLM call, grounded in
+Discovery's `CompanyContextProfile`, and bounded by deterministic
+guardrails enforced in code, not left to the model.
+
+**What shipped**: `QuerySetGenerationService` (two LLM calls via the
+shared `LlmModule` — propose buckets, then generate prompts per bucket;
+malformed entries dropped, never guessed), pure guardrails
+(`rejectUngroundedBuckets` — a rationale must cite a real
+`CompanyContextProfile` term; `checkBucketCount` 4–14; `clampPerBucketCounts`
+5–40; `scaleToTier` proportional, never drops a bucket; `checkUnbrandedFloor`
+≥70%), `QuerySetService` (manual CRUD on drafts, `generate()` 409s without
+a profile or on a rejecting guardrail rather than auto-fixing, per-bucket
+generation failure never aborts the set, `activate()`/`fork()` immutability
+lifecycle, export), nested controllers, module README, API reference,
+status tables.
+
+**Note**: tier target sizes (`starter: 60`, `full: 200`) aren't pinned in
+the analysis doc — this build's own default, flagged for the coordinator
+to confirm.
+
+**Verified**: `tsc --noEmit` clean, `nest build` clean, `oxlint
+--type-aware` 0 errors, backend 509 tests green (53 files, 38 new in
+query-set — guardrails tested against synthetic proposals, generation
+service against a mocked `LlmService`, orchestrator against a mocked
+generation service + Prisma). **Open**: one live end-to-end run against a
+real project with a real Discovery `CompanyContextProfile`.
+
+## 2026-09-27 — Migration connectivity: switched DATABASE_URL to Supabase session pooler
+
+`prisma migrate dev` started failing with DNS resolution errors on the
+direct `db.<ref>.supabase.co:5432` hostname (confirmed not a local network
+issue — public DNS servers couldn't resolve it either, and the Supabase
+dashboard showed the project Healthy). Supabase's direct-connection
+hostname increasingly resolves over IPv6 only. Fixed by switching
+`DATABASE_URL` to the session pooler
+(`aws-0-ap-southeast-1.pooler.supabase.com:5432`, same credentials,
+project-scoped username) — session mode (not transaction/6543) because
+`prisma migrate` needs the advisory locks transaction pooling doesn't
+support.
+
 ## 2026-09-26 — Social Activity live end-to-end run: PASS vs Fello (fello.ai)
 
 Run `80d72471` through the real queue + worker with operator-confirmed

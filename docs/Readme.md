@@ -335,6 +335,69 @@ Errors: `404` project not found.
 
 ---
 
+## Query Set (SOP-1) — requires `Authorization` header
+
+See `docs/analysis/query-set.md` for the design and
+`backend/src/modules/query-set/README.md` for operational notes. A
+project's versioned prompt set: manual CRUD on `draft` sets, or two-step
+LLM generation grounded in Discovery's `CompanyContextProfile` (propose
+per-project buckets → generate prompts per bucket, both bounded by
+deterministic guardrails). Immutable once `active` — `fork()` for the next
+editable version.
+
+### `POST /team/clients/:clientId/projects/:projectId/query-sets` — **ADMIN only**
+Manual create. No body required beyond an optional label.
+Request: `{ "label"?: string }`
+Response `201`: the new draft (v1) row.
+Errors: `404` project not found.
+
+### `POST /team/clients/:clientId/projects/:projectId/query-sets/generate` — **ADMIN only**
+Two-step LLM generation: propose buckets grounded in the project's latest
+`CompanyContextProfile`, apply guardrails, generate prompts per surviving
+bucket.
+Request: `{ "tier"?: "starter" | "full" }` (default `full`)
+Response `201`: the new draft row plus `proposedBuckets` (the final,
+guardrail-passed bucket list) and `guardrailNotes` (every clamp/scale
+applied, for visibility).
+Errors: `404` project not found; `409` no `CompanyContextProfile` exists
+yet, or the proposal failed a rejecting guardrail (bucket count outside
+4–14, or unbranded ratio below 70%) — retry, bucket invention is
+non-deterministic.
+
+### `GET /team/clients/:clientId/projects/:projectId/query-sets` — requires `view_projects`
+This project's query sets, newest version first. `?status=draft|active|archived` filters.
+Errors: `404` project not found.
+
+### `GET /team/clients/:clientId/projects/:projectId/query-sets/export` — requires `view_projects`
+The project's active set, full export (buckets + items).
+Errors: `404` project not found, or no active set exists.
+
+### `GET /team/clients/:clientId/query-sets/:id` — requires `view_projects`
+One set + its buckets + items.
+Errors: `404` set not found, or it belongs to another client's project.
+
+### `POST /team/clients/:clientId/query-sets/:id/prompts` — **ADMIN only**
+Adds one manually-typed prompt to a draft set.
+Request: `{ "prompt": string, "funnelStage"?: string, "branding"?: "branded"|"unbranded" }`
+Errors: `404` set not found; `400` set is not a draft.
+
+### `DELETE /team/clients/:clientId/query-sets/:id/prompts/:itemId` — **ADMIN only**
+Removes one prompt from a draft set.
+Errors: `404` set or prompt not found; `400` set is not a draft.
+
+### `POST /team/clients/:clientId/query-sets/:id/activate` — **ADMIN only**
+Locks the set (`status: active`). Only a `draft` can be activated.
+Errors: `404` set not found; `400` set is not a draft.
+
+### `POST /team/clients/:clientId/query-sets/:id/fork` — **ADMIN only**
+Creates a new draft version, copying every bucket and item from the
+source set. The source set is never modified.
+Response `201`: the new draft row.
+Errors: `404` set not found.
+
+---
+
+
 ## Roles & permissions
 
 Fixed enum: `ADMIN`, `CLIENT_POC`, `CLIENT_MEMBER`. `ADMIN` implicitly has every

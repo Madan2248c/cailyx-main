@@ -76,6 +76,7 @@ model Project {
   socialActivityRuns     SocialActivityRun[]
   socialPosts            SocialPost[]
   socialActivitySchedule SocialActivitySchedule?
+  querySets              QuerySet[]
 
   // (clientId, domain) WHERE deleted_at IS NULL is a partial unique index,
   // added in the follow-up migration. Plain index here just backs lookups.
@@ -382,6 +383,7 @@ model CompanyContextProfile {
 
   project      Project      @relation(fields: [projectId], references: [id])
   discoveryRun DiscoveryRun @relation(fields: [discoveryRunId], references: [id])
+  querySets    QuerySet[]
 
   @@index([projectId])
   @@index([discoveryRunId])
@@ -629,4 +631,133 @@ model SocialActivitySchedule {
   project Project @relation(fields: [projectId], references: [id])
 
   @@map("social_activity_schedules")
+}
+
+// --- Query Set module (SOP-1) ---
+// See docs/analysis/query-set.md for the full design. A project's versioned
+// prompt set, built in two LLM steps: propose per-project buckets grounded
+// in Discovery's CompanyContextProfile, then generate prompts per bucket.
+// Buckets are NOT a fixed taxonomy — invented per project, bounded by
+// deterministic guardrails enforced in code. 3 tables, append-only (no
+// deleted_at): a set is never edited in place once activated — fork() makes
+// the next version, same pattern as Discovery's "never edited in place".
+
+enum QuerySetStatus {
+  draft
+  active
+  archived
+}
+
+enum QuerySetSource {
+  manual
+  sales_questions
+  support_tickets
+  llm_generated
+}
+
+/// Buyer-journey stage. Fixed taxonomy — independent of the business,
+/// unlike the topic/angle buckets, and aggregated across projects by
+/// measurement/reporting.
+enum FunnelStage {
+  problem_aware
+  solution_aware
+  product_aware
+  most_aware
+}
+
+enum PromptBranding {
+  branded
+  unbranded
+}
+
+/// Persona the prompt is written from. Fixed alongside FunnelStage — see
+/// docs/analysis/query-set.md "Decisions carried over from the old design".
+enum PromptPersona {
+  buyer
+  researcher
+  end_user
+  evaluator
+}
+
+enum QuerySetItemGenerationMethod {
+  llm_generated
+  manual
+}
+
+model QuerySet {
+  id        String         @id @default(uuid()) @db.Uuid
+  projectId String         @map("project_id") @db.Uuid
+  version   Int            @default(1)
+  label     String?
+  status    QuerySetStatus @default(draft)
+  source    QuerySetSource @default(manual)
+  /// Which Discovery profile this set was grounded on, for traceability.
+  /// Null for manual sets.
+  generationContextId String? @map("generation_context_id") @db.Uuid
+  /// Target-size tier used for bucket sizing (e.g. starter/full). Null for
+  /// manual sets.
+  generationTier String? @map("generation_tier")
+
+  activatedAt DateTime? @map("activated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  project           Project                @relation(fields: [projectId], references: [id])
+  generationContext CompanyContextProfile? @relation(fields: [generationContextId], references: [id])
+  buckets           QuerySetBucket[]
+  items             QuerySetItem[]
+
+  @@index([projectId])
+  @@index([generationContextId])
+  @@map("query_sets")
+}
+
+model QuerySetBucket {
+  id          String        @id @default(uuid()) @db.Uuid
+  querySetId  String        @map("query_set_id") @db.Uuid
+  /// LLM-invented slug, unique within the set (enforced in code, not a DB
+  /// constraint — uniqueness is per-querySetId, not globally).
+  name        String
+  /// One sentence citing the specific context field that justifies this
+  /// bucket — checked against the grounding CompanyContextProfile before
+  /// generation spends budget on it. See the grounding-check guardrail.
+  rationale   String
+  persona     PromptPersona
+  funnelStage FunnelStage    @map("funnel_stage")
+  branding    PromptBranding
+  /// Post-guardrail, scaled count actually used — not necessarily what the
+  /// LLM proposed (see "Total set size" guardrail: overshoots scale down
+  /// proportionally, never drop ad hoc).
+  targetCount Int            @map("target_count")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  querySet QuerySet       @relation(fields: [querySetId], references: [id])
+  items    QuerySetItem[]
+
+  @@index([querySetId])
+  @@map("query_set_buckets")
+}
+
+model QuerySetItem {
+  id       String  @id @default(uuid()) @db.Uuid
+  querySetId String @map("query_set_id") @db.Uuid
+  /// Null for manually-added items (no bucket to belong to).
+  bucketId String? @map("bucket_id") @db.Uuid
+  prompt   String
+  /// Copied from the bucket at generation time — denormalized so a manual
+  /// item can still be tagged without a bucket.
+  funnelStage FunnelStage     @map("funnel_stage")
+  /// Copied from the bucket; null for manual items unless tagged.
+  branding    PromptBranding?
+  generationMethod QuerySetItemGenerationMethod @map("generation_method")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  querySet QuerySet        @relation(fields: [querySetId], references: [id])
+  bucket   QuerySetBucket? @relation(fields: [bucketId], references: [id])
+
+  @@index([querySetId])
+  @@index([bucketId])
+  @@map("query_set_items")
 }
