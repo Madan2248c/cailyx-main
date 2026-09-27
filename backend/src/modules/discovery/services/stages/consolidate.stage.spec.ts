@@ -88,6 +88,22 @@ describe('ConsolidateStage', () => {
       expect(request.user).not.toContain('"category":"credibility"');
     });
 
+    it('pins the voice and merge rules in both prompts, so a refactor cannot silently drop them', async () => {
+      modelSays({ categories: [] });
+
+      const ctx = context({ facts: [fact('services', 'Email Builder')] });
+      await stage.run(ctx);
+
+      const calls = llm.json.mock.calls.map((c) => c[0] as { purpose: string; system: string });
+      const summary = calls.find((c) => c.purpose === 'category-level consolidation');
+      const judgement = calls.find((c) => c.purpose === 'offering value verdicts');
+      // Summaries must read as the company, never as commentary on the evidence.
+      expect(summary?.system).toContain('instead of the business is a failure');
+      // Variants of one capability must merge; support/community/academy are not offerings.
+      expect(judgement?.system).toContain('Merge variants of the same capability aggressively');
+      expect(judgement?.system).toContain('not a purchased offering');
+    });
+
     it('judges values in a separate call, and keeps every value it does not rule on', async () => {
       verdicts([{ category: 'offerings', value: 'Data engineering', keep: true }]);
 

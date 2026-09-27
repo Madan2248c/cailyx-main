@@ -179,6 +179,10 @@ export class ConsolidateStage {
             'after your clean-up.\n' +
             '- confidence: your assessment of how complete and mutually consistent this category is (0-1), based on ' +
             "the input facts' own confidence and factType — not a guess independent of them.\n" +
+            '- Write the summary as the company would describe itself: what the business IS and DOES, in plain ' +
+            'specific words. Never write about the evidence or the extraction itself ("A single description ' +
+            'positions...", "The site states...", "No X was found") — a summary that talks about its sources ' +
+            'instead of the business is a failure.\n' +
             '- Do not restate the input values: a separate pass decides which of them survive. Your job is the ' +
             'summary, the conflicts and which expected fields are still empty.\n' +
             'Respond with ONLY JSON: {"categories":[{"category":string,"summary":string,"facts":string[],' +
@@ -432,6 +436,13 @@ export class ConsolidateStage {
             'something, or is a UI section name, keep is false.\n' +
             'If two values state the same claim in different words, keep the clearer one and set the other\'s ' +
             '"duplicateOf" to the kept value, copied verbatim.\n' +
+            'Merge variants of the same capability aggressively: values naming the same thing at different detail ' +
+            'levels, or differing only by channel list or scope qualifier ("AI follow-up across text, calls, and ' +
+            'email" vs "AI teammate for follow-up"), are the same claim — keep the fullest clear wording and mark ' +
+            'the rest duplicateOf it.\n' +
+            'A support channel, onboarding program, customer community, academy, or success/customer team is how ' +
+            'the product is delivered or supported, not a purchased offering — in a field asking for ' +
+            'offerings/services/products, keep is false for those.\n' +
             'When in doubt about a named, purchasable thing, keep it — omitting a real offering is worse than ' +
             'carrying a dull one.\n' +
             'Respond with ONLY JSON: {"verdicts":[{"value":string,"keep":boolean,"duplicateOf":string|null}]} — ' +

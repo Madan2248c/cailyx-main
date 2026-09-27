@@ -92,9 +92,13 @@ logged-out automation — so the code is right and the examples above are stale.
    right alongside real capabilities, with nothing dropped. Asked instead to
    judge one value at a time — keep or drop, with a reason for "drop" drawn
    from a list of concrete patterns (call to action, benefit claim, slogan,
-   section heading, price line, third-party voice) — the same model correctly
+   section heading, price line, third-party voice, support/community/academy
+   channel in an offerings field) — the same model correctly
    dropped 14 of 28 values on a first pass, and continued to perform well once
-   wired into the real stage. This is the mechanism behind
+   wired into the real stage. Variants of one capability are merged
+   aggressively (keep the fullest wording, mark the rest duplicates) rather
+   than carried as separate values. Summaries are written as the company
+   itself — never commentary on the evidence. This is the mechanism behind
    {@link CANONICAL_VALUE_FIELDS}/{@link CategorySummary.facts}: `compile`
    only assembles a canonical-value field from what the judge kept (or,
    absent a judgement, from the extracted values deduplicated by exact match)

@@ -3,6 +3,21 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-28 — Discovery consolidate: voice guard + variant merging + auxiliary drop rule
+
+Prompt-level fix for profile quality (business context read as raw
+landing-page copy): the summary prompt now requires company voice (never
+commentary on the evidence), the value judge merges capability variants
+aggressively (keep fullest wording, rest `duplicateOf`) and drops
+support/community/academy/success-team items from offerings fields.
+`docs/analysis/discovery.md` updated to match. No schema change; pre-merge
+behavior (fail-open keeps, exact-duplicate collapse) untouched.
+
+**Verified**: new prompt tripwire test in `consolidate.stage.spec.ts`,
+full suite 727 passed, `oxlint` clean. Takes effect on the next discovery
+run — existing profiles are unchanged (append-only; a re-run writes a new
+version).
+
 ## 2026-09-28 — Client onboarding wizard + client correction endpoints (DB, backend, frontend, tests, docs)
 
 Prefilled, editable onboarding: the POC reviews everything the pipeline
