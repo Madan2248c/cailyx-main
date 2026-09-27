@@ -29,6 +29,7 @@ import {
   type GoogleProvider,
   type GoogleStatus,
   type GscDateRow,
+  type GscIndexCoverage,
   type GscOverview,
   type GscRow,
   type GscTotals,
@@ -147,6 +148,20 @@ function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+/** Sum sitemap contents into coverage — pure, tested. */
+export function sumSitemapCoverage(
+  sitemaps: Array<{ path: string; contents: Array<{ submitted?: number | null; indexed?: number | null }> }>,
+): GscIndexCoverage {
+  const rows = sitemaps.map((s) => ({
+    path: s.path,
+    submitted: s.contents.reduce((n, c) => n + (c.submitted ?? 0), 0),
+    indexed: s.contents.reduce((n, c) => n + (c.indexed ?? 0), 0),
+  }));
+  const submitted = rows.reduce((n, r) => n + r.submitted, 0);
+  const indexed = rows.reduce((n, r) => n + r.indexed, 0);
+  return { submitted, indexed, notIndexed: Math.max(0, submitted - indexed), sitemaps: rows };
 }
 
 function toDateString(date: Date): string {
@@ -345,6 +360,30 @@ export class GoogleService {
     const topUrls = new Set([...byPage].sort((a, b) => b.clicks - a.clicks).slice(0, 8).map((r) => r.key));
     const pageTrends = pageDateRows.filter((r) => r.url !== '' && topUrls.has(r.url));
 
+    // Sitemap submitted-vs-indexed coverage — best-effort: a failure here
+    // must not fail the overview (the property may simply list no sitemaps).
+    let indexCoverage: GscIndexCoverage | null = null;
+    try {
+      const listed = await webmasters.sitemaps.list({ siteUrl: site });
+      const paths = (listed.data.sitemap ?? []).map((s) => s.path ?? '').filter(Boolean);
+      if (paths.length > 0) {
+        const details = await Promise.all(
+          paths.slice(0, 10).map((path) => webmasters.sitemaps.get({ siteUrl: site, feedpath: path })),
+        );
+        indexCoverage = sumSitemapCoverage(
+          details.map((d, i) => ({
+            path: paths[i],
+            contents: (d.data.contents ?? []).map((c) => ({
+              submitted: typeof c.submitted === 'string' ? Number(c.submitted) : (c.submitted ?? 0),
+              indexed: typeof c.indexed === 'string' ? Number(c.indexed) : (c.indexed ?? 0),
+            })),
+          })),
+        );
+      }
+    } catch (err) {
+      this.logger.warn(`Sitemap coverage unreadable for ${site}: ${(err as Error).message}`);
+    }
+
     return {
       siteUrl: site,
       days,
@@ -355,6 +394,7 @@ export class GoogleService {
       byDate,
       pageInsights: buildPageInsights(byPage, prevPages),
       pageTrends,
+      indexCoverage,
     };
   }
 

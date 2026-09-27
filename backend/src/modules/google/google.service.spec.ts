@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../test/mocks/prisma.mock.js';
-import { matchGscSite, normalizeHost, buildPageInsights, GoogleService } from './google.service.js';
+import { matchGscSite, normalizeHost, buildPageInsights, sumSitemapCoverage, GoogleService } from './google.service.js';
 import { GSC_SCOPE, GA_SCOPE } from './google.types.js';
 import type { GscRow } from './google.types.js';
 
@@ -151,6 +151,26 @@ describe('GoogleService', () => {
 
   it('uses the GA scope constant for GA checks (no silent scope drift)', () => {
     expect(GA_SCOPE).toBe('https://www.googleapis.com/auth/analytics.readonly');
+  });
+});
+
+describe('sumSitemapCoverage', () => {
+  it('sums contents across sitemaps and never reports negative gaps', () => {
+    expect(
+      sumSitemapCoverage([
+        { path: 'https://x.com/sitemap.xml', contents: [{ submitted: 100, indexed: 80 }, { submitted: 50, indexed: 40 }] },
+        { path: 'https://x.com/blog.xml', contents: [{ submitted: 10, indexed: 12 }] },
+      ]),
+    ).toEqual({
+      submitted: 160,
+      indexed: 132,
+      notIndexed: 28,
+      sitemaps: [
+        { path: 'https://x.com/sitemap.xml', submitted: 150, indexed: 120 },
+        { path: 'https://x.com/blog.xml', submitted: 10, indexed: 12 },
+      ],
+    });
+    expect(sumSitemapCoverage([])).toMatchObject({ submitted: 0, indexed: 0, notIndexed: 0 });
   });
 });
 

@@ -8,8 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useClientProject } from '@/components/client/use-client-project';
 import { ConnectGoogle } from '@/components/google/ConnectGoogle';
 import { GaSection } from '@/components/google/GaSection';
-import { GscDashboard } from '@/components/google/GscDashboard';
-import { GscInsights } from '@/components/google/GscInsights';
+import { GscKpis, GscClicksChart, GscTopQueries, IndexCoverage } from '@/components/google/GscDashboard';
+import { GscHighlights, GscPageTables } from '@/components/google/GscInsights';
 import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
 import { getGoogleStatus, getSearchConsole, listGscSites } from '@/lib/google-api';
@@ -190,8 +190,18 @@ export default function OrganicPage() {
       ) : null}
       {gsc.status === 'ready' ? (
         <>
-          <GscInsights overview={gsc.overview} />
-          <GscDashboard overview={gsc.overview} />
+          <GscKpis overview={gsc.overview} />
+          <GscHighlights overview={gsc.overview} />
+          <div className="grid gap-4 lg:grid-cols-5">
+            <div className="lg:col-span-3">
+              <GscClicksChart overview={gsc.overview} />
+            </div>
+            <div className="lg:col-span-2">
+              <IndexCoverage overview={gsc.overview} />
+            </div>
+          </div>
+          <GscPageTables overview={gsc.overview} />
+          <GscTopQueries overview={gsc.overview} />
         </>
       ) : null}
       <GaSection

@@ -36,12 +36,48 @@ function InsightRow({ insight }: { insight: PageInsight }) {
   );
 }
 
-/** Period-over-period page intelligence — the value over raw Search Console. */
-export function GscInsights({ overview }: { overview: GscOverview }) {
+/** Wins + needs-attention — the actionable half. */
+export function GscHighlights({ overview }: { overview: GscOverview }) {
   const wins = overview.pageInsights.filter((i) => i.actionLevel === 'win' && i.action);
   const attention = overview.pageInsights.filter(
     (i) => (i.actionLevel === 'act' || i.actionLevel === 'watch') && i.action,
   );
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Wins</CardTitle>
+          <CardDescription>Pages climbing or new on page one</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col divide-y divide-border p-0">
+          {wins.length === 0 ? (
+            <p className="px-6 py-4 text-sm text-muted-foreground">No wins in this period.</p>
+          ) : (
+            wins.slice(0, 6).map((i) => <InsightRow key={i.url} insight={i} />)
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Needs attention</CardTitle>
+          <CardDescription>Slipping or fading pages, with what to do</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col divide-y divide-border p-0">
+          {attention.length === 0 ? (
+            <p className="px-6 py-4 text-sm text-muted-foreground">Nothing needs attention.</p>
+          ) : (
+            attention.slice(0, 6).map((i) => <InsightRow key={i.url} insight={i} />)
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/** Best pages + page-one — the standings half. */
+export function GscPageTables({ overview }: { overview: GscOverview }) {
   const best = [...overview.pageInsights].sort((a, b) => b.clicks - a.clicks).slice(0, 8);
   const pageOne = overview.pageInsights.filter((i) => i.onPageOne).sort((a, b) => a.position - b.position);
 
@@ -52,42 +88,11 @@ export function GscInsights({ overview }: { overview: GscOverview }) {
     trendByUrl.set(row.url, list);
   }
 
-  if (wins.length === 0 && attention.length === 0 && best.length === 0) return null;
+  if (best.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Wins</CardTitle>
-            <CardDescription>Pages climbing or new on page one</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col divide-y divide-border p-0">
-            {wins.length === 0 ? (
-              <p className="px-6 py-4 text-sm text-muted-foreground">No wins in this period.</p>
-            ) : (
-              wins.slice(0, 6).map((i) => <InsightRow key={i.url} insight={i} />)
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Needs attention</CardTitle>
-            <CardDescription>Slipping or fading pages, with what to do</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col divide-y divide-border p-0">
-            {attention.length === 0 ? (
-              <p className="px-6 py-4 text-sm text-muted-foreground">Nothing needs attention.</p>
-            ) : (
-              attention.slice(0, 6).map((i) => <InsightRow key={i.url} insight={i} />)
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
           <CardHeader>
             <CardTitle className="text-base">Best pages</CardTitle>
             <CardDescription>By clicks, with each page&apos;s trend</CardDescription>
@@ -135,6 +140,5 @@ export function GscInsights({ overview }: { overview: GscOverview }) {
           </CardContent>
         </Card>
       </div>
-    </div>
   );
 }

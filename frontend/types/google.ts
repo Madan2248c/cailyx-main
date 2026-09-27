@@ -27,6 +27,19 @@ export interface GscDateRow extends GscRow {
   date: string;
 }
 
+export interface GscSitemapCoverage {
+  path: string;
+  submitted: number;
+  indexed: number;
+}
+
+export interface GscIndexCoverage {
+  submitted: number;
+  indexed: number;
+  notIndexed: number;
+  sitemaps: GscSitemapCoverage[];
+}
+
 export interface GscOverview {
   siteUrl: string;
   days: number;
@@ -37,6 +50,7 @@ export interface GscOverview {
   byDate: GscDateRow[];
   pageInsights: PageInsight[];
   pageTrends: Array<{ url: string; date: string; clicks: number }>;
+  indexCoverage: GscIndexCoverage | null;
 }
 
 export type PageTrend = 'up' | 'down' | 'new' | 'stable';

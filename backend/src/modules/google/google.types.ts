@@ -39,6 +39,19 @@ export interface GscDateRow extends GscRow {
   date: string;
 }
 
+export interface GscSitemapCoverage {
+  path: string;
+  submitted: number;
+  indexed: number;
+}
+
+export interface GscIndexCoverage {
+  submitted: number;
+  indexed: number;
+  notIndexed: number;
+  sitemaps: GscSitemapCoverage[];
+}
+
 export interface GscOverview {
   siteUrl: string;
   days: number;
@@ -51,6 +64,8 @@ export interface GscOverview {
   pageInsights: PageInsight[];
   /** Daily clicks for the top pages (trend sparklines, capped server-side). */
   pageTrends: Array<{ url: string; date: string; clicks: number }>;
+  /** Sitemap submitted-vs-indexed coverage, null when the account lists no sitemaps. */
+  indexCoverage: GscIndexCoverage | null;
 }
 
 export type PageTrend = 'up' | 'down' | 'new' | 'stable';
