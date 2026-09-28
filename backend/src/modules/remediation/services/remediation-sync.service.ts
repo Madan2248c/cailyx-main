@@ -16,6 +16,7 @@
 
 import { createHash } from 'node:crypto';
 import { ConflictException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { Prisma } from '../../../generated/prisma/client.js';
 import { AuditEvents, type AuditCompletedEvent } from '../../../common/events/audit-events.js';
 import type { FixStatus } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -218,40 +219,38 @@ export class RemediationSyncService implements OnModuleInit, OnModuleDestroy {
 
       if (!prior) {
         const status: FixStatus = draft.needsClientDecision ? 'AWAITING_DECISION' : 'OPEN';
-        await this.prisma.fixSpec.create({
-          data: {
-            ...content,
-            projectId,
-            fingerprint: fp,
-            status,
-            lastReportedAt: at,
-            sources: { create: sources },
-            events: { create: { kind: 'sync', toStatus: status, actor: 'system', detail: asJson({ remediationRunId: runId, created: true }) } },
-          },
-        });
-        created++;
+        try {
+          await this.prisma.fixSpec.create({
+            data: {
+              ...content,
+              projectId,
+              fingerprint: fp,
+              status,
+              lastReportedAt: at,
+              sources: { create: sources },
+              events: { create: { kind: 'sync', toStatus: status, actor: 'system', detail: asJson({ remediationRunId: runId, created: true }) } },
+            },
+          });
+          created++;
+        } catch (err) {
+          // A concurrent sync for the same project (e.g. the auto-sync an audit's
+          // own completion fires, racing a manual "sync" call) can insert this
+          // fingerprint first. Losing that race is not a failure — fall through
+          // to the update path against what is actually there now.
+          if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+            const raced = await this.prisma.fixSpec.findUnique({ where: { fingerprint: fp }, include: { sources: true } });
+            if (!raced) throw err;
+            if (await this.updateExisting(runId, raced, content, sources, at)) regressed++;
+            updated++;
+            continue;
+          }
+          throw err;
+        }
         continue;
       }
 
-      const regress = prior.status === 'VERIFIED' && prior.lastVerifiedAt !== null && at > prior.lastVerifiedAt;
-      const nextStatus: FixStatus = regress ? 'REGRESSED' : prior.status;
-      await this.prisma.$transaction([
-        this.prisma.fixSpecSource.deleteMany({ where: { fixSpecId: prior.id } }),
-        this.prisma.fixSpec.update({
-          where: { id: prior.id },
-          data: {
-            ...content,
-            status: nextStatus,
-            lastReportedAt: at > prior.lastReportedAt ? at : prior.lastReportedAt,
-            sources: { create: sources },
-            ...(regress
-              ? { events: { create: { kind: 'sync', fromStatus: prior.status, toStatus: nextStatus, actor: 'system', detail: asJson({ remediationRunId: runId, reason: 'Reported again by an audit newer than its verification.' }) } } }
-              : {}),
-          },
-        }),
-      ]);
+      if (await this.updateExisting(runId, prior, content, sources, at)) regressed++;
       updated++;
-      if (regress) regressed++;
     }
 
     for (const prior of existing) {
@@ -278,5 +277,33 @@ export class RemediationSyncService implements OnModuleInit, OnModuleDestroy {
     }
 
     return { created, updated, verified, regressed };
+  }
+
+  /** Updates one existing fix spec in place; returns whether this update is a regression. */
+  private async updateExisting(
+    runId: string,
+    prior: { id: string; status: FixStatus; lastReportedAt: Date; lastVerifiedAt: Date | null },
+    content: Record<string, unknown>,
+    sources: Array<{ module: string; runId: string; findingRef: string }>,
+    at: Date,
+  ): Promise<boolean> {
+    const regress = prior.status === 'VERIFIED' && prior.lastVerifiedAt !== null && at > prior.lastVerifiedAt;
+    const nextStatus: FixStatus = regress ? 'REGRESSED' : prior.status;
+    await this.prisma.$transaction([
+      this.prisma.fixSpecSource.deleteMany({ where: { fixSpecId: prior.id } }),
+      this.prisma.fixSpec.update({
+        where: { id: prior.id },
+        data: {
+          ...content,
+          status: nextStatus,
+          lastReportedAt: at > prior.lastReportedAt ? at : prior.lastReportedAt,
+          sources: { create: sources },
+          ...(regress
+            ? { events: { create: { kind: 'sync', fromStatus: prior.status, toStatus: nextStatus, actor: 'system', detail: asJson({ remediationRunId: runId, reason: 'Reported again by an audit newer than its verification.' }) } } }
+            : {}),
+        },
+      }),
+    ]);
+    return regress;
   }
 }
