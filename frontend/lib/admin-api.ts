@@ -6,6 +6,7 @@
  */
 
 import type { ScheduleCadence } from '@/lib/schedules-api';
+import { apiFetch } from '@/lib/api-cache';
 
 /** The 9 known DataForSEO datasets (backend DATASETS, dataforseo.types). */
 export const DATAFORSEO_DATASETS = [
@@ -69,7 +70,7 @@ export async function getDataforseoSchedule(
   clientId: string,
   projectId: string,
 ): Promise<DataforseoSchedule | null> {
-  const response = await fetch(scheduleUrl(clientId, projectId), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId), {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<DataforseoSchedule | null>(response);
@@ -81,7 +82,7 @@ export async function setDataforseoSchedule(
   projectId: string,
   input: { cadence: ScheduleCadence; datasets?: string[]; spendOptIn?: boolean },
 ): Promise<DataforseoSchedule> {
-  const response = await fetch(scheduleUrl(clientId, projectId), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId), {
     method: 'PUT',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
@@ -95,7 +96,7 @@ export async function collectDataforseoNow(
   projectId: string,
   datasets?: string[],
 ): Promise<DataforseoCollectResult> {
-  const response = await fetch(collectUrl(clientId, projectId), {
+  const response = await apiFetch(collectUrl(clientId, projectId), {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify(datasets ? { datasets } : {}),

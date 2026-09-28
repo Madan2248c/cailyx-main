@@ -1,4 +1,5 @@
 import type { ReportDetail, ReportListItem } from '@/types/report';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,7 +22,7 @@ export async function listReports(
   clientId: string,
   projectId: string,
 ): Promise<ReportListItem[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/reports`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/reports`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<ReportListItem[]>(response);
@@ -32,7 +33,7 @@ export async function getReport(
   clientId: string,
   reportId: string,
 ): Promise<ReportDetail> {
-  const response = await fetch(`/api/team/clients/${clientId}/reports/${reportId}`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/reports/${reportId}`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<ReportDetail>(response);
@@ -49,7 +50,7 @@ export async function downloadReportPdf(
   reportId: string,
   fallbackName: string,
 ): Promise<void> {
-  const response = await fetch(`/api/team/clients/${clientId}/reports/${reportId}/pdf`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/reports/${reportId}/pdf`, {
     headers: authHeaders(accessToken),
   });
   if (!response.ok) throw new Error('Could not prepare the report PDF. Please try again.');

@@ -1,4 +1,5 @@
 import type { CompetitorWithProfile, GapResponse } from '@/types/competitor';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,7 +22,7 @@ export async function listCompetitorProfiles(
   clientId: string,
   projectId: string,
 ): Promise<CompetitorWithProfile[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/competitors`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/competitors`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<CompetitorWithProfile[]>(response);
@@ -32,7 +33,7 @@ export async function getCompetitorsGap(
   clientId: string,
   projectId: string,
 ): Promise<GapResponse> {
-  const response = await fetch(
+  const response = await apiFetch(
     `/api/team/clients/${clientId}/projects/${projectId}/competitors/gap`,
     {
       headers: authHeaders(accessToken),

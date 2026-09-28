@@ -1,4 +1,5 @@
 import type { ClientSummary, TeamMember, TeamMembers } from '@/types/team';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -13,7 +14,7 @@ function authHeaders(accessToken: string) {
 }
 
 export async function listClients(accessToken: string): Promise<ClientSummary[]> {
-  const response = await fetch('/api/team/clients', { headers: authHeaders(accessToken) });
+  const response = await apiFetch('/api/team/clients', { headers: authHeaders(accessToken) });
   return parseOrThrow<ClientSummary[]>(response);
 }
 
@@ -24,7 +25,7 @@ export async function createClient(
   seatLimit?: number,
   deferInvite?: boolean,
 ): Promise<{ client: ClientSummary }> {
-  const response = await fetch('/api/team/clients', {
+  const response = await apiFetch('/api/team/clients', {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, pocEmail, seatLimit, deferInvite }),
@@ -37,7 +38,7 @@ export async function updateSeatLimit(
   id: string,
   seatLimit: number,
 ): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/clients/${id}/seats`, {
+  const response = await apiFetch(`/api/team/clients/${id}/seats`, {
     method: 'PATCH',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ seatLimit }),
@@ -46,7 +47,7 @@ export async function updateSeatLimit(
 }
 
 export async function suspendClient(accessToken: string, id: string): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/clients/${id}/suspend`, {
+  const response = await apiFetch(`/api/team/clients/${id}/suspend`, {
     method: 'PATCH',
     headers: authHeaders(accessToken),
   });
@@ -54,7 +55,7 @@ export async function suspendClient(accessToken: string, id: string): Promise<{ 
 }
 
 export async function activateClient(accessToken: string, id: string): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/clients/${id}/activate`, {
+  const response = await apiFetch(`/api/team/clients/${id}/activate`, {
     method: 'PATCH',
     headers: authHeaders(accessToken),
   });
@@ -62,12 +63,12 @@ export async function activateClient(accessToken: string, id: string): Promise<{
 }
 
 export async function listMembers(accessToken: string): Promise<TeamMembers> {
-  const response = await fetch('/api/team/members', { headers: authHeaders(accessToken) });
+  const response = await apiFetch('/api/team/members', { headers: authHeaders(accessToken) });
   return parseOrThrow<TeamMembers>(response);
 }
 
 export async function inviteMember(accessToken: string, email: string): Promise<TeamMember> {
-  const response = await fetch('/api/team/invite', {
+  const response = await apiFetch('/api/team/invite', {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -76,7 +77,7 @@ export async function inviteMember(accessToken: string, email: string): Promise<
 }
 
 export async function resendInvite(accessToken: string, id: string): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/users/${id}/resend-invite`, {
+  const response = await apiFetch(`/api/team/users/${id}/resend-invite`, {
     method: 'POST',
     headers: authHeaders(accessToken),
   });
@@ -84,7 +85,7 @@ export async function resendInvite(accessToken: string, id: string): Promise<{ s
 }
 
 export async function disableMember(accessToken: string, id: string): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/users/${id}/disable`, {
+  const response = await apiFetch(`/api/team/users/${id}/disable`, {
     method: 'PATCH',
     headers: authHeaders(accessToken),
   });
@@ -92,7 +93,7 @@ export async function disableMember(accessToken: string, id: string): Promise<{ 
 }
 
 export async function enableMember(accessToken: string, id: string): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/users/${id}/enable`, {
+  const response = await apiFetch(`/api/team/users/${id}/enable`, {
     method: 'PATCH',
     headers: authHeaders(accessToken),
   });

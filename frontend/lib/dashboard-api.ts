@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-cache';
 import type {
   CompetitorGap,
   GapAnalysisRun,
@@ -26,7 +27,7 @@ export async function listSocialActivityRuns(
   clientId: string,
   projectId: string,
 ): Promise<SocialActivityRun[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/social-activity-runs`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/social-activity-runs`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<SocialActivityRun[]>(response);
@@ -37,7 +38,7 @@ export async function getCompetitorGap(
   clientId: string,
   projectId: string,
 ): Promise<CompetitorGap> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/competitors/gap`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/competitors/gap`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<CompetitorGap>(response);
@@ -48,7 +49,7 @@ export async function listGapAnalysisRuns(
   clientId: string,
   projectId: string,
 ): Promise<GapAnalysisRun[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/gap-analysis-runs`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/gap-analysis-runs`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<GapAnalysisRun[]>(response);
@@ -59,7 +60,7 @@ export async function getGapAnalysisRun(
   clientId: string,
   runId: string,
 ): Promise<GapAnalysisRun> {
-  const response = await fetch(`/api/team/clients/${clientId}/gap-analysis-runs/${runId}`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/gap-analysis-runs/${runId}`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<GapAnalysisRun>(response);
@@ -70,7 +71,7 @@ export async function listReports(
   clientId: string,
   projectId: string,
 ): Promise<ProjectReport[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/reports`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/reports`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<ProjectReport[]>(response);

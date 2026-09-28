@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-cache';
 /**
  * Schedules tab client — BFF-first mirrors of the backend's two real
  * schedule endpoints (technical-audit + social-activity). Reporting and
@@ -54,7 +55,7 @@ export async function getTechnicalAuditSchedule(
   clientId: string,
   projectId: string,
 ): Promise<TechnicalAuditSchedule | null> {
-  const response = await fetch(scheduleUrl(clientId, projectId, 'technical-audit'), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId, 'technical-audit'), {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<TechnicalAuditSchedule | null>(response);
@@ -66,7 +67,7 @@ export async function setTechnicalAuditSchedule(
   projectId: string,
   cadence: ScheduleCadence,
 ): Promise<TechnicalAuditSchedule> {
-  const response = await fetch(scheduleUrl(clientId, projectId, 'technical-audit'), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId, 'technical-audit'), {
     method: 'PUT',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ cadence }),
@@ -79,7 +80,7 @@ export async function getSocialActivitySchedule(
   clientId: string,
   projectId: string,
 ): Promise<SocialActivitySchedule | null> {
-  const response = await fetch(scheduleUrl(clientId, projectId, 'social-activity'), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId, 'social-activity'), {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<SocialActivitySchedule | null>(response);
@@ -91,7 +92,7 @@ export async function setSocialActivitySchedule(
   projectId: string,
   cadence: ScheduleCadence,
 ): Promise<SocialActivitySchedule> {
-  const response = await fetch(scheduleUrl(clientId, projectId, 'social-activity'), {
+  const response = await apiFetch(scheduleUrl(clientId, projectId, 'social-activity'), {
     method: 'PUT',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ cadence }),

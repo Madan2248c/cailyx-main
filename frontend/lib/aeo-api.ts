@@ -1,4 +1,5 @@
 import type { AeoAudit, AeoVerdict } from '@/types/aeo';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,7 +22,7 @@ export async function listAeoAudits(
   clientId: string,
   projectId: string,
 ): Promise<AeoAudit[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/aeo-audits`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/aeo-audits`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<AeoAudit[]>(response);
@@ -32,7 +33,7 @@ export async function getAeoVerdict(
   clientId: string,
   auditId: string,
 ): Promise<AeoVerdict> {
-  const response = await fetch(`/api/team/clients/${clientId}/aeo-audits/${auditId}/verdict`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/aeo-audits/${auditId}/verdict`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<AeoVerdict>(response);

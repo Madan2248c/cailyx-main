@@ -1,4 +1,5 @@
 import type { SocialActivityRun } from '@/types/social';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -26,7 +27,7 @@ export async function listSocialActivityRuns(
   clientId: string,
   projectId: string,
 ): Promise<SocialActivityRun[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/social-activity-runs`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/social-activity-runs`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<SocialActivityRun[]>(response);

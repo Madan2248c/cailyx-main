@@ -1,4 +1,5 @@
 import type { FixSpec, FixStatus, FixSummary } from '@/types/remediation';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,15 +22,15 @@ const fixBase = (clientId: string, fixId: string) => `/api/team/clients/${client
 
 export async function listFixes(accessToken: string, clientId: string, projectId: string, status?: FixStatus[]): Promise<FixSpec[]> {
   const qs = status?.length ? `?status=${status.join(',')}` : '';
-  return parseOrThrow<FixSpec[]>(await fetch(`${projectBase(clientId, projectId)}/fixes${qs}`, { headers: headers(accessToken) }));
+  return parseOrThrow<FixSpec[]>(await apiFetch(`${projectBase(clientId, projectId)}/fixes${qs}`, { headers: headers(accessToken) }));
 }
 
 export async function getFixSummary(accessToken: string, clientId: string, projectId: string): Promise<FixSummary> {
-  return parseOrThrow<FixSummary>(await fetch(`${projectBase(clientId, projectId)}/summary`, { headers: headers(accessToken) }));
+  return parseOrThrow<FixSummary>(await apiFetch(`${projectBase(clientId, projectId)}/summary`, { headers: headers(accessToken) }));
 }
 
 export async function getFix(accessToken: string, clientId: string, fixId: string): Promise<FixSpec> {
-  return parseOrThrow<FixSpec>(await fetch(fixBase(clientId, fixId), { headers: headers(accessToken) }));
+  return parseOrThrow<FixSpec>(await apiFetch(fixBase(clientId, fixId), { headers: headers(accessToken) }));
 }
 
 export async function decideFix(
@@ -40,7 +41,7 @@ export async function decideFix(
   note?: string,
 ): Promise<FixSpec> {
   return parseOrThrow<FixSpec>(
-    await fetch(`${fixBase(clientId, fixId)}/decision`, {
+    await apiFetch(`${fixBase(clientId, fixId)}/decision`, {
       method: 'POST',
       headers: headers(accessToken, true),
       body: JSON.stringify({ decision, ...(note?.trim() ? { note: note.trim() } : {}) }),
@@ -58,17 +59,17 @@ export async function markFixApplied(
   if (input.note?.trim()) body.note = input.note.trim();
   if (input.prUrl?.trim()) body.prUrl = input.prUrl.trim();
   return parseOrThrow<FixSpec>(
-    await fetch(`${fixBase(clientId, fixId)}/client-applied`, { method: 'POST', headers: headers(accessToken, true), body: JSON.stringify(body) }),
+    await apiFetch(`${fixBase(clientId, fixId)}/client-applied`, { method: 'POST', headers: headers(accessToken, true), body: JSON.stringify(body) }),
   );
 }
 
 export async function verifyFix(accessToken: string, clientId: string, fixId: string): Promise<FixSpec> {
-  return parseOrThrow<FixSpec>(await fetch(`${fixBase(clientId, fixId)}/verify`, { method: 'POST', headers: headers(accessToken) }));
+  return parseOrThrow<FixSpec>(await apiFetch(`${fixBase(clientId, fixId)}/verify`, { method: 'POST', headers: headers(accessToken) }));
 }
 
 /** Staff only: rebuild the plan from the latest audits. */
 export async function syncFixPlan(accessToken: string, clientId: string, projectId: string): Promise<{ created: number; updated: number; verified: number; regressed: number }> {
-  return parseOrThrow(await fetch(`${projectBase(clientId, projectId)}/sync`, { method: 'POST', headers: headers(accessToken) }));
+  return parseOrThrow(await apiFetch(`${projectBase(clientId, projectId)}/sync`, { method: 'POST', headers: headers(accessToken) }));
 }
 
 /** The fix pack as a Markdown file download, for the client's developer. */
@@ -84,7 +85,7 @@ export async function downloadFixPack(
   format: 'md' | 'pdf',
   fallbackName: string,
 ): Promise<void> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/export?format=${format}`, { headers: headers(accessToken) });
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/export?format=${format}`, { headers: headers(accessToken) });
   if (!response.ok) throw new Error('Could not prepare the download. Please try again.');
   const filename = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
   const blob = await response.blob();

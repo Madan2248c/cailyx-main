@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-cache';
 import type {
   CompanyContextResponse,
   Competitor,
@@ -35,7 +36,7 @@ export async function getCompanyContext(
   clientId: string,
   projectId: string,
 ): Promise<CompanyContextResponse | null> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/company-context`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/company-context`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<CompanyContextResponse | null>(response);
@@ -47,7 +48,7 @@ export async function patchCompanyContext(
   projectId: string,
   fields: ProfileFieldUpdates,
 ): Promise<CompanyContextResponse> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/company-context`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/company-context`, {
     method: 'PATCH',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ fields }),
@@ -60,7 +61,7 @@ export async function listSocialProfiles(
   clientId: string,
   projectId: string,
 ): Promise<SocialProfile[]> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/social-profiles`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/social-profiles`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<SocialProfile[]>(response);
@@ -73,7 +74,7 @@ export async function patchSocialProfile(
   socialId: string,
   url: string,
 ): Promise<SocialProfile> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/social-profiles/${socialId}`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/social-profiles/${socialId}`, {
     method: 'PATCH',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ url }),
@@ -86,7 +87,7 @@ export async function listCompetitors(
   clientId: string,
   projectId: string,
 ): Promise<Competitor[]> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/competitors`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/competitors`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<Competitor[]>(response);
@@ -99,7 +100,7 @@ export async function patchCompetitor(
   competitorId: string,
   patch: { name?: string; domain?: string | null; status?: 'tracked' | 'candidate' },
 ): Promise<Competitor> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/competitors/${competitorId}`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/competitors/${competitorId}`, {
     method: 'PATCH',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify(patch),
@@ -113,7 +114,7 @@ export async function addCompetitor(
   projectId: string,
   input: { name: string; domain?: string },
 ): Promise<Competitor> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/competitors/manual`, {
+  const response = await apiFetch(`${projectBase(clientId, projectId)}/competitors/manual`, {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify(input),

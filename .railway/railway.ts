@@ -7,7 +7,10 @@
  *             API over Railway's private network.
  *   redis     Queues (BullMQ) and the fetch cache.
  *
- * Postgres is Supabase, outside Railway.
+ * Postgres is Supabase, outside Railway, in Singapore (aws ap-southeast-1).
+ * Every resource here runs in Railway's Singapore region too, so each
+ * database query stays in-region (~1-2 ms) instead of crossing the Pacific
+ * (~180 ms per query from the old us-west default). REGION is the one knob.
  *
  * Secrets are never written here: `preserve()` keeps the value already set on
  * Railway (`railway variable set KEY --stdin`). Plain `${{ }}` strings are
@@ -20,14 +23,18 @@ import { defineRailway, github, preserve, project, redis, service } from "railwa
 
 const REPO = "Rothenhall/cailyx-main";
 
+/** Railway's Singapore region, next to the Supabase database. */
+const REGION = "asia-southeast1-eqsg3a";
+
 export default defineRailway(() => {
-  const cache = redis("redis");
+  const cache = redis("redis", { region: REGION });
 
   const backend = service("backend", {
     source: github(REPO, { branch: "main", rootDirectory: "/backend", checkSuites: false }),
     // Built from /backend/Dockerfile: Railway uses a Dockerfile in the root directory automatically.
     build: { watchPatterns: ["/backend/**"] },
     start: "node dist/main",
+    regions: { [REGION]: 1 },
     preDeploy: "npm run db:migrate",
     healthcheck: "/health",
     healthcheckTimeout: 300,
@@ -64,6 +71,7 @@ export default defineRailway(() => {
     // Built from /frontend/Dockerfile: Railway uses a Dockerfile in the root directory automatically.
     build: { watchPatterns: ["/frontend/**"] },
     start: "node server.js",
+    regions: { [REGION]: 1 },
     healthcheck: "/robots.txt",
     healthcheckTimeout: 120,
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },

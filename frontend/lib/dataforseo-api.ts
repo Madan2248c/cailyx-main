@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-cache';
 export interface SerpRankRow {
   keyword: string;
   url: string;
@@ -217,7 +218,7 @@ export async function listSnapshots(
   const path =
     `/api/team/clients/${clientId}/projects/${projectId}/dataforseo-snapshots` +
     (dataset ? `?dataset=${encodeURIComponent(dataset)}` : '');
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<DataforseoSnapshot[]>(response);
@@ -228,7 +229,7 @@ export async function getSnapshot(
   clientId: string,
   snapshotId: string,
 ): Promise<DataforseoSnapshot> {
-  const response = await fetch(`/api/team/clients/${clientId}/dataforseo-snapshots/${snapshotId}`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/dataforseo-snapshots/${snapshotId}`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<DataforseoSnapshot>(response);

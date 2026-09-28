@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api-cache';
 /**
  * Settings-tab fetchers. Read-only: the backend exposes no write endpoints
  * for client settings, so this tab only reads.
@@ -48,8 +49,9 @@ export async function getDay1Status(
   clientId: string,
   projectId: string,
 ): Promise<Day1Status> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/day1`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/day1`, {
     headers: authHeaders(accessToken),
+    cache: 'no-store', // never served from the portal cache
   });
   return parseOrThrow<Day1Status>(response);
 }

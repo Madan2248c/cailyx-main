@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { SessionUser } from '@/types/auth';
+import { clearApiCache } from '@/lib/api-cache';
 
 interface AuthContextValue {
   user: SessionUser | null;
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    clearApiCache();
     setAccessToken(null);
     setUser(null);
   }, []);

@@ -1,4 +1,5 @@
 import type { Project } from '@/types/project';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -13,7 +14,7 @@ function authHeaders(accessToken: string) {
 }
 
 export async function listProjects(accessToken: string, clientId: string): Promise<Project[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<Project[]>(response);
@@ -26,7 +27,7 @@ export async function createProject(
   domain: string,
   opts: { day1SpendConsent: boolean; day1SpendCeilingUsd?: number },
 ): Promise<Project> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects`, {
     method: 'POST',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, domain, ...opts }),
@@ -39,7 +40,7 @@ export async function archiveProject(
   clientId: string,
   projectId: string,
 ): Promise<{ success: true }> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/archive`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/archive`, {
     method: 'PATCH',
     headers: authHeaders(accessToken),
   });

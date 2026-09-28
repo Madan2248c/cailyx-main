@@ -1,4 +1,5 @@
 import type { TechnicalAuditRun, TrendPoint } from '@/types/technical';
+import { apiFetch } from '@/lib/api-cache';
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
@@ -21,7 +22,7 @@ export async function listTechnicalAuditRuns(
   clientId: string,
   projectId: string,
 ): Promise<TechnicalAuditRun[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/technical-audit-runs`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/technical-audit-runs`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<TechnicalAuditRun[]>(response);
@@ -32,7 +33,7 @@ export async function getTechnicalAuditTrend(
   clientId: string,
   projectId: string,
 ): Promise<TrendPoint[]> {
-  const response = await fetch(`/api/team/clients/${clientId}/projects/${projectId}/technical-audit-trend`, {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/technical-audit-trend`, {
     headers: authHeaders(accessToken),
   });
   return parseOrThrow<TrendPoint[]>(response);

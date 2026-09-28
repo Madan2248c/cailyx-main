@@ -3,6 +3,36 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Speed: Railway moved to Singapore, portal read cache
+
+**Region.** The backend was in Railway's San Francisco region. Postgres is Supabase
+in Singapore (`aws-0-ap-southeast-1`), so every database query crossed the Pacific:
+`/health` (one `SELECT 1`) took about 1.5–2 s.
+
+- Frontend, backend and Redis now run in `asia-southeast1-eqsg3a` (Singapore), next
+  to the database.
+- `.railway/railway.ts` records the region (`REGION`).
+- Applied with `railway scale` + `serviceInstanceUpdate`: `railway config apply` refused
+  to run on this CLI/SDK pairing.
+- `/health` is now about 11 ms server-side (Railway HTTP logs).
+- The Redis cache and rate-limit state started empty after the move.
+
+**Portal read cache.** New file `frontend/lib/api-cache.ts` (`apiFetch`), now used by
+every `lib/*-api.ts` helper.
+
+- Authenticated GETs are served from memory: fresh for 60 s, then shown at once and
+  refreshed in the background for up to 10 min.
+- Identical requests in flight at the same time share one call.
+- Any write clears the cache, and so does logout.
+- Only 2xx JSON is cached: errors and PDFs never are.
+- It is memory only, so a browser refresh is always live.
+- The Google connect URL and Day-1 status opt out with `cache: 'no-store'`.
+
+**Verified:**
+
+- Frontend `tsc`, eslint and `next build` are clean.
+- All three Railway services are online in Southeast Asia, and `/health` returns 200.
+
 ## 2026-09-29 — "Download report" PDF + Team management inside the workspace
 
 **Download report.** The report page has a **Download report** button. It saves the
