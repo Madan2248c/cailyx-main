@@ -27,11 +27,15 @@ export function ScalarRow({
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       {multiline ? (
-        <Textarea id={id} value={value} rows={3} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+        <Textarea id={id} value={value} rows={3} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-describedby={hint ? `${id}-hint` : undefined} />
       ) : (
-        <Input id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+        <Input id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} aria-describedby={hint ? `${id}-hint` : undefined} />
       )}
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? (
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -65,25 +69,25 @@ export function ListEditor({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <Label>{label}</Label>
+    <div className="flex flex-col gap-2">
+      <Label id={`${id}-label`}>{label}</Label>
       {values.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {disabled ? 'Nothing found.' : 'Nothing here yet — add the first one below.'}
         </p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <ul aria-labelledby={`${id}-label`} className="flex flex-col gap-2">
           {values.map((value, index) => (
             <li
               key={`${value}-${index}`}
-              className="flex items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm"
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm"
             >
               <span className="flex-1">{value}</span>
               {!disabled ? (
                 <Button
                   type="button"
                   variant="ghost"
-                  size="xs"
+                  size="sm"
                   aria-label={`Remove ${value}`}
                   onClick={() => removeAt(index)}
                 >
@@ -95,25 +99,39 @@ export function ListEditor({
         </ul>
       )}
       {!disabled ? (
-        <div className="flex gap-2">
-          <Input
-            id={id}
-            value={draft}
-            placeholder="Add another…"
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                add();
-              }
-            }}
-          />
-          <Button type="button" variant="secondary" onClick={add} disabled={draft.trim() === ''}>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Label htmlFor={`${id}-draft`}>Add {label}</Label>
+            <Input
+              id={`${id}-draft`}
+              value={draft}
+              placeholder="Add another…"
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  add();
+                }
+              }}
+              aria-describedby={hint ? `${id}-hint` : undefined}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={add}
+            disabled={draft.trim() === ''}
+            className="sm:self-end"
+          >
             Add
           </Button>
         </div>
       ) : null}
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      {hint ? (
+        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

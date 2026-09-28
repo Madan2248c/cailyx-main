@@ -112,9 +112,9 @@ function DeltasCard({ deltas }: { deltas: ReportDelta[] }) {
                   <span
                     className={
                       direction === 'improved'
-                        ? 'font-medium text-green-600'
+                        ? 'font-medium text-green-700 dark:text-green-400'
                         : direction === 'regressed'
-                          ? 'font-medium text-red-600'
+                          ? 'font-medium text-red-700 dark:text-red-400'
                           : 'text-muted-foreground'
                     }
                   >
@@ -176,9 +176,9 @@ function GrowthBand({ deltas }: { deltas: ReportDelta[] }) {
                     <span
                       className={
                         direction === 'improved'
-                          ? 'font-medium text-green-600'
+                          ? 'font-medium text-green-700 dark:text-green-400'
                           : direction === 'regressed'
-                            ? 'font-medium text-red-600'
+                            ? 'font-medium text-red-700 dark:text-red-400'
                             : 'text-muted-foreground'
                       }
                     >
@@ -336,8 +336,8 @@ function AeoSection({ section }: { section: AeoAuditSection }) {
               >
                 <p className="min-w-0 flex-1 truncate font-medium">{row.name}</p>
                 <p className="shrink-0 text-muted-foreground">
-                  <span className="font-medium text-green-600">{row.timesAhead}</span> ahead ·{' '}
-                  <span className="font-medium text-red-600">{row.timesBehind}</span> behind
+                  <span className="font-medium text-green-700 dark:text-green-400">{row.timesAhead}</span> ahead ·{' '}
+                  <span className="font-medium text-red-700 dark:text-red-400">{row.timesBehind}</span> behind
                 </p>
               </div>
             ))}

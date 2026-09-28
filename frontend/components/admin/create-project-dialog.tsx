@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/error-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createProject } from '@/lib/projects-api';
@@ -69,10 +71,17 @@ export function CreateProjectDialog({
             Just a name and domain — everything else is inferred later.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="projectName">Project name</Label>
-            <Input id="projectName" required value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="projectName"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'create-project-error' : undefined}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="projectDomain">Domain</Label>
@@ -80,9 +89,15 @@ export function CreateProjectDialog({
               id="projectDomain"
               placeholder="acme.com"
               required
+              autoComplete="off"
+              inputMode="url"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
+              aria-describedby="projectDomain-hint"
             />
+            <p id="projectDomain-hint" className="text-sm text-muted-foreground">
+              Just the domain, e.g. acme.com without https://.
+            </p>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="spendCeiling">Day-1 spend ceiling in USD (optional)</Label>
@@ -91,17 +106,20 @@ export function CreateProjectDialog({
               type="number"
               min={0}
               step="any"
+              inputMode="decimal"
               placeholder="No cap"
               value={spendCeiling}
               onChange={(e) => setSpendCeiling(e.target.value)}
             />
           </div>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
             <input
               type="checkbox"
-              className="mt-1"
+              id="spendConsent"
+              className="mt-1 size-5 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               checked={spendConsent}
               onChange={(e) => setSpendConsent(e.target.checked)}
+              aria-describedby={error ? 'create-project-error' : undefined}
             />
             <span>
               Creating this project starts the automatic Day-1 audit run, which spends on
@@ -109,9 +127,10 @@ export function CreateProjectDialog({
               {spendCeiling.trim() === '' ? '' : ` up to $${spendCeiling}`} for this project.
             </span>
           </label>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <FieldError id="create-project-error" message={error} />
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <DialogClose render={<Button type="button" variant="outline" />} />
+            <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
               {isSubmitting ? 'Creating…' : 'Create project'}
             </Button>
           </DialogFooter>

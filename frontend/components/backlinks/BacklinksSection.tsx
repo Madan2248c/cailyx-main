@@ -37,9 +37,9 @@ function shortUrl(url: string): string {
 
 function spamTone(score: number): string {
   if (!Number.isFinite(score)) return 'text-muted-foreground';
-  if (score >= TOXIC_SPAM_SCORE) return 'text-red-600';
-  if (score >= 30) return 'text-amber-600';
-  return 'text-green-600';
+  if (score >= TOXIC_SPAM_SCORE) return 'text-red-700 dark:text-red-400';
+  if (score >= 30) return 'text-amber-700 dark:text-amber-400';
+  return 'text-green-700 dark:text-green-400';
 }
 
 interface Loaded {
@@ -203,21 +203,21 @@ export function BacklinksSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">New backlinks</p>
-            <p className="text-4xl font-semibold text-green-600">{newBacklinks}</p>
+            <p className="text-4xl font-semibold text-green-700 dark:text-green-400">{newBacklinks}</p>
             <p className="text-xs text-muted-foreground">gained since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Lost backlinks</p>
-            <p className="text-4xl font-semibold text-red-600">{lostBacklinks}</p>
+            <p className="text-4xl font-semibold text-red-700 dark:text-red-400">{lostBacklinks}</p>
             <p className="text-xs text-muted-foreground">gone since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Broken</p>
-            <p className="text-4xl font-semibold text-amber-600">{broken}</p>
+            <p className="text-4xl font-semibold text-amber-700 dark:text-amber-400">{broken}</p>
             <p className="text-xs text-muted-foreground">flagged links to reclaim</p>
           </CardContent>
         </Card>

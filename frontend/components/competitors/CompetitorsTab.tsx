@@ -38,16 +38,16 @@ function seoScoreOf(row: GapRow): number | null {
 }
 
 function scoreTone(score: number | null): { text: string; bar: string } {
-  if (score === null) return { text: 'text-muted-foreground', bar: 'bg-muted-foreground' };
-  if (score >= 80) return { text: 'text-green-600', bar: 'bg-green-500' };
-  if (score >= 50) return { text: 'text-amber-600', bar: 'bg-amber-500' };
-  return { text: 'text-red-600', bar: 'bg-red-500' };
+  if (score === null) return { text: 'text-muted-foreground', bar: 'bg-border' };
+  if (score >= 80) return { text: 'text-green-700 dark:text-green-400', bar: 'bg-green-600 dark:bg-green-400' };
+  if (score >= 50) return { text: 'text-amber-700 dark:text-amber-400', bar: 'bg-amber-600 dark:bg-amber-400' };
+  return { text: 'text-red-700 dark:text-red-400', bar: 'bg-red-700 dark:bg-red-400' };
 }
 
 function formatRating(rating: ReviewRating | null): string {
   if (!rating) return '—';
   const count = rating.count !== null ? ` (${rating.count})` : '';
-  return `${rating.rating.toFixed(1)} ★${count}`;
+  return `${rating.rating.toFixed(1)} / 5${count}`;
 }
 
 /**
@@ -299,9 +299,9 @@ export function CompetitorsTab({
                 <p className="text-4xl font-semibold">
                   {hasAeoSignal ? (
                     <>
-                      <span className="text-green-600">{rivalsYouBeat.length}</span>
+                      <span className="text-green-700 dark:text-green-400">{rivalsYouBeat.length}</span>
                       <span className="text-base font-normal text-muted-foreground"> ahead · </span>
-                      <span className="text-red-600">{rivalsBeatingYou.length}</span>
+                      <span className="text-red-700 dark:text-red-400">{rivalsBeatingYou.length}</span>
                       <span className="text-base font-normal text-muted-foreground"> behind</span>
                     </>
                   ) : (
@@ -483,7 +483,7 @@ function HeadToHeadRow({ row, isOwn = false }: { row: GapRow; isOwn?: boolean })
           <p className="text-muted-foreground">{isOwn ? '—' : 'No AEO data'}</p>
         ) : (
           <p>
-            <span className={standingTone === 'behind' ? 'font-medium text-red-600' : 'font-medium text-green-600'}>
+            <span className={standingTone === 'behind' ? 'font-medium text-red-700 dark:text-red-400' : 'font-medium text-green-700 dark:text-green-400'}>
               {standingTone === 'behind' ? 'Behind' : standingTone === 'ahead' ? 'Ahead' : 'Tied'}
             </span>{' '}
             <span className="text-muted-foreground">

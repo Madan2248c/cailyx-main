@@ -12,7 +12,7 @@ function pct(ratio: number | null): string {
 export function GscKpis({ overview }: { overview: GscOverview }) {
   const { totals, previousTotals } = overview;
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardContent className="flex flex-col gap-1 pt-5">
           <p className="text-xs font-medium text-muted-foreground">Clicks</p>
@@ -90,7 +90,7 @@ export function IndexCoverage({ overview }: { overview: GscOverview }) {
           <>
             <div className="flex items-baseline gap-6">
               <p>
-                <span className={`text-3xl font-semibold ${coverage.notIndexed > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                <span className={`text-3xl font-semibold ${coverage.notIndexed > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>
                   {coverage.notIndexed.toLocaleString()}
                 </span>{' '}
                 <span className="text-sm text-muted-foreground">not indexed</span>
@@ -101,7 +101,7 @@ export function IndexCoverage({ overview }: { overview: GscOverview }) {
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-green-500"
+                className="h-full rounded-full bg-green-600 dark:bg-green-400"
                 style={{ width: `${coverage.submitted > 0 ? Math.round((coverage.indexed / coverage.submitted) * 100) : 0}%` }}
               />
             </div>

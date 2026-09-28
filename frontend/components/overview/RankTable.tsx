@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { SerpRankRow } from '@/lib/dataforseo-api';
 
@@ -10,9 +11,35 @@ function formatDate(iso: string | null): string {
 
 function Delta({ delta, isNew }: { delta: number | null; isNew: boolean }) {
   if (isNew) return <span className="font-medium text-muted-foreground">new</span>;
-  if (delta === null || delta === 0) return <span className="text-muted-foreground">—</span>;
-  if (delta > 0) return <span className="font-medium text-green-600">▲{delta}</span>;
-  return <span className="font-medium text-red-600">▼{Math.abs(delta)}</span>;
+  if (delta === null || delta === 0)
+    return (
+      <span className="inline-flex items-center gap-1 text-muted-foreground">
+        <Minus aria-hidden="true" className="size-3.5" />
+        <span aria-hidden="true">—</span>
+        <span className="sr-only">No change</span>
+      </span>
+    );
+  if (delta > 0)
+    return (
+      <span
+        aria-label={`Up ${delta} positions (improved)`}
+        className="inline-flex items-center gap-1 font-medium text-green-700 dark:text-green-400"
+      >
+        <ArrowUpRight aria-hidden="true" className="size-3.5" />
+        {delta}
+        <span className="sr-only">(improved)</span>
+      </span>
+    );
+  return (
+    <span
+      aria-label={`Down ${Math.abs(delta)} positions (falling)`}
+      className="inline-flex items-center gap-1 font-medium text-red-700 dark:text-red-400"
+    >
+      <ArrowDownRight aria-hidden="true" className="size-3.5" />
+      {Math.abs(delta)}
+      <span className="sr-only">(falling)</span>
+    </span>
+  );
 }
 
 /**
@@ -89,7 +116,11 @@ export function RankTable({
                 <Delta delta={delta} isNew={prev === null} />
               </p>
               <p className="text-right text-muted-foreground">{row.volume.toLocaleString()}</p>
-              <p className="col-span-2 truncate text-muted-foreground sm:col-span-1" title={row.url}>
+              <p
+                className="col-span-2 truncate text-muted-foreground sm:col-span-1"
+                title={row.url}
+                aria-label={`Ranking URL: ${row.url}`}
+              >
                 {row.url}
               </p>
             </div>

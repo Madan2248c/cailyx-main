@@ -1,10 +1,13 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ErrorCard } from '@/components/ui/error-state';
+import { PageLoadingState } from '@/components/ui/skeleton';
 import { InviteMemberDialog } from '@/components/team/invite-member-dialog';
 import { useAuth } from '@/contexts/auth-context';
 import { disableMember, enableMember, listMembers, resendInvite } from '@/lib/team-api';
@@ -77,8 +80,8 @@ export default function TeamPage() {
 
   if (isLoading || !user || user.role !== 'CLIENT_POC') {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+      <div className="flex flex-1 flex-col px-4 py-10">
+        <PageLoadingState message="Loading your team…" />
       </div>
     );
   }
@@ -87,14 +90,17 @@ export default function TeamPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
-      <div className="flex items-center justify-between">
+      <div>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/client">← Back to projects</Link>} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Your team</h1>
         {accessToken && !atSeatLimit ? (
           <InviteMemberDialog accessToken={accessToken} onInvited={refresh} />
         ) : null}
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <ErrorCard message={error} onRetry={refresh} /> : null}
 
       {team === null ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -120,16 +126,16 @@ export default function TeamPage() {
               return (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0"
+                  className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0"
                 >
-                  <div className="flex flex-col">
-                    <span className="text-sm">{member.email}</span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm">{member.email}</span>
                     <span className="text-xs text-muted-foreground">
                       {member.role === 'CLIENT_POC' ? 'POC' : 'Member'}
                       {isSelf ? ' · You' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <Badge variant={STATUS_VARIANT[member.status]}>{member.status}</Badge>
                     {!isSelf && member.status === 'INVITED' ? (
                       <Button

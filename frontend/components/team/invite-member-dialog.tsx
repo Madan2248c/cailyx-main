@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/error-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { inviteMember } from '@/lib/team-api';
@@ -53,20 +55,24 @@ export function InviteMemberDialog({
             They&apos;ll get an invite link to set up their password.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="memberEmail">Email</Label>
             <Input
               id="memberEmail"
               type="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'invite-member-error' : undefined}
             />
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <FieldError id="invite-member-error" message={error} />
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <DialogClose render={<Button type="button" variant="outline" />} />
+            <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
               {isSubmitting ? 'Inviting…' : 'Send invite'}
             </Button>
           </DialogFooter>

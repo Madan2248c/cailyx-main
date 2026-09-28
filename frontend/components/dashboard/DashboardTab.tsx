@@ -50,9 +50,9 @@ function formatDate(iso: string | null): string {
 
 function scoreTone(score: number | null): string {
   if (score === null) return 'text-muted-foreground';
-  if (score >= 80) return 'text-green-600';
-  if (score >= 50) return 'text-amber-600';
-  return 'text-red-600';
+  if (score >= 80) return 'text-green-700 dark:text-green-400';
+  if (score >= 50) return 'text-amber-700 dark:text-amber-400';
+  return 'text-red-700 dark:text-red-400';
 }
 
 function truncate(text: string, max: number): string {
@@ -282,7 +282,7 @@ export function DashboardTab({
       label: 'Open gaps',
       href: `${base}/reports`,
       value: snapshot.gapRun ? `${openRecs.length} open` : null,
-      valueClass: openRecs.length > 0 ? 'text-amber-600' : 'text-green-600',
+      valueClass: openRecs.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400',
       note:
         snapshot.gapRun == null
           ? 'No gap analysis yet — recommendations appear after your source audits complete.'
@@ -309,7 +309,7 @@ export function DashboardTab({
       </div>
 
       {/* 1) Headline row — project health at a glance */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Tech score</p>
@@ -345,7 +345,7 @@ export function DashboardTab({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Open gaps</p>
-            <p className={`text-3xl font-semibold ${snapshot.gapRun ? (openRecs.length > 0 ? 'text-amber-600' : 'text-green-600') : ''}`}>
+            <p className={`text-3xl font-semibold ${snapshot.gapRun ? (openRecs.length > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400') : ''}`}>
               {snapshot.gapRun ? openRecs.length : '—'}
             </p>
             <p className="text-xs text-muted-foreground">

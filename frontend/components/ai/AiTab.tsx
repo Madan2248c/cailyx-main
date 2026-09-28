@@ -115,7 +115,7 @@ export function AiTab({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Mention rate</p>
@@ -232,8 +232,8 @@ export function AiTab({
                 >
                   <p className="min-w-0 flex-1 truncate font-medium">{row.name}</p>
                   <p className="shrink-0 text-muted-foreground">
-                    <span className="font-medium text-green-600">{row.timesAhead}</span> ahead ·{' '}
-                    <span className="font-medium text-red-600">{row.timesBehind}</span> behind
+                    <span className="font-medium text-green-700 dark:text-green-400">{row.timesAhead}</span> ahead ·{' '}
+                    <span className="font-medium text-red-700 dark:text-red-400">{row.timesBehind}</span> behind
                     {row.coMentions > 0 ? <span> · {row.coMentions} tied</span> : null}
                   </p>
                 </div>

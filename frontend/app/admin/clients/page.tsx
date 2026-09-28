@@ -102,15 +102,15 @@ export default function AdminClientsPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-                <span>
+                <span className="break-words">
                   POC:{' '}
                   {client.poc ? `${client.poc.email} (${client.poc.status})` : 'None invited yet'}
                 </span>
-                <div className="flex items-center justify-between">
-                  <span>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                  <span className="shrink-0">
                     Seats: {client.seatsUsed} / {client.seatLimit}
                   </span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => router.push(`/admin/clients/${client.id}`)}>
                       Projects
                     </Button>

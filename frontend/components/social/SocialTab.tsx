@@ -32,22 +32,22 @@ function formatCount(value: number | null): string {
 /** Health dot per platform: worst finding status wins, pass only when clean. */
 function platformTone(platform: string, findings: SocialActivityFinding[]): string {
   const forPlatform = findings.filter((f) => f.platform === platform);
-  if (forPlatform.some((f) => f.status === 'fail')) return 'bg-red-500';
-  if (forPlatform.some((f) => f.status === 'error')) return 'bg-amber-500';
+  if (forPlatform.some((f) => f.status === 'fail')) return 'bg-red-700 dark:bg-red-400';
+  if (forPlatform.some((f) => f.status === 'error')) return 'bg-amber-600 dark:bg-amber-400';
   if (forPlatform.some((f) => f.status === 'not-run')) return 'bg-muted-foreground/40';
-  return 'bg-green-500';
+  return 'bg-green-600 dark:bg-green-400';
 }
 
 function patternTone(pattern: ActivityPattern): string {
-  if (pattern === 'daily' || pattern === 'every-2-3-days') return 'text-green-600';
-  if (pattern === 'weekly') return 'text-emerald-600';
-  if (pattern === 'sporadic') return 'text-amber-600';
-  return 'text-red-600';
+  if (pattern === 'daily' || pattern === 'every-2-3-days') return 'text-green-700 dark:text-green-400';
+  if (pattern === 'weekly') return 'text-emerald-700 dark:text-emerald-400';
+  if (pattern === 'sporadic') return 'text-amber-700 dark:text-amber-400';
+  return 'text-red-700 dark:text-red-400';
 }
 
 function findingTone(finding: SocialActivityFinding): string {
-  if (finding.status === 'fail') return 'border-red-500/30 bg-red-500/5';
-  if (finding.status === 'error') return 'border-amber-500/30 bg-amber-500/5';
+  if (finding.status === 'fail') return 'border-red-500/30 bg-red-700 dark:bg-red-400/5';
+  if (finding.status === 'error') return 'border-amber-500/30 bg-amber-600 dark:bg-amber-400/5';
   return 'border-border';
 }
 
@@ -195,18 +195,18 @@ export function SocialTab({
   const attention: Array<{ tone: string; text: string }> = [];
   for (const finding of latest.findings) {
     if (finding.status === 'fail') {
-      attention.push({ tone: 'bg-red-500', text: finding.detail });
+      attention.push({ tone: 'bg-red-700 dark:bg-red-400', text: finding.detail });
     }
   }
   for (const finding of latest.findings) {
     if (finding.status === 'error') {
-      attention.push({ tone: 'bg-amber-500', text: finding.detail });
+      attention.push({ tone: 'bg-amber-600 dark:bg-amber-400', text: finding.detail });
     }
   }
   for (const delta of latest.deltas) {
     if (delta.metric === 'pattern' && delta.previous !== delta.current) {
       attention.push({
-        tone: 'bg-amber-500',
+        tone: 'bg-amber-600 dark:bg-amber-400',
         text: `${platformLabel(delta.platform)} cadence moved from ${formatDeltaValue('pattern', delta.previous)} to ${formatDeltaValue('pattern', delta.current)} since the previous pull.`,
       });
     }
@@ -279,7 +279,7 @@ export function SocialTab({
         <Card>
           <CardContent className="flex flex-col gap-2 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Dormant</p>
-            <p className={`text-4xl font-semibold ${dormant.length > 0 ? 'text-red-600' : ''}`}>
+            <p className={`text-4xl font-semibold ${dormant.length > 0 ? 'text-red-700 dark:text-red-400' : ''}`}>
               {dormant.length}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -303,7 +303,7 @@ export function SocialTab({
                 className={`flex flex-col gap-1.5 px-6 py-3 ${i > 0 ? 'border-t border-border' : ''}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${platformTone(p.platform, latest.findings)}`} />
+                  <span aria-hidden="true" className={`size-2 rounded-full ${platformTone(p.platform, latest.findings)}`} />
                   <p className="font-medium">{platformLabel(p.platform)}</p>
                   <p className={`ml-auto text-sm font-medium ${patternTone(p.pattern)}`}>
                     {PATTERN_LABEL[p.pattern] ?? p.pattern}

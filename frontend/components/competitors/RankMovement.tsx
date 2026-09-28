@@ -192,11 +192,11 @@ export function RankMovement({
             >
               <p className="min-w-0 flex-1 truncate">{mover.line}</p>
               {mover.kind === 'climber' ? (
-                <Badge variant="secondary" className="shrink-0 text-green-600">
+                <Badge variant="secondary" className="shrink-0 text-green-700 dark:text-green-400">
                   ▲ {mover.delta}
                 </Badge>
               ) : mover.kind === 'faller' ? (
-                <Badge variant="secondary" className="shrink-0 text-red-600">
+                <Badge variant="secondary" className="shrink-0 text-red-700 dark:text-red-400">
                   ▼ {mover.prev !== null && mover.position !== null ? mover.position - mover.prev : 0}
                 </Badge>
               ) : mover.kind === 'new' ? (

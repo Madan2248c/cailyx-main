@@ -15,16 +15,16 @@ function str(raw: unknown): string | null {
 }
 
 function scoreTone(score: number | null): { text: string; bar: string } {
-  if (score === null) return { text: 'text-muted-foreground', bar: 'bg-muted-foreground' };
-  if (score >= 80) return { text: 'text-green-600', bar: 'bg-green-500' };
-  if (score >= 50) return { text: 'text-amber-600', bar: 'bg-amber-500' };
-  return { text: 'text-red-600', bar: 'bg-red-500' };
+  if (score === null) return { text: 'text-muted-foreground', bar: 'bg-border' };
+  if (score >= 80) return { text: 'text-green-700 dark:text-green-400', bar: 'bg-green-600 dark:bg-green-400' };
+  if (score >= 50) return { text: 'text-amber-700 dark:text-amber-400', bar: 'bg-amber-600 dark:bg-amber-400' };
+  return { text: 'text-red-700 dark:text-red-400', bar: 'bg-red-700 dark:bg-red-400' };
 }
 
 function cwvTone(status: string | null): string {
-  if (status === 'good') return 'bg-green-500';
-  if (status === 'needs-improvement') return 'bg-amber-500';
-  if (status === 'poor') return 'bg-red-500';
+  if (status === 'good') return 'bg-green-600 dark:bg-green-400';
+  if (status === 'needs-improvement') return 'bg-amber-600 dark:bg-amber-400';
+  if (status === 'poor') return 'bg-red-700 dark:bg-red-400';
   return 'bg-muted-foreground/40';
 }
 
@@ -166,7 +166,7 @@ export function TechnicalTab({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardContent className="flex flex-col gap-2 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Site score</p>
@@ -174,7 +174,14 @@ export function TechnicalTab({
               {latest.score ?? '—'}
               <span className="text-base font-normal text-muted-foreground">/100</span>
             </p>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={latest.score ?? 0}
+              aria-label={`Site score ${latest.score ?? 'unavailable'} of 100`}
+              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+            >
               <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${latest.score ?? 0}%` }} />
             </div>
           </CardContent>
@@ -217,14 +224,14 @@ export function TechnicalTab({
         </Card>
       </div>
 
-      <div className="columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">PageSpeed Insights</CardTitle>
             <CardDescription>Core Web Vitals for your homepage</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {[
                 { label: 'LCP', value: num(cwv.lcp), unit: 'ms' as const, status: str(cwv.lcpStatus) },
                 { label: 'CLS', value: num(cwv.cls), unit: '' as const, status: str(cwv.clsStatus) },
@@ -232,7 +239,7 @@ export function TechnicalTab({
               ].map((m) => (
                 <div key={m.label} className="flex flex-col gap-1 rounded-lg border border-border p-2.5">
                   <div className="flex items-center gap-1.5">
-                    <span className={`size-2 rounded-full ${cwvTone(m.status)}`} />
+                    <span aria-hidden="true" className={`size-2 rounded-full ${cwvTone(m.status)}`} />
                     <p className="text-xs font-medium text-muted-foreground">{m.label}</p>
                   </div>
                   <p className="text-lg font-semibold">{formatMetric(m.value, m.unit)}</p>
@@ -327,7 +334,7 @@ export function TechnicalTab({
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-sm">
             <div className="flex items-center gap-2">
-              <span className={`size-2 rounded-full ${jsDependent ? 'bg-amber-500' : 'bg-green-500'}`} />
+              <span aria-hidden="true" className={`size-2 rounded-full ${jsDependent ? 'bg-amber-600 dark:bg-amber-400' : 'bg-green-600 dark:bg-green-400'}`} />
               <p className="font-medium">
                 {jsDependent ? 'Content depends on JavaScript' : 'Fully server-rendered'}
               </p>
@@ -336,7 +343,7 @@ export function TechnicalTab({
               <p className="w-36 shrink-0 text-muted-foreground">Content lost without JS</p>
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                 <div
-                  className={`h-full rounded-full ${contentLoss !== null && contentLoss > 20 ? 'bg-amber-500' : 'bg-green-500'}`}
+                  className={`h-full rounded-full ${contentLoss !== null && contentLoss > 20 ? 'bg-amber-600 dark:bg-amber-400' : 'bg-green-600 dark:bg-green-400'}`}
                   style={{ width: `${contentLoss ?? 0}%` }}
                 />
               </div>
@@ -391,9 +398,9 @@ export function TechnicalTab({
                     <span
                       className={
                         d.direction === 'improved'
-                          ? 'font-medium text-green-600'
+                          ? 'font-medium text-green-700 dark:text-green-400'
                           : d.direction === 'regressed'
-                            ? 'font-medium text-red-600'
+                            ? 'font-medium text-red-700 dark:text-red-400'
                             : 'text-muted-foreground'
                       }
                     >

@@ -11,10 +11,10 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted/40 px-4">
+    <div className="flex flex-1 items-center justify-center bg-muted px-4 py-10">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl">{title}</CardTitle>
+          <CardTitle>{title}</CardTitle>
           {subtitle ? <CardDescription>{subtitle}</CardDescription> : null}
         </CardHeader>
         <CardContent>{children}</CardContent>

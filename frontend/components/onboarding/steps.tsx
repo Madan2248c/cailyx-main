@@ -173,50 +173,78 @@ export function CompetitorsStep({
         <ul className="flex flex-col gap-3">
           {competitors.map((competitor) => (
             <li key={competitor.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-              <div className="flex items-center gap-2">
+              <div className="flex min-h-11 items-center gap-3">
                 <input
                   type="checkbox"
                   id={`track-${competitor.id}`}
-                  className="size-4 accent-primary"
+                  className="size-6 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   checked={isTracked(competitor.id)}
                   disabled={disabled}
                   onChange={(e) => setTracked(competitor.id, e.target.checked)}
                 />
-                <Label htmlFor={`track-${competitor.id}`}>
+                <Label htmlFor={`track-${competitor.id}`} className="min-h-11 flex-1">
+                  {getName(competitor.id) || competitor.name} —{' '}
                   {isTracked(competitor.id) ? 'Tracked' : 'Untracked'}
                 </Label>
-                <Badge variant="outline" className="ml-auto capitalize">
+                <Badge variant="outline" className="ml-auto shrink-0 capitalize">
                   {competitor.source.replace(/_/g, ' ')}
                 </Badge>
               </div>
-              <Input
-                aria-label={`Name for ${competitor.name}`}
-                value={getName(competitor.id)}
-                disabled={disabled}
-                onChange={(e) => setName(competitor.id, e.target.value)}
-              />
-              <Input
-                aria-label={`Domain for ${competitor.name}`}
-                placeholder="Domain (optional)"
-                value={getDomain(competitor.id)}
-                disabled={disabled}
-                onChange={(e) => setDomain(competitor.id, e.target.value)}
-              />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`competitor-name-${competitor.id}`}>Competitor name</Label>
+                <Input
+                  id={`competitor-name-${competitor.id}`}
+                  value={getName(competitor.id)}
+                  disabled={disabled}
+                  onChange={(e) => setName(competitor.id, e.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor={`competitor-domain-${competitor.id}`}>Domain (optional)</Label>
+                <Input
+                  id={`competitor-domain-${competitor.id}`}
+                  placeholder="example.com"
+                  value={getDomain(competitor.id)}
+                  disabled={disabled}
+                  onChange={(e) => setDomain(competitor.id, e.target.value)}
+                />
+              </div>
             </li>
           ))}
         </ul>
       )}
       {!disabled ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
-          <Label>Add a missing competitor</Label>
+        <fieldset className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3">
+          <legend className="px-1 text-sm font-medium">Add a missing competitor</legend>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <Input placeholder="Domain (optional)" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} />
-            <Button type="button" variant="secondary" onClick={addNew} disabled={newName.trim() === ''}>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="new-competitor-name">Name</Label>
+              <Input
+                id="new-competitor-name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Label htmlFor="new-competitor-domain">Domain (optional)</Label>
+              <Input
+                id="new-competitor-domain"
+                placeholder="example.com"
+                value={newDomain}
+                onChange={(e) => setNewDomain(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={addNew}
+              disabled={newName.trim() === ''}
+              className="sm:self-end"
+            >
               Add
             </Button>
           </div>
-        </div>
+        </fieldset>
       ) : null}
     </div>
   );

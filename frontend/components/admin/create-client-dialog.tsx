@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/error-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/team-api';
@@ -60,19 +62,29 @@ export function CreateClientDialog({
             or with the Day-1 audit if held below.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="clientName">Client name</Label>
-            <Input id="clientName" required value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              id="clientName"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'create-client-error' : undefined}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="pocEmail">POC email</Label>
             <Input
               id="pocEmail"
               type="email"
+              autoComplete="email"
               required
               value={pocEmail}
               onChange={(e) => setPocEmail(e.target.value)}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'create-client-error' : undefined}
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -81,15 +93,17 @@ export function CreateClientDialog({
               id="seatLimit"
               type="number"
               min={1}
+              inputMode="numeric"
               required
               value={seatLimit}
               onChange={(e) => setSeatLimit(e.target.value)}
             />
           </div>
-          <label className="flex items-start gap-2 text-sm">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3 text-sm">
             <input
               type="checkbox"
-              className="mt-1"
+              id="deferInvite"
+              className="mt-1 size-5 shrink-0 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               checked={deferInvite}
               onChange={(e) => setDeferInvite(e.target.checked)}
             />
@@ -98,9 +112,10 @@ export function CreateClientDialog({
               with the report, instead of an invite now and a report later.
             </span>
           </label>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <FieldError id="create-client-error" message={error} />
           <DialogFooter>
-            <Button type="submit" disabled={isSubmitting}>
+            <DialogClose render={<Button type="button" variant="outline" />} />
+            <Button type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
               {isSubmitting ? 'Creating…' : 'Create client'}
             </Button>
           </DialogFooter>

@@ -78,13 +78,11 @@ export default function ClientProjectsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
       <div>
-        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/clients')}>
-          ← Clients
-        </Button>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/admin/clients">← Clients</Link>} />
       </div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold">Projects</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             size="sm"
             variant="outline"

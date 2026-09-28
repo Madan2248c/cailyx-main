@@ -27,15 +27,15 @@ function stageLabel(stage: string): string {
 }
 
 function stageDot(status: string): string {
-  if (status === 'completed') return 'bg-green-500';
-  if (status === 'failed') return 'bg-red-500';
+  if (status === 'completed') return 'bg-green-600 dark:bg-green-400';
+  if (status === 'failed') return 'bg-red-700 dark:bg-red-400';
   if (status === 'skipped') return 'bg-muted-foreground/40';
-  if (status === 'running') return 'bg-amber-500';
+  if (status === 'running') return 'bg-amber-600 dark:bg-amber-400';
   return 'bg-muted-foreground/20';
 }
 
 function connectionDot(connected: boolean): string {
-  return connected ? 'bg-green-500' : 'bg-muted-foreground/40';
+  return connected ? 'bg-green-600 dark:bg-green-400' : 'bg-muted-foreground/40';
 }
 
 function formatDate(raw: string | null): string {
@@ -171,14 +171,14 @@ export function SettingsTab({
             ) : google ? (
               <>
                 <div className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${connectionDot(google.gsc.connected)}`} />
+                  <span aria-hidden="true" className={`size-2 rounded-full ${connectionDot(google.gsc.connected)}`} />
                   <p className="font-medium">Search Console</p>
                   <p className="ml-auto text-muted-foreground">
                     {google.gsc.connected ? 'Connected' : 'Not connected'}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className={`size-2 rounded-full ${connectionDot(google.ga.connected)}`} />
+                  <span aria-hidden="true" className={`size-2 rounded-full ${connectionDot(google.ga.connected)}`} />
                   <p className="font-medium">Analytics</p>
                   <p className="ml-auto text-muted-foreground">
                     {google.ga.connected ? 'Connected' : 'Not connected'}
@@ -214,7 +214,7 @@ export function SettingsTab({
                     key={stage}
                     className={`flex items-center gap-2 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
                   >
-                    <span className={`size-2 rounded-full ${stageDot(status)}`} />
+                    <span aria-hidden="true" className={`size-2 rounded-full ${stageDot(status)}`} />
                     <p>{stageLabel(stage)}</p>
                     <p className="ml-auto shrink-0 capitalize text-muted-foreground">{status}</p>
                   </div>

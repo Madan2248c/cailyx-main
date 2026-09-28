@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { FieldError } from '@/components/ui/error-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/auth-context';
@@ -40,7 +41,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">New password</Label>
         <Input
@@ -48,10 +49,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
           type="password"
           autoComplete="new-password"
           required
-          minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          aria-describedby={error ? 'reset-error password-hint' : 'password-hint'}
+          aria-invalid={error ? true : undefined}
         />
+        <p id="password-hint" className="text-sm text-muted-foreground">
+          At least 8 characters.
+        </p>
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirmPassword">Confirm new password</Label>
@@ -60,13 +65,19 @@ export function ResetPasswordForm({ token }: { token: string }) {
           type="password"
           autoComplete="new-password"
           required
-          minLength={8}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? 'reset-error' : undefined}
         />
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <Button type="submit" disabled={isSubmitting} className="mt-2 w-full">
+      <FieldError id="reset-error" message={error} />
+      <Button
+        type="submit"
+        disabled={isSubmitting}
+        aria-busy={isSubmitting}
+        className="mt-2 w-full"
+      >
         {isSubmitting ? 'Resetting…' : 'Reset password'}
       </Button>
     </form>

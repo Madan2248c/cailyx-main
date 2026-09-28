@@ -43,10 +43,10 @@ function projectNav(projectId: string): NavSection[] {
   const base = `/client/projects/${projectId}`;
   return [
     {
-      label: null,
+      label: 'Workspace',
       items: [
         { label: 'Dashboard', href: base, icon: LayoutDashboard },
-        { label: 'Reports', href: `${base}/reports`, icon: FileText, prefix: true },
+        { label: 'Reports', href: `${base}/reports`, icon: FileText },
       ],
     },
     {
@@ -61,15 +61,15 @@ function projectNav(projectId: string): NavSection[] {
       ],
     },
     {
-      label: null,
+      label: 'Compare',
       items: [
-        { label: 'Competitors', href: `${base}/competitors`, icon: Users, prefix: true },
+        { label: 'Competitors', href: `${base}/competitors`, icon: Users },
         { label: 'Backlinks', href: `${base}/competitors/backlinks`, icon: Link2, indent: true },
         { label: 'Keywords', href: `${base}/keywords`, icon: KeyRound },
       ],
     },
     {
-      label: null,
+      label: 'System',
       items: [
         { label: 'Settings', href: `${base}/settings`, icon: Settings },
         { label: 'Team management', href: '/team', icon: Users },
@@ -108,6 +108,7 @@ export function ClientSidebar() {
   // across projects.
   const [projectKey, setProjectKey] = useState(projectId);
   const [manualOpen, setManualOpen] = useState<boolean | null>(() => readStoredPerformanceOpen(projectId));
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   if (projectKey !== projectId) {
     setProjectKey(projectId);
@@ -134,7 +135,7 @@ export function ClientSidebar() {
     }
 
     const inSection = pathname === perfBase || pathname.startsWith(`${perfBase}/`);
-    const open = manualOpen ?? inSection;
+    const open = inSection || manualOpen === true;
 
     return (
       <div key={index} className="flex flex-col gap-0.5">
@@ -146,7 +147,7 @@ export function ClientSidebar() {
             setManualOpen(next);
             if (projectId) localStorage.setItem(`cailyx:nav:performance:${projectId}`, next ? '1' : '0');
           }}
-          className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted"
+          className="flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <Gauge className="size-4 shrink-0" />
           <span className="flex-1 text-left">{section.label}</span>
@@ -164,12 +165,32 @@ export function ClientSidebar() {
   }
 
   return (
-    <aside className="flex w-full flex-col gap-4 border-b border-border bg-background p-4 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
-      <Link href="/client" className="px-1 text-base font-semibold tracking-tight">
-        Cailyx
-      </Link>
+    <aside className="flex w-full flex-col gap-4 border-b border-border bg-background p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
+      <div className="flex items-center justify-between gap-2">
+        <Link
+          href="/client"
+          className="rounded px-1 text-base font-semibold tracking-tight outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Cailyx
+        </Link>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          aria-expanded={mobileOpen}
+          aria-controls="client-nav"
+          onClick={() => setMobileOpen((v) => !v)}
+        >
+          {mobileOpen ? 'Close menu' : 'Menu'}
+        </Button>
+      </div>
 
-      <nav className="flex flex-col gap-4">
+      <nav
+        id="client-nav"
+        aria-label="Project"
+        className={mobileOpen ? 'flex flex-col gap-4' : 'hidden flex-col gap-4 md:flex'}
+      >
         {projectId ? (
           projectNav(projectId).map((section, i) =>
             renderSection(section, i, `/client/projects/${projectId}/performance`),
@@ -191,16 +212,18 @@ export function ClientSidebar() {
 }
 
 function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
+  const active = isActive(pathname, item);
   return (
     <Link
       href={item.href}
+      aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-muted',
-        item.indent && 'pl-2',
-        isActive(pathname, item) ? 'bg-muted font-medium' : 'text-muted-foreground',
+        'flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none',
+        item.indent && 'pl-4',
+        active ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground',
       )}
     >
-      <item.icon className="size-4 shrink-0" />
+      <item.icon aria-hidden="true" className="size-4 shrink-0" />
       {item.label}
     </Link>
   );

@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FieldError } from '@/components/ui/error-state';
 import {
   addCompetitor,
   patchCompanyContext,
@@ -83,8 +84,13 @@ export function OnboardingWizard({
   const [newDomain, setNewDomain] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   const step = STEPS[stepIndex];
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [stepIndex]);
   const get = (path: string): string | string[] => fields[path] ?? '';
   const set = (path: string, value: string | string[] | null) => {
     setFields((prev) => ({ ...prev, [path]: value ?? '' }));
@@ -201,28 +207,40 @@ export function OnboardingWizard({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 px-4 py-8">
-      <ol className="flex items-center gap-1">
-        {STEPS.map((s, i) => (
-          <li key={s.key} className="flex flex-1 items-center gap-1 last:flex-none">
-            <span
-              className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
-                i < stepIndex
-                  ? 'bg-primary text-primary-foreground'
-                  : i === stepIndex
-                    ? 'border border-primary text-primary'
-                    : 'border border-border text-muted-foreground'
-              }`}
+      <nav aria-label="Onboarding progress">
+        <p className="sr-only">
+          Step {stepIndex + 1} of {STEPS.length}: {step.title}
+        </p>
+        <ol className="flex items-center gap-2">
+          {STEPS.map((s, i) => (
+            <li
+              key={s.key}
+              aria-current={i === stepIndex ? 'step' : undefined}
+              className="flex flex-1 items-center gap-2 last:flex-none"
             >
-              {i + 1}
-            </span>
-            {i < STEPS.length - 1 ? <span className="h-px flex-1 bg-border" /> : null}
-          </li>
-        ))}
-      </ol>
+              <span
+                aria-hidden="true"
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                  i < stepIndex
+                    ? 'bg-primary text-primary-foreground'
+                    : i === stepIndex
+                      ? 'border border-primary text-primary'
+                      : 'border border-border text-muted-foreground'
+                }`}
+              >
+                {i + 1}
+              </span>
+              {i < STEPS.length - 1 ? (
+                <span aria-hidden="true" className="h-px flex-1 bg-border" />
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      </nav>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">
+          <CardTitle ref={headingRef} tabIndex={-1} className="outline-none">
             {step.key === 'welcome' ? `Welcome to Cailyx, ${project.name}` : step.title}
           </CardTitle>
           <CardDescription>
@@ -233,7 +251,7 @@ export function OnboardingWizard({
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {!canEdit ? (
-            <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+            <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
               You&apos;re viewing as a team member — only your account&apos;s POC can save changes.
             </p>
           ) : null}
@@ -309,18 +327,34 @@ export function OnboardingWizard({
             />
           ) : null}
 
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <FieldError id="onboarding-error" message={error} />
 
-          <div className="flex justify-between pt-2">
-            <Button type="button" variant="outline" onClick={handleBack} disabled={isFirst || isSaving}>
+          <div className="flex flex-wrap justify-between gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBack}
+              disabled={isFirst || isSaving}
+              aria-busy={isSaving}
+            >
               Back
             </Button>
             {isLast ? (
-              <Button type="button" onClick={() => router.push('/dashboard')} disabled={isSaving}>
+              <Button
+                type="button"
+                onClick={() => router.push('/dashboard')}
+                disabled={isSaving}
+                aria-busy={isSaving}
+              >
                 Finish — go to dashboard
               </Button>
             ) : (
-              <Button type="button" onClick={handleContinue} disabled={isSaving}>
+              <Button
+                type="button"
+                onClick={handleContinue}
+                disabled={isSaving}
+                aria-busy={isSaving}
+              >
                 {isSaving ? 'Saving…' : step.key === 'welcome' ? 'Start' : 'Save & continue'}
               </Button>
             )}
