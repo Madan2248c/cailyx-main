@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ProjectScheduleCard } from '@/components/admin/schedules/project-schedule-card';
+import { ProjectScheduleBlock } from '@/components/admin/schedules/project-schedule-block';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { listProjects } from '@/lib/projects-api';
@@ -132,7 +132,7 @@ export default function AdminSchedulesPage() {
               </Card>
             ) : (
               projects.map((project) => (
-                <ProjectScheduleCard
+                <ProjectScheduleBlock
                   key={project.id}
                   accessToken={accessToken ?? ''}
                   clientId={client.id}
