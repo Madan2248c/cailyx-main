@@ -15,6 +15,7 @@ import { Settings } from '@/components/animate-ui/icons/settings';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Users } from '@/components/animate-ui/icons/users';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
+import { CailyxLockup, RothenhallCredit } from '@/components/brand/brand';
 import { Button } from '@/components/portal/button';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
@@ -56,8 +57,8 @@ function projectNav(projectId: string, fixBadge = 0): NavSection[] {
       items: [
         { label: 'Overview', href: `${base}/performance`, icon: Gauge },
         { label: 'Technical health', href: `${base}/performance/technical`, icon: Wrench },
-        { label: 'Google search', href: `${base}/performance/visibility/organic`, icon: Search, indent: true },
-        { label: 'AI visibility', href: `${base}/performance/visibility/ai`, icon: Sparkles, indent: true },
+        { label: 'Google search', href: `${base}/performance/visibility/organic`, icon: Search },
+        { label: 'AI visibility', href: `${base}/performance/visibility/ai`, icon: Sparkles },
         { label: 'Social channels', href: `${base}/performance/social`, icon: Share2 },
       ],
     },
@@ -130,8 +131,17 @@ export function ClientSidebar() {
           {section.label ? (
             <p className="g-eyebrow px-2 pb-1">{section.label}</p>
           ) : null}
-          {section.items.map((item) => (
-            <NavLink key={item.href + item.label} pathname={pathname} item={item} />
+          {groupIndented(section.items).map(({ item, children }) => (
+            <div key={item.href + item.label} className="flex flex-col gap-0.5">
+              <NavLink pathname={pathname} item={item} />
+              {children.length > 0 ? (
+                <SubNav>
+                  {children.map((child) => (
+                    <NavLink key={child.href + child.label} pathname={pathname} item={child} />
+                  ))}
+                </SubNav>
+              ) : null}
+            </div>
           ))}
         </div>
       );
@@ -159,11 +169,11 @@ export function ClientSidebar() {
         </button>
         </AnimateIcon>
         {open ? (
-          <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-2">
+          <SubNav>
             {section.items.map((item) => (
               <NavLink key={item.href + item.label} pathname={pathname} item={item} />
             ))}
-          </div>
+          </SubNav>
         ) : null}
       </div>
     );
@@ -177,11 +187,7 @@ export function ClientSidebar() {
           aria-label="Cailyx home"
           className="flex items-center gap-2 rounded px-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <BrandMark />
-          <span className="flex flex-col leading-none">
-            <span className="text-base font-bold tracking-tight">Cailyx</span>
-            <span className="mt-0.5 text-[0.65rem] text-muted-foreground">by Rothenhall</span>
-          </span>
+          <CailyxLockup />
         </Link>
         <Button
           type="button"
@@ -224,6 +230,7 @@ export function ClientSidebar() {
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-border pt-3 md:mt-auto">
+        <RothenhallCredit />
         {user ? <p className="truncate px-1 text-xs text-muted-foreground">{user.email}</p> : null}
         <AnimateIcon animateOnHover asChild>
           <Button variant="outline" size="sm" onClick={handleLogout}>
@@ -246,7 +253,6 @@ function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
       aria-current={active ? 'page' : undefined}
       className={cn(
         'relative flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none',
-        item.indent && 'pl-4',
         active
           ? 'bg-accent font-medium text-foreground before:absolute before:top-2 before:bottom-2 before:-left-2 before:w-[3px] before:rounded-full before:bg-foreground'
           : 'text-muted-foreground hover:text-foreground',
@@ -269,16 +275,24 @@ function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
   );
 }
 
-/** Small orbit mark: a body in an answer's orbit, the Cailyx idea in one glyph. */
-function BrandMark() {
-  return (
-    <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="currentColor" />
-      <ellipse cx="16" cy="16" rx="10" ry="5.5" fill="none" stroke="white" strokeOpacity="0.45" strokeWidth="1.2" transform="rotate(-24 16 16)" />
-      <circle cx="16" cy="16" r="3.4" fill="white" />
-      <circle cx="24.4" cy="12.2" r="1.6" fill="white" fillOpacity="0.8" />
-    </svg>
-  );
+/**
+ * One nesting style for every child list in the sidebar. The guide line sits
+ * under the centre of the parent's icon (8px padding + half of a 16px icon),
+ * so parent and children read as one column.
+ */
+function SubNav({ children }: { children: React.ReactNode }) {
+  return <div className="ml-[15px] flex flex-col gap-0.5 border-l border-border pl-2">{children}</div>;
+}
+
+/** Folds each run of `indent` items under the item before it. */
+function groupIndented(items: NavItem[]): Array<{ item: NavItem; children: NavItem[] }> {
+  const groups: Array<{ item: NavItem; children: NavItem[] }> = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (item.indent && last) last.children.push(item);
+    else groups.push({ item, children: [] });
+  }
+  return groups;
 }
 
 /** The open project: monogram, name and domain, linking back to the project list. */

@@ -3,6 +3,31 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Brand: Cailyx logo, Rothenhall credit + favicon, themed auth screens, sidebar alignment
+
+- **Cailyx logo:** `public/brand/cailyx-mark.svg` is a vector trace of the approved mark
+  (≈99% pixel agreement per shape with the source PNG). It replaces the old orbit glyph.
+- **Rothenhall credit:** "Delivered by" plus the Rothenhall Partners wordmark, at the bottom
+  of the client sidebar and under the auth card. It links to rothenhall.com and uses
+  `dark:invert` in dark mode.
+- Both live in the shared `components/brand/brand.tsx`.
+- **Favicon:** the RH monogram on a cream rounded square, from `Brand/out/brand/monogram.png`:
+  `app/favicon.ico` (16–64), `app/icon.png` and `app/apple-icon.png`.
+- **Consistent type and theme:**
+  - Login, forgot/reset password and accept-invite (all via `AuthCard`), `/dashboard`,
+    `/team` and the global loading screen now use `theme-graphite` (Montserrat + portal
+    colours), with the Cailyx lockup above and the Rothenhall credit below.
+  - Before this, they used the default Geist theme.
+- **Sidebar alignment:** one `SubNav` nesting style, with its guide line under the parent
+  icon's centre.
+  - Backlinks nests under Competitors.
+  - The Performance children sit in one column; Google search and AI visibility had been
+    double-indented.
+  - The old padding-only `indent` is gone.
+
+**Verified:** frontend `tsc`, eslint and `next build` are clean. The login page and the
+sidebar/Team page were screenshotted on a local production build with a mocked session.
+
 ## 2026-09-29 — Speed: Railway moved to Singapore, portal read cache
 
 **Region.** The backend was in Railway's San Francisco region. Postgres is Supabase

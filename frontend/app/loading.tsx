@@ -2,7 +2,7 @@ import { PageLoadingState } from "@/components/ui/skeleton";
 
 export default function Loading() {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="theme-graphite flex flex-1 flex-col bg-canvas">
       <PageLoadingState message="Loading…" />
     </div>
   );

@@ -6,6 +6,7 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
+import { CailyxLockup, RothenhallCredit } from '@/components/brand/brand';
 
 const ROLE_LABEL: Record<string, string> = {
   ADMIN: 'Admin',
@@ -25,7 +26,7 @@ export default function DashboardPage() {
 
   if (isLoading || !user) {
     return (
-      <div className="flex flex-1 items-center justify-center">
+      <div className="theme-graphite flex flex-1 items-center justify-center bg-canvas">
         <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
@@ -37,7 +38,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted/40 px-4">
+    <div className="theme-graphite flex flex-1 flex-col items-center justify-center gap-8 bg-canvas px-4 py-10">
+      <CailyxLockup size="lg" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">Welcome back</CardTitle>
@@ -86,6 +88,7 @@ export default function DashboardPage() {
           </Button>
         </CardContent>
       </Card>
+      <RothenhallCredit align="center" />
     </div>
   );
 }

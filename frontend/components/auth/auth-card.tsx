@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
+import { CailyxLockup, RothenhallCredit } from '@/components/brand/brand';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+/**
+ * The frame for every sign-in screen (login, forgot/reset password, accept
+ * invite). It wears the client portal's Graphite theme and brand, so a client
+ * sees the same type, colours and marks before and after signing in.
+ */
 export function AuthCard({
   title,
   subtitle,
@@ -11,7 +17,8 @@ export function AuthCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-1 items-center justify-center bg-muted px-4 py-10">
+    <div className="theme-graphite flex flex-1 flex-col items-center justify-center gap-8 bg-canvas px-4 py-10">
+      <CailyxLockup size="lg" />
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -19,6 +26,7 @@ export function AuthCard({
         </CardHeader>
         <CardContent>{children}</CardContent>
       </Card>
+      <RothenhallCredit align="center" />
     </div>
   );
 }

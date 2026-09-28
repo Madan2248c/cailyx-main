@@ -26,14 +26,14 @@ export default function StandaloneTeamPage() {
 
   if (isLoading || !user || !accessToken || user.role !== 'CLIENT_POC') {
     return (
-      <div className="flex flex-1 flex-col px-4 py-10">
+      <div className="theme-graphite flex flex-1 flex-col bg-canvas px-4 py-10">
         <PageLoadingState message="Loading your team…" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="theme-graphite flex flex-1 flex-col bg-canvas">
       <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:px-8">
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/client">← Back to projects</Link>} />
       </div>
