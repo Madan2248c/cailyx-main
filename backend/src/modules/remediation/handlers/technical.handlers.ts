@@ -58,7 +58,7 @@ export const robotsHandler: RemediationHandler = {
         result.content
           ? 'Replace /robots.txt with the generated file. It only adds one group at the top; every existing rule below is unchanged, and any non-root blocks these bots already had are kept.'
           : `In /robots.txt, remove the "Disallow: /" rule that applies to ${unblock.join(', ')} (or add a group for them with "Allow: /").`,
-        'Deploy, then run Verify on this fix.',
+        'Deploy, then use "Check my site now" on this fix to confirm.',
       ];
       if (result.untargetable.length > 0) {
         steps.splice(2, 0, `${result.untargetable.join(', ')} cannot be named in robots.txt by token; they follow the "User-agent: *" group — check that group does not block "/".`);
@@ -221,7 +221,7 @@ export const schemaHandler: RemediationHandler = {
           artifactError,
           steps: [
             'Paste the generated <script type="application/ld+json"> block inside <head> on the homepage.',
-            'Check it with a structured-data testing tool, then deploy and run Verify.',
+            'Check it with a structured-data testing tool, deploy, then use "Check my site now" to confirm.',
           ],
           acceptance: { kind: 'json-ld-has', url: site, type: 'Organization', fields: canFill.length > 0 ? [...canFill] : ['name', 'url'] },
         },
@@ -247,7 +247,7 @@ export const schemaHandler: RemediationHandler = {
         steps: [
           `The existing Organization block is missing: ${missing.join(', ')}.`,
           'Copy those properties from the generated block into the existing one (keep one Organization block, not two).',
-          'Deploy, then run Verify.',
+          'Deploy, then use "Check my site now" to confirm.',
         ],
         acceptance: { kind: 'json-ld-has', url: site, type: 'Organization', fields: missing.filter((m) => canFill.includes(m as never)) },
       },

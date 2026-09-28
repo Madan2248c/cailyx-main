@@ -10,6 +10,7 @@ import { DashboardTab } from '@/components/dashboard/DashboardTab';
 import { TechnicalTab } from '@/components/performance/TechnicalTab';
 import { ReportsTab } from '@/components/reports/ReportsTab';
 import { SocialTab } from '@/components/social/SocialTab';
+import { FixPlanTab } from '@/components/remediation/FixPlanTab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
@@ -20,6 +21,7 @@ import type { Project } from '@/types/project';
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'fixplan', label: 'Fix Plan' },
   { key: 'technical', label: 'Technical' },
   { key: 'reports', label: 'Reports' },
   { key: 'competitors', label: 'Competitors' },
@@ -195,6 +197,17 @@ export default function AdminPreviewProjectPage() {
                 clientId={clientId}
                 projectId={project.id}
                 projectName={project.name}
+              />
+            ) : null}
+            {activeTab === 'fixplan' ? (
+              <FixPlanTab
+                accessToken={accessToken}
+                clientId={clientId}
+                projectId={project.id}
+                projectName={project.name}
+                projectDomain={project.domain}
+                canDecide={false}
+                readOnly
               />
             ) : null}
             {activeTab === 'social' ? (

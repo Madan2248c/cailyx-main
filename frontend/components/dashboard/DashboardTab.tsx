@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CircleCheck, FileText, Share2, Swords, TriangleAlert, Trophy } from 'lucide-react';
+import { ArrowRight, CircleCheck, FileText, ListChecks, Scale, Share2, Swords, TriangleAlert, Trophy } from 'lucide-react';
 import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Lightbulb } from '@/components/animate-ui/icons/lightbulb';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
@@ -13,6 +13,7 @@ import { PageHeader, MetaDot, PortalPage, StatusChip, Tile, TileHeader, DeltaChi
 import { Marker } from '@/components/portal/marker';
 import { CountUp } from '@/components/portal/motion';
 import { ErrorState, PortalLoading } from '@/components/portal/states';
+import { useFixSummary } from '@/components/remediation/use-fix-summary';
 import { pct, plural, rateTone, relativeDate, scoreTone, TONE_TEXT, type Tone } from '@/components/portal/tone';
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import {
@@ -112,6 +113,7 @@ export function DashboardTab({
 }) {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fixSummary = useFixSummary(accessToken, clientId, projectId);
 
   const base = `/client/projects/${projectId}`;
 
@@ -217,7 +219,17 @@ export function DashboardTab({
 
   // ─── Needs attention: the worst thing from each source ─────────────
   const attention: AttentionItem[] = [];
-  const worstTech = [...failing].sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))[0];
+  // A decision only the client can make blocks work, so it goes first.
+  if (fixSummary && fixSummary.awaitingDecision > 0) {
+    attention.push({
+      source: 'Fix Plan',
+      icon: Scale,
+      href: `${base}/plan`,
+      text: `${plural(fixSummary.awaitingDecision, 'fix', 'fixes')} ${fixSummary.awaitingDecision === 1 ? 'needs' : 'need'} your decision before work can go ahead`,
+      tone: 'watch',
+    });
+  }
+  const worstTech =[...failing].sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))[0];
   if (worstTech) {
     attention.push({
       source: 'Technical',
@@ -399,7 +411,43 @@ export function DashboardTab({
           )}
         </Tile>
 
-        {/* Open priorities */}
+        {/* Fix Plan once one exists; the ranked priorities until then */}
+        {fixSummary && fixSummary.total > 0 ? (
+          <Tile href={`${base}/plan`} index={2} ariaLabel="Fix Plan">
+            <TileHeader
+              icon={ListChecks}
+              eyebrow="Fix Plan"
+              linkHint
+              hint="Every problem from your audits as a clear fix. A fix counts as verified only when we confirm it on your live site."
+            />
+            <div className="flex flex-1 flex-col justify-between gap-3">
+              <div className="flex items-center gap-4">
+                <ScoreRing
+                  value={Math.round((fixSummary.verified / Math.max(1, fixSummary.total - (fixSummary.byStatus.DISMISSED ?? 0))) * 100)}
+                  tone="good"
+                  size={64}
+                  stroke={6}
+                  index={2}
+                  label={`${fixSummary.verified} fixes verified`}
+                >
+                  <span className="text-lg font-semibold">
+                    <CountUp value={fixSummary.verified} />
+                  </span>
+                </ScoreRing>
+                <p className="text-sm text-muted-foreground">
+                  verified of {fixSummary.total - (fixSummary.byStatus.DISMISSED ?? 0)}
+                </p>
+              </div>
+              {fixSummary.awaitingDecision > 0 ? (
+                <StatusChip tone="watch">{plural(fixSummary.awaitingDecision, 'decision')} waiting on you</StatusChip>
+              ) : fixSummary.verifiedSinceBaseline > 0 ? (
+                <DeltaChip change={fixSummary.verifiedSinceBaseline} suffix="since baseline" />
+              ) : (
+                <p className="text-xs text-muted-foreground">Nothing is waiting on you.</p>
+              )}
+            </div>
+          </Tile>
+        ) : (
         <Tile href={`${base}/reports`} index={2} ariaLabel="Priorities">
           <TileHeader icon={Lightbulb} eyebrow="Open priorities" linkHint hint="The ranked list of what to do next, drawn from all your audits. Numbered by impact." />
           {snapshot.gapRun ? (
@@ -416,6 +464,7 @@ export function DashboardTab({
             <NotYet text="Priorities appear once your first audits finish." />
           )}
         </Tile>
+        )}
 
         {/* Social cadence */}
         <Tile href={`${base}/performance/social`} index={3} ariaLabel="Social activity details">

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Share2, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, ListChecks, Share2, Wrench } from 'lucide-react';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Key } from '@/components/animate-ui/icons/key';
@@ -19,6 +19,7 @@ import { Button } from '@/components/portal/button';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
 import { useClientProject } from '@/components/client/use-client-project';
+import { useFixSummary } from '@/components/remediation/use-fix-summary';
 
 interface NavItem {
   label: string;
@@ -27,6 +28,8 @@ interface NavItem {
   indent?: boolean;
   /** Prefix match instead of exact (covers future sub-routes). */
   prefix?: boolean;
+  /** Count of things waiting on the client (shown as a pill). */
+  badge?: number;
 }
 
 interface NavSection {
@@ -36,13 +39,14 @@ interface NavSection {
   collapsible?: boolean;
 }
 
-function projectNav(projectId: string): NavSection[] {
+function projectNav(projectId: string, fixBadge = 0): NavSection[] {
   const base = `/client/projects/${projectId}`;
   return [
     {
       label: 'Workspace',
       items: [
         { label: 'Dashboard', href: base, icon: LayoutDashboard },
+        { label: 'Fix Plan', href: `${base}/plan`, icon: ListChecks, prefix: true, badge: fixBadge },
         { label: 'Reports', href: `${base}/reports`, icon: FileText },
       ],
     },
@@ -93,11 +97,13 @@ function readStoredPerformanceOpen(projectId: string | undefined): boolean | nul
 
 export function ClientSidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, accessToken, logout } = useAuth();
   const router = useRouter();
 
   const match = pathname.match(/^\/client\/projects\/([^/]+)/);
   const projectId = match?.[1];
+  const fixSummary = useFixSummary(accessToken, user?.clientId ?? '', projectId);
+  const fixBadge = fixSummary ? fixSummary.awaitingDecision + fixSummary.regressed : 0;
 
   // Collapsible Performance group: open on performance routes, otherwise
   // remembers the user's last choice per project. The project switch is
@@ -207,7 +213,7 @@ export function ClientSidebar() {
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
           >
             <div className="flex flex-col gap-4">
-              {projectNav(projectId).map((section, i) =>
+              {projectNav(projectId, fixBadge).map((section, i) =>
                 renderSection(section, i, `/client/projects/${projectId}/performance`),
               )}
             </div>
@@ -248,6 +254,15 @@ function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
     >
       <item.icon aria-hidden="true" size={16} className="size-4 shrink-0" />
       {item.label}
+      {item.badge ? (
+        <span
+          className="g-num ml-auto rounded-full px-1.5 py-px text-xs font-semibold text-warning"
+          style={{ background: 'var(--warning-soft)' }}
+          aria-label={`${item.badge} waiting on you`}
+        >
+          {item.badge}
+        </span>
+      ) : null}
     </Link>
     </AnimateIcon>
     </HighlightItem>

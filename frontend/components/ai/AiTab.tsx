@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleCheck, Radar, Swords, Target, TriangleAlert } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, CircleCheck, Radar, Swords, Target, TriangleAlert } from 'lucide-react';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Layers } from '@/components/animate-ui/icons/layers';
 import { MessageSquareQuote } from '@/components/animate-ui/icons/message-square-quote';
@@ -327,6 +328,14 @@ export function AiTab({
                     ))}
                   </ul>
                 )}
+                {judged && judged.losingPrompts.length > 0 ? (
+                  <Link
+                    href={`/client/projects/${projectId}/plan?focus=aeo-content`}
+                    className="mt-2 inline-flex w-fit items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
+                  >
+                    How to win these back <ArrowRight className="size-3.5" aria-hidden />
+                  </Link>
+                ) : null}
               </TabsContent>
               <TabsContent value="won">
                 {!judged || judged.winningPrompts.length === 0 ? (

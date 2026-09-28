@@ -20,11 +20,13 @@ const DAY1_STAGE_ORDER = [
   'aeo-audit',
   'competitors',
   'gap-analysis',
+  'remediation',
   'reporting',
   'notify',
 ];
 
 function stageLabel(stage: string): string {
+  if (stage === 'remediation') return 'Fix Plan';
   return stage.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 

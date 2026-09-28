@@ -10,7 +10,14 @@ const eslintConfig = defineConfig([
   // the React Compiler lint rules below, which it trips on purpose (measured
   // layout and spring state).
   {
-    files: ["components/animate-ui/**"],
+    files: [
+      "components/animate-ui/**",
+      // Hooks the Animate UI registry installs next to ours (listed by name so
+      // our own hooks stay under the full rule set).
+      "hooks/use-controlled-state.tsx",
+      "hooks/use-is-in-view.tsx",
+      "hooks/use-motion-value-state.tsx",
+    ],
     rules: {
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/refs": "off",

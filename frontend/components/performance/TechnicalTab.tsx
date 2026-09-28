@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CircleCheck, Code, FileSearch, ListChecks, Minus, TriangleAlert, Zap } from 'lucide-react';
 import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Bot } from '@/components/animate-ui/icons/bot';
@@ -13,7 +14,7 @@ import { CountUp } from '@/components/portal/motion';
 import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
 import { formatDate, plural, scoreTone, TONE_TEXT, TONE_WORD, type Tone } from '@/components/portal/tone';
 import { getTechnicalAuditTrend, listTechnicalAuditRuns } from '@/lib/technical-api';
-import type { AuditStatus, TechnicalAuditRun, TrendPoint } from '@/types/technical';
+import type { AuditCheckType, AuditStatus, TechnicalAuditRun, TrendPoint } from '@/types/technical';
 import { CHECK_LABEL, CHECK_ORDER, ISSUE_LABEL, type PageIssueCode } from '@/types/technical';
 
 function num(raw: unknown): number | null {
@@ -48,6 +49,17 @@ function checkTone(status: AuditStatus | undefined): Tone {
 }
 
 const CHECK_WORD: Record<AuditStatus, string> = { pass: 'Pass', fail: 'Fix', error: 'Error', 'not-run': 'Not run' };
+
+/** Which Fix Plan group a failing check's fixes live in (page issues span several, so no focus). */
+const FIX_GROUP: Partial<Record<AuditCheckType, string>> = {
+  robots: 'robots',
+  'cdn-inferred': 'cdn',
+  sitemap: 'sitemap',
+  'js-render': 'rendering',
+  cwv: 'performance',
+  schema: 'schema',
+  'agent-readiness': 'agent-readiness',
+};
 
 export function TechnicalTab({
   accessToken,
@@ -223,10 +235,26 @@ export function TechnicalTab({
           <ul className="grid grid-cols-1 gap-2 border-t border-border pt-4 sm:grid-cols-2">
             {checks.map(({ type, finding }) => {
               const t = checkTone(finding?.status);
-              return (
-                <li key={type} className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+              const row = (
+                <>
                   <span className="truncate">{CHECK_LABEL[type]}</span>
                   <StatusChip tone={t}>{finding ? CHECK_WORD[finding.status] : 'Not run'}</StatusChip>
+                </>
+              );
+              // A failing check links straight to its fixes in the Fix Plan.
+              return (
+                <li key={type}>
+                  {finding?.status === 'fail' ? (
+                    <Link
+                      href={`/client/projects/${projectId}/plan${FIX_GROUP[type] ? `?focus=${FIX_GROUP[type]}` : ''}`}
+                      className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted"
+                      title="See how to fix this"
+                    >
+                      {row}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">{row}</div>
+                  )}
                 </li>
               );
             })}

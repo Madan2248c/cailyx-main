@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CreateProjectDialog } from '@/components/admin/create-project-dialog';
+import { SyncFixPlanButton } from '@/components/admin/sync-fix-plan-button';
 import { ClientSchedulesSection } from '@/components/admin/client-schedules/client-schedules-section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,14 +111,17 @@ export default function ClientProjectsPage() {
               </CardHeader>
               <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>{project.domain}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pendingId === project.id}
-                  onClick={() => handleArchive(project)}
-                >
-                  Archive
-                </Button>
+                <span className="flex items-start gap-2">
+                  {accessToken ? <SyncFixPlanButton accessToken={accessToken} clientId={clientId} projectId={project.id} /> : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={pendingId === project.id}
+                    onClick={() => handleArchive(project)}
+                  >
+                    Archive
+                  </Button>
+                </span>
               </CardContent>
             </Card>
           ))}
