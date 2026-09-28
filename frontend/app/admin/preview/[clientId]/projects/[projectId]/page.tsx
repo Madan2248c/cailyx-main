@@ -104,7 +104,7 @@ export default function AdminPreviewProjectPage() {
           ← Projects
         </Button>
       </div>
-      <div className="rounded-lg border border-amber-500/40 bg-amber-600 dark:bg-amber-400/10 px-3 py-2">
+      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
         <p className="text-sm font-medium">Previewing {clientName ?? '…'} — read-only</p>
         <p className="text-sm text-muted-foreground">
           You are viewing this client&apos;s data as an admin. Nothing here can be edited.
@@ -141,6 +141,8 @@ export default function AdminPreviewProjectPage() {
               </Button>
             ))}
           </div>
+          {/* Same theme scope as the client portal, so the preview matches what the client sees. */}
+          <div className="theme-graphite flex flex-col overflow-hidden rounded-xl border border-border bg-canvas">
           <SectionErrorBoundary key={activeTab} label={TABS.find((t) => t.key === activeTab)?.label ?? activeTab}>
             {activeTab === 'dashboard' ? (
               <DashboardTab
@@ -202,6 +204,7 @@ export default function AdminPreviewProjectPage() {
               />
             ) : null}
           </SectionErrorBoundary>
+          </div>
         </>
       )}
     </div>

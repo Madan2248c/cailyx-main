@@ -6,6 +6,7 @@ import { DomainStrip, type DomainOverview } from '@/components/overview/DomainSt
 import { RankTable } from '@/components/overview/RankTable';
 import { SerpSnapshotViewer, type SerpOption, type SerpResult } from '@/components/overview/SerpSnapshotViewer';
 import { ExploreLinks } from '@/components/overview/ExploreLinks';
+import { PortalLoading } from '@/components/portal/states';
 
 function num(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
@@ -224,11 +225,7 @@ export function OverviewTab({
   }, [accessToken, clientId, selectedId, serpCache]);
 
   if (loading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading performance…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading performance" />;
   }
 
   // ─── Headline (insights first) ─────────────────────────────────────

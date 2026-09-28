@@ -15,6 +15,7 @@ import type {
   SocialActivitySection,
   TechnicalAuditSection,
 } from '@/types/report';
+import { PortalLoading } from '@/components/portal/states';
 
 function statusVariant(status: ReportStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (status) {
@@ -112,9 +113,9 @@ function DeltasCard({ deltas }: { deltas: ReportDelta[] }) {
                   <span
                     className={
                       direction === 'improved'
-                        ? 'font-medium text-green-700 dark:text-green-400'
+                        ? 'font-medium text-success'
                         : direction === 'regressed'
-                          ? 'font-medium text-red-700 dark:text-red-400'
+                          ? 'font-medium text-danger'
                           : 'text-muted-foreground'
                     }
                   >
@@ -176,9 +177,9 @@ function GrowthBand({ deltas }: { deltas: ReportDelta[] }) {
                     <span
                       className={
                         direction === 'improved'
-                          ? 'font-medium text-green-700 dark:text-green-400'
+                          ? 'font-medium text-success'
                           : direction === 'regressed'
-                            ? 'font-medium text-red-700 dark:text-red-400'
+                            ? 'font-medium text-danger'
                             : 'text-muted-foreground'
                       }
                     >
@@ -336,8 +337,8 @@ function AeoSection({ section }: { section: AeoAuditSection }) {
               >
                 <p className="min-w-0 flex-1 truncate font-medium">{row.name}</p>
                 <p className="shrink-0 text-muted-foreground">
-                  <span className="font-medium text-green-700 dark:text-green-400">{row.timesAhead}</span> ahead ·{' '}
-                  <span className="font-medium text-red-700 dark:text-red-400">{row.timesBehind}</span> behind
+                  <span className="font-medium text-success">{row.timesAhead}</span> ahead ·{' '}
+                  <span className="font-medium text-danger">{row.timesBehind}</span> behind
                 </p>
               </div>
             ))}
@@ -464,11 +465,7 @@ export function ReportDetail({
   }
 
   if (!report) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading report…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading report" />;
   }
 
   const { content } = report;

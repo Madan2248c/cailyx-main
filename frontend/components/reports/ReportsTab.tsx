@@ -6,6 +6,7 @@ import { ReportDetail } from '@/components/reports/ReportDetail';
 import { ReportsList } from '@/components/reports/ReportsList';
 import { listReports } from '@/lib/report-api';
 import type { ReportListItem } from '@/types/report';
+import { PortalLoading } from '@/components/portal/states';
 
 export function ReportsTab({
   accessToken,
@@ -47,11 +48,7 @@ export function ReportsTab({
   }
 
   if (!reports) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading reports…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading reports" />;
   }
 
   if (selectedId) {

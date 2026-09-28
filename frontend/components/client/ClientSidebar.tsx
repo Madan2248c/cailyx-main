@@ -22,6 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
+import { useClientProject } from '@/components/client/use-client-project';
 
 interface NavItem {
   label: string;
@@ -125,7 +126,7 @@ export function ClientSidebar() {
       return (
         <div key={index} className="flex flex-col gap-0.5">
           {section.label ? (
-            <p className="px-2 text-xs font-medium text-muted-foreground">{section.label}</p>
+            <p className="g-eyebrow px-2 pb-1">{section.label}</p>
           ) : null}
           {section.items.map((item) => (
             <NavLink key={item.href + item.label} pathname={pathname} item={item} />
@@ -147,7 +148,7 @@ export function ClientSidebar() {
             setManualOpen(next);
             if (projectId) localStorage.setItem(`cailyx:nav:performance:${projectId}`, next ? '1' : '0');
           }}
-          className="flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground transition-colors duration-150 outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <Gauge className="size-4 shrink-0" />
           <span className="flex-1 text-left">{section.label}</span>
@@ -165,13 +166,18 @@ export function ClientSidebar() {
   }
 
   return (
-    <aside className="flex w-full flex-col gap-4 border-b border-border bg-background p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
+    <aside className="flex w-full flex-col gap-4 border-b border-border bg-sidebar p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
       <div className="flex items-center justify-between gap-2">
         <Link
           href="/client"
-          className="rounded px-1 text-base font-semibold tracking-tight outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          aria-label="Cailyx home"
+          className="flex items-center gap-2 rounded px-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          Cailyx
+          <BrandMark />
+          <span className="flex flex-col leading-none">
+            <span className="text-base font-bold tracking-tight">Cailyx</span>
+            <span className="mt-0.5 text-[0.65rem] text-muted-foreground">by Rothenhall</span>
+          </span>
         </Link>
         <Button
           type="button"
@@ -185,6 +191,8 @@ export function ClientSidebar() {
           {mobileOpen ? 'Close menu' : 'Menu'}
         </Button>
       </div>
+
+      {projectId ? <ProjectBadge projectId={projectId} /> : null}
 
       <nav
         id="client-nav"
@@ -218,13 +226,54 @@ function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
       href={item.href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none',
+        'relative flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors duration-150 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none',
         item.indent && 'pl-4',
-        active ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground',
+        active
+          ? 'bg-accent font-medium text-foreground before:absolute before:top-2 before:bottom-2 before:-left-2 before:w-[3px] before:rounded-full before:bg-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       <item.icon aria-hidden="true" className="size-4 shrink-0" />
       {item.label}
+    </Link>
+  );
+}
+
+/** Small orbit mark: a body in an answer's orbit, the Cailyx idea in one glyph. */
+function BrandMark() {
+  return (
+    <svg viewBox="0 0 32 32" className="size-7 shrink-0" aria-hidden="true">
+      <rect width="32" height="32" rx="9" fill="currentColor" />
+      <ellipse cx="16" cy="16" rx="10" ry="5.5" fill="none" stroke="white" strokeOpacity="0.45" strokeWidth="1.2" transform="rotate(-24 16 16)" />
+      <circle cx="16" cy="16" r="3.4" fill="white" />
+      <circle cx="24.4" cy="12.2" r="1.6" fill="white" fillOpacity="0.8" />
+    </svg>
+  );
+}
+
+/** The open project: monogram, name and domain, linking back to the project list. */
+function ProjectBadge({ projectId }: { projectId: string }) {
+  const { user, accessToken } = useAuth();
+  const project = useClientProject(accessToken, user?.clientId ?? '', projectId);
+  if (!project) return <div className="g-skeleton h-12 rounded-xl" aria-hidden="true" />;
+  const initials = project.name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+  return (
+    <Link
+      href="/client"
+      className="flex items-center gap-2.5 rounded-xl border border-border bg-muted/50 p-2 transition-colors duration-150 outline-none hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      title="Switch project"
+    >
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background text-xs font-semibold shadow-sm ring-1 ring-border">
+        {initials}
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-semibold">{project.name}</span>
+        <span className="truncate text-xs text-muted-foreground">{project.domain}</span>
+      </span>
     </Link>
   );
 }

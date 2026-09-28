@@ -90,7 +90,7 @@ export function IndexCoverage({ overview }: { overview: GscOverview }) {
           <>
             <div className="flex items-baseline gap-6">
               <p>
-                <span className={`text-3xl font-semibold ${coverage.notIndexed > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-green-700 dark:text-green-400'}`}>
+                <span className={`text-3xl font-semibold ${coverage.notIndexed > 0 ? 'text-warning' : 'text-success'}`}>
                   {coverage.notIndexed.toLocaleString()}
                 </span>{' '}
                 <span className="text-sm text-muted-foreground">not indexed</span>
@@ -101,7 +101,7 @@ export function IndexCoverage({ overview }: { overview: GscOverview }) {
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-green-600 dark:bg-green-400"
+                className="h-full rounded-full bg-success"
                 style={{ width: `${coverage.submitted > 0 ? Math.round((coverage.indexed / coverage.submitted) * 100) : 0}%` }}
               />
             </div>

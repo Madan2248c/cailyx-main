@@ -14,6 +14,7 @@ import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
 import { getGoogleStatus, getSearchConsole, listGscSites, startGoogleConnect } from '@/lib/google-api';
 import type { GoogleStatus, GscOverview } from '@/types/google';
+import { PortalLoading } from '@/components/portal/states';
 
 type GscState =
   | { status: 'loading' }
@@ -144,11 +145,7 @@ export default function OrganicPage() {
   }
 
   if (project === undefined || !user || !accessToken || !clientId || !googleStatus) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading" />;
   }
 
   if (project === null) {

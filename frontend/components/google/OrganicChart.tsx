@@ -80,9 +80,9 @@ export function DeltaArrow({
       aria-label={`${label} ${direction} from ${previous} to ${current}`}
       className={
         improved
-          ? 'inline-flex items-center gap-1 font-medium text-green-700 dark:text-green-400'
+          ? 'inline-flex items-center gap-1 font-medium text-success'
           : regressed
-            ? 'inline-flex items-center gap-1 font-medium text-red-700 dark:text-red-400'
+            ? 'inline-flex items-center gap-1 font-medium text-danger'
             : 'inline-flex items-center gap-1 text-muted-foreground'
       }
     >

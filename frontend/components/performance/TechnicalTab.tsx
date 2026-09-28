@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listTechnicalAuditRuns } from '@/lib/technical-api';
-import type { TechnicalAuditRun } from '@/types/technical';
-import { ISSUE_LABEL, type PageIssueCode } from '@/types/technical';
+import { Bot, CircleCheck, Clock, Code, FileSearch, Gauge, ListChecks, Minus, TriangleAlert, Zap } from 'lucide-react';
+import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
+import { DeltaChip, MetaDot, PageHeader, PortalPage, StatusChip, Tile, TileHeader } from '@/components/portal/layout';
+import { CountUp } from '@/components/portal/motion';
+import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
+import { formatDate, plural, scoreTone, TONE_TEXT, TONE_WORD, type Tone } from '@/components/portal/tone';
+import { getTechnicalAuditTrend, listTechnicalAuditRuns } from '@/lib/technical-api';
+import type { AuditStatus, TechnicalAuditRun, TrendPoint } from '@/types/technical';
+import { CHECK_LABEL, CHECK_ORDER, ISSUE_LABEL, type PageIssueCode } from '@/types/technical';
 
 function num(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
@@ -14,19 +19,14 @@ function str(raw: unknown): string | null {
   return typeof raw === 'string' ? raw : null;
 }
 
-function scoreTone(score: number | null): { text: string; bar: string } {
-  if (score === null) return { text: 'text-muted-foreground', bar: 'bg-border' };
-  if (score >= 80) return { text: 'text-green-700 dark:text-green-400', bar: 'bg-green-600 dark:bg-green-400' };
-  if (score >= 50) return { text: 'text-amber-700 dark:text-amber-400', bar: 'bg-amber-600 dark:bg-amber-400' };
-  return { text: 'text-red-700 dark:text-red-400', bar: 'bg-red-700 dark:bg-red-400' };
+function cwvTone(status: string | null): Tone {
+  if (status === 'good') return 'good';
+  if (status === 'needs-improvement') return 'watch';
+  if (status === 'poor') return 'bad';
+  return 'neutral';
 }
 
-function cwvTone(status: string | null): string {
-  if (status === 'good') return 'bg-green-600 dark:bg-green-400';
-  if (status === 'needs-improvement') return 'bg-amber-600 dark:bg-amber-400';
-  if (status === 'poor') return 'bg-red-700 dark:bg-red-400';
-  return 'bg-muted-foreground/40';
-}
+const CWV_WORD: Record<string, string> = { good: 'Good', 'needs-improvement': 'Needs work', poor: 'Poor' };
 
 function formatMetric(value: number | null, unit: 'ms' | '' | 's'): string {
   if (value === null) return '—';
@@ -34,6 +34,15 @@ function formatMetric(value: number | null, unit: 'ms' | '' | 's'): string {
   if (unit === 'ms') return value >= 1000 ? `${(value / 1000).toFixed(2)} s` : `${Math.round(value)} ms`;
   return String(Math.round(value * 100) / 100);
 }
+
+function checkTone(status: AuditStatus | undefined): Tone {
+  if (status === 'pass') return 'good';
+  if (status === 'fail') return 'bad';
+  if (status === 'error') return 'watch';
+  return 'neutral';
+}
+
+const CHECK_WORD: Record<AuditStatus, string> = { pass: 'Pass', fail: 'Fix', error: 'Error', 'not-run': 'Not run' };
 
 export function TechnicalTab({
   accessToken,
@@ -47,6 +56,7 @@ export function TechnicalTab({
   projectName: string;
 }) {
   const [runs, setRuns] = useState<TechnicalAuditRun[] | null>(null);
+  const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,46 +69,40 @@ export function TechnicalTab({
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load the audit');
       });
+    getTechnicalAuditTrend(accessToken, clientId, projectId)
+      .then((points) => {
+        if (!cancelled) setTrend(points);
+      })
+      .catch(() => {
+        // The trend line is a bonus; the page works without it.
+      });
 
     return () => {
       cancelled = true;
     };
   }, [accessToken, clientId, projectId]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  if (!runs) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading technical audit…</p>
-      </div>
-    );
-  }
+  if (error) return <ErrorState message={error} />;
+  if (!runs) return <PortalLoading label="Loading technical audit" />;
 
   const latest = runs.find((r) => r.status === 'COMPLETE') ?? null;
   const pending = runs.find((r) => r.status === 'QUEUED' || r.status === 'RUNNING') ?? null;
 
   if (!latest) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
-        <h1 className="text-2xl font-semibold">Technical</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{projectName}</p>
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              {pending
-                ? 'An audit is running right now — check back when it completes.'
-                : 'No completed audit yet. One runs automatically as part of your Day-1 pipeline.'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <PortalPage>
+        <PageHeader eyebrow="Performance" title="Technical health" meta={<span>{projectName}</span>} />
+        <Tile index={1}>
+          <EmptyState
+            title={pending ? 'Audit in progress' : 'Not measured yet'}
+            body={
+              pending
+                ? 'An audit is running right now. Results appear here when it finishes.'
+                : 'Your first technical audit runs automatically in the Day-1 pipeline.'
+            }
+          />
+        </Tile>
+      </PortalPage>
     );
   }
 
@@ -111,309 +115,294 @@ export function TechnicalTab({
   const crawled = num(inventory.crawled);
   const withoutJsonLd = num(inventory.pagesWithoutJsonLd);
   const withJsonLd = crawled !== null && withoutJsonLd !== null ? crawled - withoutJsonLd : null;
+  const jsonLdPct = crawled && withJsonLd !== null ? Math.round((withJsonLd / crawled) * 100) : null;
   const agentScore = num(agent.score);
   const tone = scoreTone(latest.score);
   const jsRender = findingsByType.get('js-render')?.detail ?? {};
   const jsDependent = jsRender.isJsDependent === true;
   const contentLoss = num(jsRender.contentLossPercent);
 
+  const checks = CHECK_ORDER.map((type) => ({ type, finding: findingsByType.get(type) }));
+  const passing = checks.filter((c) => c.finding?.status === 'pass').length;
+  const failing = checks.filter((c) => c.finding?.status === 'fail' || c.finding?.status === 'error');
+  const scored = trend.filter((p) => p.score !== null).map((p) => p.score as number);
+  const scoreChange = scored.length >= 2 ? scored[scored.length - 1] - scored[scored.length - 2] : null;
+
   const structureRows: Array<[string, number | null, string | null]> = [
-    ['Pages with bad titles', num(inventory.pagesWithBadTitle), null],
-    ['Pages with bad meta descriptions', num(inventory.pagesWithBadMeta), null],
+    ['Pages with weak titles', num(inventory.pagesWithBadTitle), null],
+    ['Pages with weak meta descriptions', num(inventory.pagesWithBadMeta), null],
     ['Thin content pages', num(inventory.pagesThin), null],
     ['Pages with heading issues', num(inventory.pagesWithHeadingIssues), null],
-    [
-      'Images missing alt text',
-      num(inventory.imagesMissingAlt),
-      num(inventory.imagesTotal) !== null ? `of ${inventory.imagesTotal} images` : null,
-    ],
+    ['Images missing alt text', num(inventory.imagesMissingAlt), num(inventory.imagesTotal) !== null ? `of ${inventory.imagesTotal}` : null],
     ['Pages with duplicate content', num(inventory.pagesWithDuplicateContent), null],
-    ['Pages with bad canonical tags', num(inventory.pagesWithBadCanonical), null],
+    ['Pages with canonical issues', num(inventory.pagesWithBadCanonical), null],
   ];
 
   const issueCounts = (inventory.issueCounts ?? {}) as Record<string, number>;
   const issues = (Object.entries(issueCounts) as Array<[PageIssueCode, number]>)
     .filter(([, count]) => count > 0)
     .sort((a, b) => b[1] - a[1]);
+  const maxIssue = Math.max(1, ...issues.map(([, c]) => c));
 
   const categories = (cwv.categories ?? {}) as Record<string, number>;
   const categoryRows = ['performance', 'seo', 'accessibility', 'best-practices'].map((key) => ({
     key,
-    label: key.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+    label: key === 'seo' ? 'SEO' : key.replace('-', ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
     value: num(categories[key]),
   }));
-  const failedAudits = (Array.isArray(cwv.failedAudits) ? cwv.failedAudits : []) as Array<{
-    title: string;
-    displayValue: string;
-  }>;
-  const agentIssues = (Array.isArray(agent.issues) ? agent.issues : []) as Array<{
-    name: string;
-    recommendation: string;
-  }>;
-  const essential = agent.breakdown && typeof agent.breakdown === 'object'
-    ? (agent.breakdown as { essential?: { passing?: number; total?: number }; recommended?: { passing?: number; total?: number } }).essential
-    : undefined;
-  const recommended = agent.breakdown && typeof agent.breakdown === 'object'
-    ? (agent.breakdown as { essential?: { passing?: number; total?: number }; recommended?: { passing?: number; total?: number } }).recommended
-    : undefined;
+  const failedAudits = (Array.isArray(cwv.failedAudits) ? cwv.failedAudits : []) as Array<{ title: string; displayValue: string }>;
+  const agentIssues = (Array.isArray(agent.issues) ? agent.issues : []) as Array<{ name: string; recommendation: string }>;
+  const breakdown = (agent.breakdown && typeof agent.breakdown === 'object'
+    ? agent.breakdown
+    : {}) as { essential?: { passing?: number; total?: number }; recommended?: { passing?: number; total?: number } };
+
+  const summary =
+    latest.score !== null
+      ? `Your site scores ${latest.score} out of 100. ${passing} of ${checks.length} checks pass${failing.length > 0 ? `, and ${plural(failing.length, 'needs', 'need')} a fix.` : '.'}`
+      : `${passing} of ${checks.length} checks pass.`;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Technical</h1>
-        <p className="text-sm text-muted-foreground">
-          {projectName} · audited {new Date(latest.completedAt ?? latest.createdAt).toLocaleDateString()}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Site score</p>
-            <p className={`text-4xl font-semibold ${tone.text}`}>
-              {latest.score ?? '—'}
-              <span className="text-base font-normal text-muted-foreground">/100</span>
-            </p>
-            <div
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={latest.score ?? 0}
-              aria-label={`Site score ${latest.score ?? 'unavailable'} of 100`}
-              className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
-            >
-              <div className={`h-full rounded-full ${tone.bar}`} style={{ width: `${latest.score ?? 0}%` }} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Pages checked</p>
-            <p className="text-4xl font-semibold">{crawled ?? '—'}</p>
-            <p className="text-xs text-muted-foreground">
-              {num(inventory.discovered) !== null ? `of ${inventory.discovered} discovered` : 'across your sitemap'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Pages with JSON-LD</p>
-            <p className="text-4xl font-semibold">
-              {withJsonLd ?? '—'}
-              {crawled !== null && crawled > 0 && withJsonLd !== null ? (
-                <span className="text-base font-normal text-muted-foreground">
-                  /{crawled} · {Math.round((withJsonLd / crawled) * 100)}%
-                </span>
-              ) : null}
-            </p>
-            <p className="text-xs text-muted-foreground">valid structured data</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Agent readiness</p>
-            <p className={`text-4xl font-semibold ${scoreTone(agentScore).text}`}>
-              {agentScore ?? '—'}
-              {agentScore !== null ? <span className="text-base font-normal text-muted-foreground">/100</span> : null}
-            </p>
-            <p className="text-xs text-muted-foreground">{str(agent.scoreLabel) ?? 'AI crawler scan'}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">PageSpeed Insights</CardTitle>
-            <CardDescription>Core Web Vitals for your homepage</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              {[
-                { label: 'LCP', value: num(cwv.lcp), unit: 'ms' as const, status: str(cwv.lcpStatus) },
-                { label: 'CLS', value: num(cwv.cls), unit: '' as const, status: str(cwv.clsStatus) },
-                { label: 'INP', value: num(cwv.inp), unit: 'ms' as const, status: str(cwv.inpStatus) },
-              ].map((m) => (
-                <div key={m.label} className="flex flex-col gap-1 rounded-lg border border-border p-2.5">
-                  <div className="flex items-center gap-1.5">
-                    <span aria-hidden="true" className={`size-2 rounded-full ${cwvTone(m.status)}`} />
-                    <p className="text-xs font-medium text-muted-foreground">{m.label}</p>
-                  </div>
-                  <p className="text-lg font-semibold">{formatMetric(m.value, m.unit)}</p>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2">
-              {categoryRows.map((row) => (
-                <div key={row.key} className="flex items-center gap-2 text-sm">
-                  <p className="w-28 shrink-0 text-muted-foreground">{row.label}</p>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${scoreTone(row.value).bar}`}
-                      style={{ width: `${row.value ?? 0}%` }}
-                    />
-                  </div>
-                  <p className="w-8 shrink-0 text-right font-medium">{row.value ?? '—'}</p>
-                </div>
-              ))}
-            </div>
-            {failedAudits.length > 0 ? (
-              <div className="flex flex-col gap-1.5 border-t border-border pt-3">
-                <p className="text-xs font-medium text-muted-foreground">Failing Lighthouse audits</p>
-                {failedAudits.slice(0, 5).map((audit) => (
-                  <div key={audit.title} className="flex items-baseline justify-between gap-3 text-sm">
-                    <p className="truncate">{audit.title}</p>
-                    <p className="shrink-0 text-muted-foreground">{audit.displayValue}</p>
-                  </div>
-                ))}
-              </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Performance"
+        title="Technical health"
+        meta={
+          <>
+            <span>{projectName}</span>
+            <MetaDot />
+            <span>Audited {formatDate(latest.completedAt ?? latest.createdAt)}</span>
+            {crawled !== null ? (
+              <>
+                <MetaDot />
+                <span>{plural(crawled, 'page')} checked</span>
+              </>
             ) : null}
-          </CardContent>
-        </Card>
+          </>
+        }
+        summary={summary}
+      />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Agent readiness</CardTitle>
-            <CardDescription>How easily AI crawlers and assistants use your site</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm">
-            <div className="flex gap-4">
-              {essential ? (
-                <p>
-                  <span className="font-semibold">{essential.passing ?? '—'}/{essential.total ?? '—'}</span>{' '}
-                  <span className="text-muted-foreground">essential</span>
-                </p>
-              ) : null}
-              {recommended ? (
-                <p>
-                  <span className="font-semibold">{recommended.passing ?? '—'}/{recommended.total ?? '—'}</span>{' '}
-                  <span className="text-muted-foreground">recommended</span>
-                </p>
-              ) : null}
-              {agentIssues.length === 0 && !essential && !recommended ? (
-                <p className="text-muted-foreground">No agent-readiness data in this audit.</p>
-              ) : null}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Hero: score + the eight checks at a glance */}
+        <Tile index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6">
+          <TileHeader icon={Gauge} eyebrow="Site score" right={<StatusChip tone={tone}>{TONE_WORD[tone]}</StatusChip>} />
+          <div className="flex flex-wrap items-center gap-6">
+            <ScoreRing value={latest.score} tone={tone} size={148} stroke={12} label={`Site score ${latest.score ?? 'not available'} out of 100`}>
+              <span className={`text-5xl font-semibold ${TONE_TEXT[tone]}`}>{latest.score !== null ? <CountUp value={latest.score} /> : '—'}</span>
+              <span className="text-xs text-muted-foreground">out of 100</span>
+            </ScoreRing>
+            <div className="flex flex-col gap-2">
+              <DeltaChip change={scoreChange} suffix="vs last audit" />
+              {scored.length >= 2 ? (
+                <div className="flex flex-col gap-1">
+                  <Sparkline points={scored} tone={tone} width={170} height={44} label={`Score over the last ${scored.length} audits`} />
+                  <span className="text-xs text-muted-foreground">Last {plural(scored.length, 'audit')}</span>
+                </div>
+              ) : (
+                <span className="max-w-[12rem] text-xs text-muted-foreground">First measurement. A trend appears after the next audit.</span>
+              )}
             </div>
-            {agentIssues.slice(0, 6).map((issue) => (
-              <div key={issue.name} className="flex flex-col gap-0.5 rounded-lg border border-border p-2.5">
-                <p className="font-medium">{issue.name}</p>
-                <p className="text-muted-foreground">{issue.recommendation}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+          </div>
+          <ul className="grid grid-cols-1 gap-2 border-t border-border pt-4 sm:grid-cols-2">
+            {checks.map(({ type, finding }) => {
+              const t = checkTone(finding?.status);
+              return (
+                <li key={type} className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm">
+                  <span className="truncate">{CHECK_LABEL[type]}</span>
+                  <StatusChip tone={t}>{finding ? CHECK_WORD[finding.status] : 'Not run'}</StatusChip>
+                </li>
+              );
+            })}
+          </ul>
+        </Tile>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Page structure</CardTitle>
-            <CardDescription>Headings, titles, and content quality across checked pages</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col p-0">
-            {structureRows.map(([label, count, hint], i) => (
-              <div
-                key={label}
-                className={`flex items-baseline justify-between gap-3 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <p>{label}</p>
-                <p className="shrink-0 font-medium">
-                  {count ?? '—'}
-                  {hint ? <span className="font-normal text-muted-foreground"> {hint}</span> : null}
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <Tile index={1}>
+          <TileHeader icon={FileSearch} eyebrow="Pages checked" />
+          <p className="text-4xl font-semibold">{crawled !== null ? <CountUp value={crawled} /> : '—'}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {num(inventory.discovered) !== null ? `of ${inventory.discovered} found in your sitemap` : 'across your sitemap'}
+          </p>
+        </Tile>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">JavaScript rendering</CardTitle>
-            <CardDescription>Whether your content needs JavaScript to appear</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <span aria-hidden="true" className={`size-2 rounded-full ${jsDependent ? 'bg-amber-600 dark:bg-amber-400' : 'bg-green-600 dark:bg-green-400'}`} />
-              <p className="font-medium">
-                {jsDependent ? 'Content depends on JavaScript' : 'Fully server-rendered'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="w-36 shrink-0 text-muted-foreground">Content lost without JS</p>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full ${contentLoss !== null && contentLoss > 20 ? 'bg-amber-600 dark:bg-amber-400' : 'bg-green-600 dark:bg-green-400'}`}
-                  style={{ width: `${contentLoss ?? 0}%` }}
-                />
-              </div>
-              <p className="w-12 shrink-0 text-right font-medium">
-                {contentLoss !== null ? `${Math.round(contentLoss)}%` : '—'}
-              </p>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Search engines and AI crawlers see far less of pages that only render in the browser.
+        <Tile index={2}>
+          <TileHeader icon={Bot} eyebrow="Agent readiness" />
+          <div className="flex items-center gap-4">
+            <ScoreRing value={agentScore} tone={scoreTone(agentScore)} size={72} stroke={7} index={2} label={`Agent readiness ${agentScore ?? 'not available'} out of 100`}>
+              <span className={`text-xl font-semibold ${TONE_TEXT[scoreTone(agentScore)]}`}>{agentScore ?? '—'}</span>
+            </ScoreRing>
+            <p className="text-sm text-muted-foreground">{str(agent.scoreLabel) ?? 'How easily AI assistants can use your site'}</p>
+          </div>
+        </Tile>
+
+        <Tile index={3}>
+          <TileHeader icon={Code} eyebrow="Structured data" />
+          <div className="flex items-center gap-4">
+            <ScoreRing value={jsonLdPct} tone={scoreTone(jsonLdPct)} size={72} stroke={7} index={3} label={`${jsonLdPct ?? 'Unknown'} percent of pages have structured data`}>
+              <span className={`text-lg font-semibold ${TONE_TEXT[scoreTone(jsonLdPct)]}`}>{jsonLdPct !== null ? `${jsonLdPct}%` : '—'}</span>
+            </ScoreRing>
+            <p className="text-sm text-muted-foreground">
+              {withJsonLd !== null && crawled !== null ? `${withJsonLd} of ${crawled} pages describe themselves to machines` : 'Not measured in this audit'}
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </Tile>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Issues</CardTitle>
-          <CardDescription>
-            {issues.length === 0 ? 'No page issues found.' : `${issues.reduce((n, [, c]) => n + c, 0)} page-level hits across ${issues.length} issue types.`}
-          </CardDescription>
-        </CardHeader>
-        {issues.length > 0 ? (
-          <CardContent className="flex flex-col p-0">
-            {issues.map(([code, count], i) => (
-              <div
-                key={code}
-                className={`flex items-baseline justify-between gap-3 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <p>{ISSUE_LABEL[code] ?? code}</p>
-                <p className="shrink-0 font-medium text-primary">
-                  {count} {count === 1 ? 'page' : 'pages'}
-                </p>
+        <Tile index={4}>
+          <TileHeader icon={Code} eyebrow="JavaScript rendering" />
+          <StatusChip tone={jsDependent ? 'watch' : 'good'}>{jsDependent ? 'Needs JavaScript' : 'Server-rendered'}</StatusChip>
+          <div className="mt-3 flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between text-sm">
+              <span className="text-muted-foreground">Content hidden without JS</span>
+              <span className="g-num font-medium">{contentLoss !== null ? `${Math.round(contentLoss)}%` : '—'}</span>
+            </div>
+            <Meter value={contentLoss} tone={contentLoss !== null && contentLoss > 20 ? 'watch' : 'good'} index={4} label="Content lost without JavaScript" />
+          </div>
+        </Tile>
+
+        {/* PageSpeed */}
+        <Tile index={5} className="md:col-span-2">
+          <TileHeader icon={Zap} eyebrow="Page speed" title="Core Web Vitals" />
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Loading', code: 'LCP', value: num(cwv.lcp), unit: 'ms' as const, status: str(cwv.lcpStatus) },
+              { label: 'Stability', code: 'CLS', value: num(cwv.cls), unit: '' as const, status: str(cwv.clsStatus) },
+              { label: 'Response', code: 'INP', value: num(cwv.inp), unit: 'ms' as const, status: str(cwv.inpStatus) },
+            ].map((m) => {
+              const t = cwvTone(m.status);
+              return (
+                <div key={m.code} className="flex flex-col gap-1 rounded-xl bg-muted/60 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {m.label} <span className="opacity-70">· {m.code}</span>
+                  </p>
+                  <p className={`g-num text-xl font-semibold ${TONE_TEXT[t]}`}>{formatMetric(m.value, m.unit)}</p>
+                  {m.status ? <StatusChip tone={t}>{CWV_WORD[m.status] ?? m.status}</StatusChip> : null}
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex flex-col gap-2.5">
+            {categoryRows.map((row, i) => (
+              <div key={row.key} className="grid grid-cols-[7.5rem_1fr_2.25rem] items-center gap-3 text-sm">
+                <span className="text-muted-foreground">{row.label}</span>
+                <Meter value={row.value} tone={scoreTone(row.value)} index={i} label={`${row.label} ${row.value ?? 'not measured'}`} />
+                <span className="g-num text-right font-medium">{row.value ?? '—'}</span>
               </div>
             ))}
-          </CardContent>
-        ) : null}
-      </Card>
-
-      {movers.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Since the last audit</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="flex flex-col gap-2 text-sm">
-              {movers.slice(0, 8).map((d) => (
-                <div key={d.metric} className="flex items-baseline justify-between gap-3">
-                  <dt className="text-muted-foreground">{d.label}</dt>
-                  <dd className="flex shrink-0 items-baseline gap-1.5">
-                    <span className="text-muted-foreground">
-                      {d.previous ?? '—'} → {d.current ?? '—'}
-                    </span>
-                    <span
-                      className={
-                        d.direction === 'improved'
-                          ? 'font-medium text-green-700 dark:text-green-400'
-                          : d.direction === 'regressed'
-                            ? 'font-medium text-red-700 dark:text-red-400'
-                            : 'text-muted-foreground'
-                      }
-                    >
-                      {d.direction === 'improved' ? '▲' : d.direction === 'regressed' ? '▼' : '●'}
-                    </span>
-                  </dd>
+          </div>
+          {failedAudits.length > 0 ? (
+            <div className="mt-4 flex flex-col gap-1.5 border-t border-border pt-3">
+              <p className="g-eyebrow">Biggest speed fixes</p>
+              {failedAudits.slice(0, 4).map((audit) => (
+                <div key={audit.title} className="flex items-baseline justify-between gap-3 text-sm">
+                  <p className="truncate">{audit.title}</p>
+                  <p className="g-num shrink-0 text-muted-foreground">{audit.displayValue}</p>
                 </div>
               ))}
-            </dl>
-          </CardContent>
-        </Card>
-      ) : null}
+            </div>
+          ) : null}
+        </Tile>
+
+        {/* Agent readiness detail */}
+        <Tile index={6} className="md:col-span-2">
+          <TileHeader icon={Bot} eyebrow="AI agents" title="What assistants need from your site" />
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {[
+              ['Essential', breakdown.essential],
+              ['Recommended', breakdown.recommended],
+            ].map(([label, band]) => {
+              const b = band as { passing?: number; total?: number } | undefined;
+              return (
+                <div key={label as string} className="flex flex-col gap-1.5 rounded-xl bg-muted/60 p-3">
+                  <p className="text-xs text-muted-foreground">{label as string}</p>
+                  <p className="g-num text-xl font-semibold">
+                    {b?.passing ?? '—'}
+                    <span className="text-sm font-normal text-muted-foreground">/{b?.total ?? '—'} passing</span>
+                  </p>
+                  {b?.total ? <Meter value={b.passing ?? 0} max={b.total} tone={scoreTone(((b.passing ?? 0) / b.total) * 100)} height={4} /> : null}
+                </div>
+              );
+            })}
+          </div>
+          {agentIssues.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No agent-readiness issues in this audit.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-border">
+              {agentIssues.slice(0, 5).map((issue) => (
+                <li key={issue.name} className="flex gap-2.5 py-2.5 text-sm">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                  <span className="flex flex-col">
+                    <span className="font-medium">{issue.name}</span>
+                    <span className="text-muted-foreground">{issue.recommendation}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Page issues */}
+        <Tile index={7} className="md:col-span-2">
+          <TileHeader
+            icon={ListChecks}
+            eyebrow="Page issues"
+            right={issues.length > 0 ? <span className="text-xs text-muted-foreground">{issues.reduce((n, [, c]) => n + c, 0)} hits</span> : null}
+          />
+          {issues.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CircleCheck className="size-4 text-success" /> No page issues found.
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {issues.slice(0, 8).map(([code, count], i) => (
+                <li key={code} className="grid grid-cols-[minmax(0,1fr)_5rem_4.75rem] items-center gap-3 text-sm">
+                  <span className="truncate">{ISSUE_LABEL[code] ?? code}</span>
+                  <Meter value={count} max={maxIssue} tone="watch" height={4} index={i} />
+                  <span className="g-num whitespace-nowrap text-right text-muted-foreground">{plural(count, 'page')}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Structure + changes */}
+        <Tile index={8} className="md:col-span-2 p-0">
+          <div className="px-5 pt-5">
+            <TileHeader icon={FileSearch} eyebrow="Page structure" />
+          </div>
+          <ul className="flex flex-col pb-2">
+            {structureRows.map(([label, count, hint]) => (
+              <li key={label} className="flex items-center justify-between gap-3 border-t border-border px-5 py-2.5 text-sm first:border-t-0">
+                <span>{label}</span>
+                <span className="flex items-center gap-2">
+                  {count === 0 ? <CircleCheck className="size-4 text-success" /> : count === null ? <Minus className="size-4 text-muted-foreground" /> : null}
+                  <span className={`g-num font-medium ${count ? 'text-warning' : ''}`}>
+                    {count ?? '—'}
+                    {hint ? <span className="font-normal text-muted-foreground"> {hint}</span> : null}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Tile>
+
+        {movers.length > 0 ? (
+          <Tile index={9} className="md:col-span-4">
+            <TileHeader icon={Clock} eyebrow="Since the last audit" />
+            <ul className="grid gap-x-8 gap-y-2.5 md:grid-cols-2">
+              {movers.slice(0, 8).map((d) => (
+                <li key={d.metric} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-muted-foreground">{d.label}</span>
+                  <span className="flex items-center gap-2">
+                    <span className="g-num text-muted-foreground">
+                      {d.previous ?? '—'} → <span className="font-medium text-foreground">{d.current ?? '—'}</span>
+                    </span>
+                    <DeltaChip change={d.change} higherIsBetter={d.higherIsBetter} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Tile>
+        ) : null}
       </div>
-    </div>
+    </PortalPage>
   );
 }

@@ -23,7 +23,7 @@ function Delta({ delta, isNew }: { delta: number | null; isNew: boolean }) {
     return (
       <span
         aria-label={`Up ${delta} positions (improved)`}
-        className="inline-flex items-center gap-1 font-medium text-green-700 dark:text-green-400"
+        className="inline-flex items-center gap-1 font-medium text-success"
       >
         <ArrowUpRight aria-hidden="true" className="size-3.5" />
         {delta}
@@ -33,7 +33,7 @@ function Delta({ delta, isNew }: { delta: number | null; isNew: boolean }) {
   return (
     <span
       aria-label={`Down ${Math.abs(delta)} positions (falling)`}
-      className="inline-flex items-center gap-1 font-medium text-red-700 dark:text-red-400"
+      className="inline-flex items-center gap-1 font-medium text-danger"
     >
       <ArrowDownRight aria-hidden="true" className="size-3.5" />
       {Math.abs(delta)}

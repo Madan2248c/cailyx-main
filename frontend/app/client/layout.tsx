@@ -7,9 +7,9 @@ import { ClientSidebar } from '@/components/client/ClientSidebar';
 export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
     <ClientGate>
-      <div className="flex min-h-screen flex-col md:flex-row">
+      <div className="theme-graphite flex min-h-screen flex-col md:flex-row">
         <ClientSidebar />
-        <main className="flex flex-1 flex-col">{children}</main>
+        <main className="flex flex-1 flex-col bg-canvas">{children}</main>
       </div>
     </ClientGate>
   );

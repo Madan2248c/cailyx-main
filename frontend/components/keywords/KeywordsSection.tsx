@@ -10,6 +10,7 @@ import {
   keywordOverviewOf,
   type KeywordOverviewRow,
 } from '@/lib/dataforseo-api';
+import { PortalLoading } from '@/components/portal/states';
 
 const WINNABLE_DIFFICULTY = 30;
 const WINNABLE_VOLUME = 100;
@@ -18,9 +19,9 @@ const WINNABLE_LIMIT = 5;
 
 function difficultyTone(difficulty: number): { text: string; bar: string } {
   if (!Number.isFinite(difficulty)) return { text: 'text-muted-foreground', bar: 'bg-border' };
-  if (difficulty <= WINNABLE_DIFFICULTY) return { text: 'text-green-700 dark:text-green-400', bar: 'bg-green-600 dark:bg-green-400' };
-  if (difficulty <= 60) return { text: 'text-amber-700 dark:text-amber-400', bar: 'bg-amber-600 dark:bg-amber-400' };
-  return { text: 'text-red-700 dark:text-red-400', bar: 'bg-red-700 dark:bg-red-400' };
+  if (difficulty <= WINNABLE_DIFFICULTY) return { text: 'text-success', bar: 'bg-success' };
+  if (difficulty <= 60) return { text: 'text-warning', bar: 'bg-warning' };
+  return { text: 'text-danger', bar: 'bg-danger' };
 }
 
 function formatCpc(cpc: number): string {
@@ -88,11 +89,7 @@ export function KeywordsSection({
   }, [accessToken, clientId, projectId]);
 
   if (state === 'loading') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading keywords…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading keywords" />;
   }
 
   if (state === 'error') {
@@ -165,7 +162,7 @@ export function KeywordsSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Winnable now</p>
-            <p className="text-4xl font-semibold text-green-700 dark:text-green-400">
+            <p className="text-4xl font-semibold text-success">
               {keywords.filter((row) => row.difficulty <= WINNABLE_DIFFICULTY && row.volume >= WINNABLE_VOLUME).length}
             </p>
             <p className="text-xs text-muted-foreground">
@@ -195,7 +192,7 @@ export function KeywordsSection({
                   <p className="shrink-0 text-muted-foreground">
                     {row.volume.toLocaleString()} searches · difficulty {row.difficulty}
                   </p>
-                  <Badge variant="secondary" className="shrink-0 text-green-700 dark:text-green-400">
+                  <Badge variant="secondary" className="shrink-0 text-success">
                     WINNABLE
                   </Badge>
                 </li>
@@ -244,7 +241,7 @@ export function KeywordsSection({
                       <div className="flex items-center gap-2">
                         <p className="font-medium">{row.keyword}</p>
                         {isWinnable ? (
-                          <Badge variant="secondary" className="shrink-0 text-green-700 dark:text-green-400">
+                          <Badge variant="secondary" className="shrink-0 text-success">
                             WINNABLE
                           </Badge>
                         ) : null}

@@ -3,11 +3,20 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArrowUpRight, CircleCheck, TriangleAlert } from 'lucide-react';
+import { PageHeader, PortalPage } from '@/components/portal/layout';
+import { EmptyState, ErrorState, Skeleton } from '@/components/portal/states';
 import { useAuth } from '@/contexts/auth-context';
 import { listProjects } from '@/lib/projects-api';
 import type { Project } from '@/types/project';
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? '')
+    .join('');
+}
 
 export default function ClientProjectsPage() {
   const { user, accessToken } = useAuth();
@@ -34,59 +43,60 @@ export default function ClientProjectsPage() {
     };
   }, [accessToken, user]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  if (!projects) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading projects…</p>
-      </div>
-    );
-  }
+  if (error) return <ErrorState message={error} />;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-8">
-      <div>
-        <h1 className="text-xl font-semibold">Projects</h1>
-        <p className="text-sm text-muted-foreground">Select a project to open its workspace.</p>
-      </div>
+    <PortalPage className="max-w-4xl">
+      <PageHeader
+        eyebrow="Welcome back"
+        title="Your projects"
+        summary="Choose a project to see how AI answer engines see your company, and what to do next."
+      />
+
       {googleResult === 'connected' ? (
-        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
-          Google account connected — open a project to see its Organic dashboard.
+        <p className="g-rise flex items-center gap-2 rounded-xl px-4 py-3 text-sm" style={{ background: 'var(--success-soft)', '--i': 1 } as React.CSSProperties}>
+          <CircleCheck className="size-4 text-success" /> Google account connected. Open a project to see its Organic dashboard.
         </p>
       ) : null}
       {googleResult === 'error' ? (
-        <p className="rounded-lg border border-border px-3 py-2 text-sm text-destructive">
-          Google connection failed — please try connecting again.
+        <p className="g-rise flex items-center gap-2 rounded-xl px-4 py-3 text-sm text-danger" style={{ background: 'var(--danger-soft)', '--i': 1 } as React.CSSProperties}>
+          <TriangleAlert className="size-4" /> Google connection failed. Please try connecting again.
         </p>
       ) : null}
-      {projects.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No projects yet — your admin will set up your first one soon.
-            </p>
-          </CardContent>
-        </Card>
+
+      {!projects ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="g-tile g-rise p-6" style={{ '--i': 1 } as React.CSSProperties}>
+          <EmptyState title="Your first project is on its way" body="Your Rothenhall lead sets up each project. You'll see it here as soon as it's created." />
+        </div>
       ) : (
-        projects.map((project) => (
-          <Card key={project.id}>
-            <CardHeader>
-              <CardTitle className="text-lg">{project.name}</CardTitle>
-              <CardDescription>{project.domain}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="secondary" nativeButton={false} render={<Link href={`/client/projects/${project.id}`}>Open</Link>} />
-            </CardContent>
-          </Card>
-        ))
+        <ul className="grid gap-4 sm:grid-cols-2">
+          {projects.map((project, i) => (
+            <li key={project.id}>
+              <Link
+                href={`/client/projects/${project.id}`}
+                className="g-tile g-rise h-full gap-5 p-5"
+                style={{ '--i': i + 1 } as React.CSSProperties}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex size-11 items-center justify-center rounded-xl bg-foreground text-sm font-semibold text-background">
+                    {initials(project.name)}
+                  </span>
+                  <ArrowUpRight className="g-row-arrow size-4 text-muted-foreground" />
+                </div>
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <p className="truncate text-lg font-semibold">{project.name}</p>
+                  <p className="truncate text-sm text-muted-foreground">{project.domain}</p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
+    </PortalPage>
   );
 }
