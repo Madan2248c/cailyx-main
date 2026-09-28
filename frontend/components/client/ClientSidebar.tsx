@@ -164,7 +164,7 @@ export function ClientSidebar() {
   }
 
   return (
-    <aside className="flex w-full flex-col gap-4 border-b border-border bg-sidebar p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0">
+    <aside className="flex w-full flex-col gap-4 border-b border-border bg-sidebar p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:border-r md:border-b-0">
       <div className="flex items-center justify-between gap-2">
         <Link
           href="/client"
