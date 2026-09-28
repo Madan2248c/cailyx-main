@@ -14,8 +14,8 @@ import { PropertyPicker } from '@/components/google/PropertyPicker';
 import { useAuth } from '@/contexts/auth-context';
 import { getGoogleStatus, getSearchConsole, listGscSites, startGoogleConnect } from '@/lib/google-api';
 import type { GoogleStatus, GscOverview } from '@/types/google';
-import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
+import { PortalLoading, Skeleton } from '@/components/portal/states';
+import { MetaDot, PageHeader, PortalPage } from '@/components/portal/layout';
 
 type GscState =
   | { status: 'loading' }
@@ -52,7 +52,7 @@ function SitePicker({
   return (
     <PropertyPicker
       title="Choose a Search Console property"
-      description="This account has no property matching the project domain — pick one to view its data."
+      description="We couldn't find a Search Console property for this website. Pick the right one to see its data."
       items={(sites ?? []).map((s) => ({ key: s, label: s }))}
       onPick={onPick}
       isLoading={sites === null}
@@ -176,19 +176,26 @@ export default function OrganicPage() {
   }
 
   return (
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">Organic</h1>
-          <p className="text-sm text-muted-foreground">{project.name} · Google Search Console</p>
-        </div>
-        {gsc.status === 'ready' && canEdit ? (
-          <Button variant="outline" size="sm" onClick={() => setPickingSite((v) => !v)}>
-            {pickingSite ? 'Hide sites' : 'Switch site'}
-          </Button>
-        ) : null}
-      </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Performance"
+        title="Google search"
+        meta={
+          <>
+            <span>{project.name}</span>
+            <MetaDot />
+            <span>From your Google Search Console</span>
+          </>
+        }
+        summary="Real numbers from Google: how often your site shows up in search, how many people click and which searches bring them."
+        actions={
+          gsc.status === 'ready' && canEdit ? (
+            <Button variant="outline" size="sm" onClick={() => setPickingSite((v) => !v)}>
+              {pickingSite ? 'Cancel' : 'Switch website'}
+            </Button>
+          ) : null
+        }
+      />
       {pickingSite ? (
         <SitePicker
           accessToken={accessToken}
@@ -201,11 +208,12 @@ export default function OrganicPage() {
         />
       ) : null}
       {gsc.status === 'loading' ? (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">Loading search performance…</p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="status" aria-label="Loading search performance">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
       ) : null}
       {gsc.status === 'error' && gsc.noSite && accessToken && clientId ? (
         <SitePicker
@@ -219,11 +227,10 @@ export default function OrganicPage() {
         <Card>
           <CardContent className="flex flex-col gap-2 pt-6">
             <p className="text-sm">
-              Search Console access was revoked or never fully granted — Google is refusing with
-              insufficient scope.
+              Google Search Console access was removed or not fully granted, so Google won&apos;t share your data yet.
             </p>
             <p className="text-sm text-muted-foreground">
-              Reconnect and check every box on Google&apos;s consent screen.
+              Reconnect and tick every box on Google&apos;s permission screen.
             </p>
             <div>
               <Button onClick={reconnectGsc} disabled={!canEdit || reconnectPending}>
@@ -231,7 +238,7 @@ export default function OrganicPage() {
               </Button>
             </div>
             {!canEdit ? (
-              <p className="text-sm text-muted-foreground">Only your account&apos;s POC can reconnect.</p>
+              <p className="text-sm text-muted-foreground">Only your company&apos;s main contact can reconnect Google.</p>
             ) : null}
             {reconnectError ? <p className="text-sm text-destructive">{reconnectError}</p> : null}
           </CardContent>
@@ -240,10 +247,11 @@ export default function OrganicPage() {
       {gsc.status === 'error' && !gsc.noSite && !gsc.scopeMissing ? (
         <Card>
           <CardContent className="flex flex-col gap-2 pt-6">
-            <p className="text-sm text-destructive">{gsc.message}</p>
+            <p className="text-sm font-medium">We couldn&apos;t load your Google search data.</p>
             <p className="text-sm text-muted-foreground">
-              If this account has no property for {project.domain}, connect an account that does.
+              If the connected Google account doesn&apos;t manage {project.domain}, connect one that does.
             </p>
+            <p className="text-xs text-muted-foreground/80">Details: {gsc.message}</p>
           </CardContent>
         </Card>
       ) : null}
@@ -270,7 +278,6 @@ export default function OrganicPage() {
         connected={googleStatus.ga.connected}
         canEdit={canEdit}
       />
-    </div>
-    </StaggerIn>
+    </PortalPage>
   );
 }

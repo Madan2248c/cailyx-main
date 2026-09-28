@@ -177,7 +177,7 @@ export function FixPlanTab({
             </ScoreRing>
             <div className="flex flex-col gap-2">
               {summary.verifiedSinceBaseline > 0 ? (
-                <DeltaChip change={summary.verifiedSinceBaseline} suffix="verified since your baseline" onInk />
+                <DeltaChip change={summary.verifiedSinceBaseline} suffix="verified since you started" onInk />
               ) : (
                 <span className="text-sm text-white/65">Verified fixes will count up here.</span>
               )}

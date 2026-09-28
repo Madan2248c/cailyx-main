@@ -7,6 +7,7 @@ import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Lightbulb } from '@/components/animate-ui/icons/lightbulb';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
+import { FirstRun } from '@/components/dashboard/FirstRun';
 import { RankHistory } from '@/components/dashboard/RankHistory';
 import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
 import { PageHeader, MetaDot, PortalPage, StatusChip, Tile, TileHeader, DeltaChip } from '@/components/portal/layout';
@@ -94,8 +95,8 @@ const PATTERN_WORD: Record<ActivityPattern, string> = {
   daily: 'Daily',
   'every-2-3-days': 'Every 2–3 days',
   weekly: 'Weekly',
-  sporadic: 'Sporadic',
-  dormant: 'Quiet',
+  sporadic: 'Now and then',
+  dormant: 'Gone quiet',
 };
 
 export function DashboardTab({
@@ -263,7 +264,7 @@ export function DashboardTab({
       source: 'Social',
       icon: Share2,
       href: `${base}/performance/social`,
-      text: `${platformName(quietest.platform)} has gone ${quietest.pattern === 'dormant' ? 'quiet' : 'sporadic'}${quietest.daysSinceLastPost !== null ? `, last post ${Math.round(quietest.daysSinceLastPost)} days ago` : ''}`,
+      text: `${platformName(quietest.platform)} ${quietest.pattern === 'dormant' ? 'has gone quiet' : 'only posts now and then'}${quietest.daysSinceLastPost !== null ? `, last post ${Math.round(quietest.daysSinceLastPost)} days ago` : ''}`,
       tone: quietest.pattern === 'dormant' ? 'bad' : 'watch',
     });
   }
@@ -294,6 +295,26 @@ export function DashboardTab({
   const aeoTone = rateTone(mentionRate);
   const techTone = scoreTone(techScore);
 
+  // Nothing measured yet: one "here's what's happening" view beats a grid
+  // of empty tiles that all say the same thing.
+  const nothingYet =
+    !snapshot.tech && !verdict && platforms.length === 0 && ownSeo === null && !snapshot.gapRun && !snapshot.report && !(fixSummary && fixSummary.total > 0);
+  if (nothingYet) {
+    return (
+      <FirstRun
+        projectName={projectName}
+        projectDomain={projectDomain}
+        steps={[
+          { label: 'Technical health', detail: 'Can search engines and AI tools reach and read your site?', done: !!snapshot.tech },
+          { label: 'AI visibility', detail: 'How often ChatGPT, Perplexity and Gemini name you when buyers ask.', done: !!verdict },
+          { label: 'Social channels', detail: 'How often you post, and which channels have gone quiet.', done: platforms.length > 0 },
+          { label: 'Your rivals', detail: 'How you compare with the companies buyers weigh you against.', done: ownSeo !== null },
+          { label: 'Your first report and Fix Plan', detail: 'What to fix first, with ready-made fixes for your developer.', done: !!snapshot.report },
+        ]}
+      />
+    );
+  }
+
   return (
     <PortalPage>
       <PageHeader
@@ -317,7 +338,7 @@ export function DashboardTab({
                 AI engines name {projectName} in <Marker text={pct(mentionRate)} /> of the answers we tested.
               </>
             ) : (
-              'Your AI visibility baseline is still being measured.'
+              'Your AI visibility is still being measured.'
             )}{' '}
             {summaryParts.join(' ')}
           </>
@@ -377,9 +398,9 @@ export function DashboardTab({
             </>
           ) : (
             <div className="flex flex-1 flex-col justify-center gap-2">
-              <p className="text-xl font-semibold text-white">Not measured yet</p>
+              <p className="text-xl font-semibold text-white">Being measured now</p>
               <p className="max-w-sm text-sm text-white/65">
-                Your first answer-engine audit runs in the Day-1 pipeline. We ask ChatGPT, Perplexity and Gemini the questions your buyers ask, and show how often you come up.
+                We&apos;re asking ChatGPT, Perplexity and Gemini the questions your buyers ask. Your score appears here as soon as the answers are in.
               </p>
             </div>
           )}
@@ -407,7 +428,7 @@ export function DashboardTab({
               </div>
             </div>
           ) : (
-            <NotYet text="Runs automatically in your Day-1 pipeline." />
+            <NotYet text="Your first site check is running." />
           )}
         </Tile>
 
@@ -441,7 +462,7 @@ export function DashboardTab({
               {fixSummary.awaitingDecision > 0 ? (
                 <StatusChip tone="watch">{plural(fixSummary.awaitingDecision, 'decision')} waiting on you</StatusChip>
               ) : fixSummary.verifiedSinceBaseline > 0 ? (
-                <DeltaChip change={fixSummary.verifiedSinceBaseline} suffix="since baseline" />
+                <DeltaChip change={fixSummary.verifiedSinceBaseline} suffix="since you started" />
               ) : (
                 <p className="text-xs text-muted-foreground">Nothing is waiting on you.</p>
               )}
@@ -461,14 +482,14 @@ export function DashboardTab({
               {doneRecs.length > 0 ? <p className="mt-auto text-xs text-success">{plural(doneRecs.length, 'priority', 'priorities')} completed</p> : null}
             </div>
           ) : (
-            <NotYet text="Priorities appear once your first audits finish." />
+            <NotYet text="Your priorities appear once the first checks finish." />
           )}
         </Tile>
         )}
 
         {/* Social cadence */}
         <Tile href={`${base}/performance/social`} index={3} ariaLabel="Social activity details">
-          <TileHeader icon={Share2} eyebrow="Social cadence" linkHint />
+          <TileHeader icon={Share2} eyebrow="Social channels" linkHint />
           {snapshot.social && platforms.length > 0 ? (
             <div className="flex flex-1 flex-col gap-3">
               <p className="text-sm">
@@ -485,7 +506,7 @@ export function DashboardTab({
               </ul>
             </div>
           ) : (
-            <NotYet text="No social pull has completed yet." />
+            <NotYet text="We're checking your channels." />
           )}
         </Tile>
 
@@ -503,7 +524,7 @@ export function DashboardTab({
               </p>
             </div>
           ) : (
-            <NotYet text={snapshot.gap ? 'Comparison appears once rival profiles are fetched.' : 'No rivals tracked yet.'} />
+            <NotYet text={snapshot.gap ? "We're reading your rivals' websites." : 'Pick the rivals to compare against.'} />
           )}
         </Tile>
 
@@ -513,13 +534,13 @@ export function DashboardTab({
             <TileHeader
               icon={TriangleAlert}
               eyebrow="Needs attention"
-              right={attention.length > 0 ? <span className="text-xs text-muted-foreground">Worst first</span> : null}
+              right={attention.length > 0 ? <span className="text-xs text-muted-foreground">Most important first</span> : null}
             />
           </div>
           {attention.length === 0 ? (
             <div className="flex items-center gap-3 px-5 pb-5 text-sm text-muted-foreground">
               <CircleCheck className="size-5 text-success" />
-              Nothing urgent. Every source is healthy or still waiting on its first run.
+              Nothing needs your attention right now.
             </div>
           ) : (
             <Highlight
@@ -557,7 +578,7 @@ export function DashboardTab({
         <Tile index={6} className="md:row-span-2">
           <TileHeader icon={Trophy} eyebrow="What's working" />
           {wins.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Wins show up here as your audits complete.</p>
+            <p className="text-sm text-muted-foreground">Your wins will show up here as results come in.</p>
           ) : (
             <ul className="flex flex-col gap-2.5">
               {wins.slice(0, 6).map((w) => (
@@ -582,11 +603,11 @@ export function DashboardTab({
             <div className="flex flex-col gap-2">
               <p className="line-clamp-3 text-sm text-muted-foreground">{snapshot.report.executiveSummary}</p>
               <p className="text-xs text-muted-foreground">
-                {snapshot.report.kind === 'DAY1' ? 'Day-1 baseline' : 'Monthly report'} · released {relativeDate(snapshot.report.releasedAt ?? snapshot.report.createdAt)}
+                {snapshot.report.kind === 'DAY1' ? 'Starting-point report' : 'Monthly report'} · released {relativeDate(snapshot.report.releasedAt ?? snapshot.report.createdAt)}
               </p>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Your first report appears here once the Day-1 pipeline finishes and your lead releases it.</p>
+            <p className="text-sm text-muted-foreground">Your first report appears here once your Rothenhall lead has reviewed and released it.</p>
           )}
         </Tile>
       </div>
@@ -599,9 +620,9 @@ export function DashboardTab({
 
 function NotYet({ text }: { text: string }) {
   return (
-    <div className="flex flex-1 flex-col justify-center gap-1">
-      <p className="text-base font-semibold text-muted-foreground">Not measured yet</p>
-      <p className="text-xs text-muted-foreground">{text}</p>
+    <div className="flex flex-1 items-center gap-2 text-sm text-muted-foreground">
+      <span className="g-live size-1.5 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
+      {text}
     </div>
   );
 }

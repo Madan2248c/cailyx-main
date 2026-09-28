@@ -55,10 +55,10 @@ function projectNav(projectId: string, fixBadge = 0): NavSection[] {
       collapsible: true,
       items: [
         { label: 'Overview', href: `${base}/performance`, icon: Gauge },
-        { label: 'Technical', href: `${base}/performance/technical`, icon: Wrench },
-        { label: 'Organic', href: `${base}/performance/visibility/organic`, icon: Search, indent: true },
-        { label: 'AI', href: `${base}/performance/visibility/ai`, icon: Sparkles, indent: true },
-        { label: 'Social', href: `${base}/performance/social`, icon: Share2 },
+        { label: 'Technical health', href: `${base}/performance/technical`, icon: Wrench },
+        { label: 'Google search', href: `${base}/performance/visibility/organic`, icon: Search, indent: true },
+        { label: 'AI visibility', href: `${base}/performance/visibility/ai`, icon: Sparkles, indent: true },
+        { label: 'Social channels', href: `${base}/performance/social`, icon: Share2 },
       ],
     },
     {

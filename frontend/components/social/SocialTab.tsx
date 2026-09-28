@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Share2 } from 'lucide-react';
 import { listSocialActivityRuns } from '@/lib/social-api';
 import {
   PATTERN_LABEL,
@@ -9,72 +9,61 @@ import {
   socialRunPlatforms,
   type ActivityPattern,
   type SocialActivityDelta,
-  type SocialActivityFinding,
   type SocialActivityRun,
   type SocialPlatformActivity,
 } from '@/types/social';
-import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
-import { Num } from '@/components/portal/motion';
+import { EmptyPage, NextSteps, Section, Stat, StatRow, type NextStep } from '@/components/portal/blocks';
+import { MetaDot, PageHeader, PortalPage, StatusChip } from '@/components/portal/layout';
+import { ErrorState, PortalLoading } from '@/components/portal/states';
+import { plural, relativeDate, type Tone } from '@/components/portal/tone';
+import { platformName } from '@/components/portal/words';
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString();
+  if (!iso) return '–';
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-function formatDays(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—';
-  return `${Math.round(value * 10) / 10}d`;
+function daysAgo(days: number): string {
+  const d = Math.round(days);
+  if (d <= 0) return 'today';
+  if (d === 1) return 'yesterday';
+  return `${d} days ago`;
 }
 
-function formatCount(value: number | null): string {
-  if (value === null || !Number.isFinite(value)) return '—';
-  return String(Math.round(value));
-}
+const PATTERN_TONE: Record<ActivityPattern, Tone> = {
+  daily: 'good',
+  'every-2-3-days': 'good',
+  weekly: 'good',
+  sporadic: 'watch',
+  dormant: 'bad',
+};
 
-/** Health dot per platform: worst finding status wins, pass only when clean. */
-function platformTone(platform: string, findings: SocialActivityFinding[]): string {
-  const forPlatform = findings.filter((f) => f.platform === platform);
-  if (forPlatform.some((f) => f.status === 'fail')) return 'bg-danger';
-  if (forPlatform.some((f) => f.status === 'error')) return 'bg-warning';
-  if (forPlatform.some((f) => f.status === 'not-run')) return 'bg-muted-foreground/40';
-  return 'bg-success';
-}
+/** Cadence as a chip word; "Dormant" reads as jargon, "Gone quiet" doesn't. */
+const PATTERN_WORD: Record<ActivityPattern, string> = {
+  daily: 'Daily',
+  'every-2-3-days': 'Every 2–3 days',
+  weekly: 'Weekly',
+  sporadic: 'Now and then',
+  dormant: 'Gone quiet',
+};
 
-function patternTone(pattern: ActivityPattern): string {
-  if (pattern === 'daily' || pattern === 'every-2-3-days') return 'text-success';
-  if (pattern === 'weekly') return 'text-success';
-  if (pattern === 'sporadic') return 'text-warning';
-  return 'text-danger';
-}
-
-function findingTone(finding: SocialActivityFinding): string {
-  if (finding.status === 'fail') return 'border-danger/30 bg-danger/5';
-  if (finding.status === 'error') return 'border-warning/30 bg-warning/5';
-  return 'border-border';
+function cadenceWord(value: number | string | null): string {
+  if (value === null) return 'unknown';
+  return (PATTERN_WORD[value as ActivityPattern] ?? String(value)).toLowerCase();
 }
 
 const DELTA_LABEL: Record<SocialActivityDelta['metric'], string> = {
-  followers: 'Followers',
-  postsInWindow: 'Posts in window',
-  pattern: 'Cadence',
-  daysSinceLastPost: 'Days since last post',
+  followers: 'followers',
+  postsInWindow: 'posts in 30 days',
+  pattern: 'posting rhythm',
+  daysSinceLastPost: 'days since last post',
 };
 
 function formatDeltaValue(metric: SocialActivityDelta['metric'], value: number | string | null): string {
-  if (value === null) return '—';
-  if (metric === 'pattern') {
-    const label = PATTERN_LABEL[value as ActivityPattern];
-    return label ?? String(value);
-  }
-  if (typeof value === 'number') {
-    return metric === 'daysSinceLastPost' ? formatDays(value) : formatCount(value);
-  }
+  if (value === null) return '–';
+  if (metric === 'pattern') return PATTERN_LABEL[value as ActivityPattern] ?? String(value);
+  if (typeof value === 'number') return Math.round(value).toLocaleString();
   return String(value);
-}
-
-function platformLabel(platform: string): string {
-  return platform.length <= 2 ? platform.toUpperCase() : platform.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 /** Renders the analyst narrative (three `##` sections) without a markdown dep. */
@@ -144,17 +133,8 @@ export function SocialTab({
     };
   }, [accessToken, clientId, projectId]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  if (!runs) {
-    return <PortalLoading label="Loading social activity" />;
-  }
+  if (error) return <ErrorState title="We couldn't load your social channels" message={error} />;
+  if (!runs) return <PortalLoading label="Loading social activity" />;
 
   const completed = runs
     .filter((r) => r.status === 'COMPLETE')
@@ -165,287 +145,172 @@ export function SocialTab({
   if (!latest) {
     const failed = runs.find((r) => r.status === 'FAILED') ?? null;
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
-        <h1 className="text-2xl font-semibold">Social</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{projectName}</p>
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              {pending
-                ? 'A social pull is running right now — check back when it completes.'
-                : failed
-                  ? 'The last social pull failed before it could record anything. One reruns automatically on its schedule.'
-                  : 'No completed social pull yet. One runs automatically as part of your Day-1 pipeline.'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <EmptyPage
+        eyebrow="Performance"
+        title="Social channels"
+        projectName={projectName}
+        emptyTitle={pending ? 'Checking your channels now' : failed ? "We couldn't finish the first check" : 'Your social check is on its way'}
+        body={
+          pending
+            ? 'We are looking at how often you post on each channel. This page fills in when the check finishes.'
+            : failed
+              ? 'Something went wrong while checking your channels. It will run again automatically, and your Rothenhall lead has been told.'
+              : 'This page will show how often you post on each channel, which ones have gone quiet and what changed since last time.'
+        }
+        steps={
+          pending || failed
+            ? undefined
+            : [
+                'We find your company pages on LinkedIn, X, Instagram and other channels.',
+                'We look at your posts from the last 30 days on each one.',
+                'You see which channels are active, which have gone quiet and what to do about it.',
+              ]
+        }
+      />
     );
   }
 
   const platforms = socialRunPlatforms(latest).sort(
     (a, b) => PATTERN_ORDER.indexOf(a.pattern) - PATTERN_ORDER.indexOf(b.pattern),
   );
-  const dormant = platforms.filter((p) => p.pattern === 'dormant');
-  const healthy = platforms.filter((p) => p.pattern !== 'dormant' && p.pattern !== 'sporadic');
+  const quiet = platforms.filter((p) => p.pattern === 'dormant');
+  const active = platforms.filter((p) => p.pattern !== 'dormant' && p.pattern !== 'sporadic');
   const postsInWindow = platforms.reduce((n, p) => n + p.postsInWindow, 0);
 
-  // ─── Insights first: what needs attention, worst first ──────────────
-  const attention: Array<{ tone: string; text: string }> = [];
-  for (const finding of latest.findings) {
-    if (finding.status === 'fail') {
-      attention.push({ tone: 'bg-danger', text: finding.detail });
-    }
-  }
-  for (const finding of latest.findings) {
-    if (finding.status === 'error') {
-      attention.push({ tone: 'bg-warning', text: finding.detail });
-    }
+  // ─── What to do next, worst first ───────────────────────────────────
+  const steps: NextStep[] = [];
+  for (const finding of latest.findings.filter((f) => f.status === 'fail')) {
+    steps.push({ tone: 'bad', lead: `${platformName(finding.platform)}:`, text: finding.detail });
   }
   for (const delta of latest.deltas) {
     if (delta.metric === 'pattern' && delta.previous !== delta.current) {
-      attention.push({
-        tone: 'bg-warning',
-        text: `${platformLabel(delta.platform)} cadence moved from ${formatDeltaValue('pattern', delta.previous)} to ${formatDeltaValue('pattern', delta.current)} since the previous pull.`,
+      steps.push({
+        tone: 'watch',
+        lead: `${platformName(delta.platform)} changed rhythm.`,
+        text: `It went from ${cadenceWord(delta.previous)} to ${cadenceWord(delta.current)} since the last check.`,
       });
     }
   }
-  const notes = latest.findings.filter((f) => f.status === 'not-run');
+  const couldNotCheck = latest.findings.filter((f) => f.status === 'error' || f.status === 'not-run');
 
   const previousRun = latest.previousRunId ? runs.find((r) => r.id === latest.previousRunId) ?? null : null;
-  const ceilingHit = latest.result.ceilingHit === true;
-  const auditedOn = formatDate(latest.completedAt ?? latest.createdAt);
+  const checkedOn = latest.completedAt ?? latest.createdAt;
+  const changes = latest.deltas.filter((d) => d.metric !== 'pattern').slice(0, 8);
 
   return (
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Social</h1>
-        <p className="text-sm text-muted-foreground">
-          {projectName} · pulled {auditedOn}
-        </p>
-      </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Performance"
+        title="Social channels"
+        meta={
+          <>
+            <span>{projectName}</span>
+            <MetaDot />
+            <span>Checked {relativeDate(checkedOn)}</span>
+          </>
+        }
+        summary={
+          platforms.length === 0
+            ? 'We could not find any company channels to check.'
+            : quiet.length === 0
+              ? `You're posting regularly on ${active.length === platforms.length ? 'every channel' : `${active.length} of ${plural(platforms.length, 'channel')}`}. Buyers and AI tools both notice steady activity.`
+              : `${plural(quiet.length, 'channel has', 'channels have')} gone quiet. A quiet channel can look like a closed business to buyers.`
+        }
+      />
 
-      {/* 1) Cadence health — what needs attention */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Cadence health</CardTitle>
-          <CardDescription>
-            {attention.length === 0
-              ? 'Nothing urgent — every channel we pull is posting on a steady rhythm.'
-              : `${attention.length} thing${attention.length === 1 ? '' : 's'} worth a look, worst first.`}
-          </CardDescription>
-        </CardHeader>
-        {attention.length > 0 ? (
-          <CardContent className="flex flex-col gap-2">
-            {attention.map((item, i) => (
-              <div key={i} className="flex items-start gap-2 text-sm">
-                <span className={`mt-1.5 size-2 shrink-0 rounded-full ${item.tone}`} />
-                <p>{item.text}</p>
-              </div>
-            ))}
-          </CardContent>
-        ) : (
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Active on all {platforms.length} channel{platforms.length === 1 ? '' : 's'} — no dormant or
-              stalled feeds in this pull.
-            </p>
-          </CardContent>
-        )}
-      </Card>
+      <StatRow>
+        <Stat
+          index={1}
+          label="Active channels"
+          value={active.length}
+          unit={`of ${platforms.length}`}
+          tone={platforms.length > 0 && active.length === platforms.length ? 'good' : 'neutral'}
+          caption="Posting at least once a week"
+        />
+        <Stat index={2} label="Posts" value={postsInWindow} caption="In the last 30 days, all channels" />
+        <Stat
+          index={3}
+          label="Quiet channels"
+          value={quiet.length}
+          tone={quiet.length > 0 ? 'bad' : 'good'}
+          caption={quiet.length > 0 ? quiet.map((p) => platformName(p.platform)).join(', ') : 'None, nice work'}
+        />
+      </StatRow>
 
-      {/* 2) KPI tiles */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Active platforms</p>
-            <p className="text-4xl font-semibold">
-              <Num value={healthy.length} />
-              <span className="text-base font-normal text-muted-foreground">/{platforms.length}</span>
-            </p>
-            <p className="text-xs text-muted-foreground">posting on a steady rhythm</p>
-          </CardContent>
-        </Card>
+      <NextSteps index={4} items={steps} allClear="Nothing needs attention. Every channel is posting on a steady rhythm." />
 
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Posts in window</p>
-            <p className="text-4xl font-semibold"><Num value={postsInWindow} /></p>
-            <p className="text-xs text-muted-foreground">last 30 days, all channels</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="flex flex-col gap-2 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Dormant</p>
-            <p className={`text-4xl font-semibold ${dormant.length > 0 ? 'text-danger' : ''}`}>
-              <Num value={dormant.length} />
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {dormant.length > 0 ? dormant.map((p) => platformLabel(p.platform)).join(', ') : 'no quiet channels'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
-        {/* 3) Per-platform cadence */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Cadence by platform</CardTitle>
-            <CardDescription>Posting rhythm over the 30-day window</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col p-0">
-            {platforms.map((p: SocialPlatformActivity, i: number) => (
-              <div
-                key={p.platform}
-                className={`flex flex-col gap-1.5 px-6 py-3 ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className={`size-2 rounded-full ${platformTone(p.platform, latest.findings)}`} />
-                  <p className="font-medium">{platformLabel(p.platform)}</p>
-                  <p className={`ml-auto text-sm font-medium ${patternTone(p.pattern)}`}>
-                    {PATTERN_LABEL[p.pattern] ?? p.pattern}
-                  </p>
+      <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
+        <Section index={5} icon={Share2} eyebrow="Each channel" description="How often you post, over the last 30 days." flush>
+          <ul className="flex flex-col pb-2">
+            {platforms.map((p: SocialPlatformActivity) => (
+              <li key={p.platform} className="flex flex-col gap-1.5 border-t border-border px-5 py-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-medium">{platformName(p.platform)}</p>
+                  <StatusChip tone={PATTERN_TONE[p.pattern]}>{PATTERN_WORD[p.pattern]}</StatusChip>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-0.5 pl-4 text-sm text-muted-foreground">
+                <p className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-muted-foreground">
                   <span>
-                    <span className="font-medium text-foreground">{p.postsInWindow}</span> posts
+                    <span className="g-num font-medium text-foreground">{p.postsInWindow}</span> posts
                   </span>
-                  <span>
-                    last post <span className="font-medium text-foreground">{formatDays(p.daysSinceLastPost)}</span>{' '}
-                    ago
-                  </span>
-                  {p.meanIntervalDays !== null ? (
+                  {p.daysSinceLastPost !== null && Number.isFinite(p.daysSinceLastPost) ? (
                     <span>
-                      every <span className="font-medium text-foreground">{formatDays(p.meanIntervalDays)}</span>
+                      Last post <span className="font-medium text-foreground">{daysAgo(p.daysSinceLastPost)}</span>
                     </span>
                   ) : null}
                   {p.followerCount !== null ? (
                     <span>
-                      <span className="font-medium text-foreground">{formatCount(p.followerCount)}</span> followers
+                      <span className="g-num font-medium text-foreground">{Math.round(p.followerCount).toLocaleString()}</span> followers
                     </span>
                   ) : null}
                   {p.avgEngagement !== null ? (
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {Math.round(p.avgEngagement * 10) / 10}
-                      </span>{' '}
-                      avg engagement
+                    <span title="Average likes, comments and shares per post">
+                      <span className="g-num font-medium text-foreground">{Math.round(p.avgEngagement).toLocaleString()}</span> reactions per post
                     </span>
                   ) : null}
-                </div>
-                {p.windowTruncated ? (
-                  <p className="pl-4 text-xs text-muted-foreground">
-                    Sample capped — longest gaps are a lower bound.
-                  </p>
-                ) : null}
-              </div>
+                </p>
+              </li>
             ))}
-          </CardContent>
-        </Card>
+          </ul>
+        </Section>
 
-        {/* 4) Findings */}
-        {latest.findings.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Findings</CardTitle>
-              <CardDescription>What the pull observed, per channel</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {latest.findings.map((finding, i) => (
-                <div
-                  key={`${finding.platform}-${finding.type}-${i}`}
-                  className={`flex flex-col gap-0.5 rounded-lg border p-2.5 text-sm ${findingTone(finding)}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{platformLabel(finding.platform)}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {finding.status === 'pass'
-                        ? 'healthy'
-                        : finding.status === 'fail'
-                          ? 'needs attention'
-                          : finding.status === 'error'
-                            ? 'pull failed'
-                            : 'not checked'}
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground">{finding.detail}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* 5) Deltas vs previous run */}
-        {latest.deltas.length > 0 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Since the previous pull</CardTitle>
-              <CardDescription>
-                {previousRun
-                  ? `Compared against ${formatDate(previousRun.completedAt ?? previousRun.createdAt)}.`
-                  : 'Movement since the previous completed pull.'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <dl className="flex flex-col gap-2 text-sm">
-                {latest.deltas.slice(0, 10).map((d, i) => (
-                  <div
-                    key={`${d.platform}-${d.metric}-${i}`}
-                    className="flex items-baseline justify-between gap-3"
-                  >
+        <div className="flex flex-col gap-4">
+          {changes.length > 0 ? (
+            <Section
+              index={6}
+              eyebrow="Since the last check"
+              description={previousRun ? `Compared with ${formatDate(previousRun.completedAt ?? previousRun.createdAt)}.` : undefined}
+            >
+              <dl className="flex flex-col gap-2.5 text-sm">
+                {changes.map((d, i) => (
+                  <div key={`${d.platform}-${d.metric}-${i}`} className="flex items-baseline justify-between gap-3">
                     <dt className="text-muted-foreground">
-                      {platformLabel(d.platform)} · {DELTA_LABEL[d.metric] ?? d.metric}
+                      {platformName(d.platform)} {DELTA_LABEL[d.metric] ?? d.metric}
                     </dt>
-                    <dd className="shrink-0">
+                    <dd className="g-num shrink-0">
                       <span className="text-muted-foreground">{formatDeltaValue(d.metric, d.previous)}</span>
                       <span className="text-muted-foreground"> → </span>
-                      <span className="font-medium">{formatDeltaValue(d.metric, d.current)}</span>
+                      <span className="font-semibold">{formatDeltaValue(d.metric, d.current)}</span>
                     </dd>
                   </div>
                 ))}
               </dl>
-            </CardContent>
-          </Card>
-        ) : null}
+            </Section>
+          ) : null}
 
-        {/* 6) Analyst narrative */}
-        {latest.narrative ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Analyst notes</CardTitle>
-            </CardHeader>
-            <CardContent>
+          {latest.narrative ? (
+            <Section index={7} eyebrow="Notes from your analyst">
               <Narrative text={latest.narrative} />
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {/* 7) Coverage notes + spend footnote */}
-        {notes.length > 0 || ceilingHit || latest.totalCostUsd !== null ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Coverage notes</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-1.5 text-sm text-muted-foreground">
-              {notes.map((finding, i) => (
-                <p key={`${finding.platform}-${finding.type}-${i}`}>
-                  {platformLabel(finding.platform)}: {finding.detail}
-                </p>
-              ))}
-              {ceilingHit ? (
-                <p>Some channels were skipped — this pull crossed its per-run spend ceiling.</p>
-              ) : null}
-              {latest.totalCostUsd !== null ? (
-                <p>Pull spend ${latest.totalCostUsd.toFixed(3)} (actor usage, not the billed figure).</p>
-              ) : null}
-            </CardContent>
-          </Card>
-        ) : null}
+            </Section>
+          ) : null}
+        </div>
       </div>
-    </div>
-    </StaggerIn>
+
+      {couldNotCheck.length > 0 ? (
+        <p className="text-xs text-muted-foreground">
+          We couldn&apos;t check {couldNotCheck.map((f) => platformName(f.platform)).filter((v, i, a) => a.indexOf(v) === i).join(', ')} this time.
+          We&apos;ll try again at the next check.
+        </p>
+      ) : null}
+    </PortalPage>
   );
 }

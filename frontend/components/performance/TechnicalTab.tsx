@@ -120,7 +120,7 @@ export function TechnicalTab({
             body={
               pending
                 ? 'An audit is running right now. Results appear here when it finishes.'
-                : 'Your first technical audit runs automatically in the Day-1 pipeline.'
+                : 'Your first site check is running. Results appear here as soon as it finishes.'
             }
           />
         </Tile>

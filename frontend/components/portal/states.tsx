@@ -73,13 +73,13 @@ export function EmptyState({
   );
 }
 
-export function ErrorState({ message }: { message: string }) {
+export function ErrorState({ message, title = "We couldn't load this page" }: { message: string; title?: string }) {
   return (
     <PortalPage>
       <div className="g-tile g-rise items-center gap-2 p-8 text-center">
-        <p className="text-base font-semibold">We couldn&apos;t load this page</p>
-        <p className="text-sm text-destructive">{message}</p>
-        <p className="text-sm text-muted-foreground">Refresh to try again. If it keeps happening, tell your Rothenhall lead.</p>
+        <p className="text-base font-semibold">{title}</p>
+        <p className="text-sm text-muted-foreground">Refresh the page to try again. If it keeps happening, let your Rothenhall lead know.</p>
+        <p className="text-xs text-muted-foreground/80">Details: {message}</p>
       </div>
     </PortalPage>
   );

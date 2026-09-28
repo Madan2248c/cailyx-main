@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { TrendingUp } from 'lucide-react';
+import { Section } from '@/components/portal/blocks';
+import { StatusChip } from '@/components/portal/layout';
 import { getSnapshot, listSnapshots, type DataforseoSnapshot, type SerpRankRow } from '@/lib/dataforseo-api';
 
 type MoverKind = 'climber' | 'faller' | 'new' | 'lost';
@@ -32,8 +33,8 @@ function rankingsOf(snapshot: DataforseoSnapshot | null | undefined): SerpRankRo
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return 'the last pull';
-  return new Date(iso).toLocaleDateString();
+  if (!iso) return 'the last check';
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 /**
@@ -55,7 +56,7 @@ export function compareRankSnapshots(latest: SerpRankRow[], previous: SerpRankRo
         position: row.position,
         prev: null,
         delta: null,
-        line: `“${row.keyword}” is newly tracked at #${row.position}.`,
+        line: `“${row.keyword}” now shows up at #${row.position}.`,
       });
     } else if (row.position < prev) {
       const delta = prev - row.position;
@@ -65,7 +66,7 @@ export function compareRankSnapshots(latest: SerpRankRow[], previous: SerpRankRo
         position: row.position,
         prev,
         delta,
-        line: `“${row.keyword}” climbed from #${prev} to #${row.position} (up ${delta}).`,
+        line: `“${row.keyword}” moved up from #${prev} to #${row.position}.`,
       });
     } else if (row.position > prev) {
       const delta = prev - row.position;
@@ -75,7 +76,7 @@ export function compareRankSnapshots(latest: SerpRankRow[], previous: SerpRankRo
         position: row.position,
         prev,
         delta,
-        line: `“${row.keyword}” slipped from #${prev} to #${row.position} (down ${prev - row.position}).`,
+        line: `“${row.keyword}” slipped from #${prev} to #${row.position}.`,
       });
     }
   }
@@ -89,7 +90,7 @@ export function compareRankSnapshots(latest: SerpRankRow[], previous: SerpRankRo
         position: null,
         prev: row.position,
         delta: null,
-        line: `“${row.keyword}” no longer ranks (was #${row.position}).`,
+        line: `“${row.keyword}” dropped out of the results (was #${row.position}).`,
       });
     }
   }
@@ -140,7 +141,7 @@ export function RankMovement({
         }
       })
       .catch(() => {
-        // No rank history to show — the section omits itself rather than
+        // No rank history to show: the section omits itself rather than
         // breaking the Competitors tab.
       });
 
@@ -158,14 +159,13 @@ export function RankMovement({
   const lost = movers.filter((m) => m.kind === 'lost');
 
   const parts: string[] = [];
-  if (climbers.length > 0) parts.push(`${climbers.length} climbing`);
-  if (fresh.length > 0) parts.push(`${fresh.length} newly tracked`);
-  if (fallers.length > 0) parts.push(`${fallers.length} slipping`);
-  if (lost.length > 0) parts.push(`${lost.length} lost`);
+  if (climbers.length > 0) parts.push(`${climbers.length} moved up`);
+  if (fresh.length > 0) parts.push(`${fresh.length} newly showing`);
+  if (fallers.length > 0) parts.push(`${fallers.length} slipped`);
+  if (lost.length > 0) parts.push(`${lost.length} dropped out`);
+  const since = formatDate(period.previous ?? period.latest);
   const summary =
-    parts.length > 0
-      ? `How you've grown — ${parts.join(', ')} since ${formatDate(period.previous ?? period.latest)}.`
-      : `No rank changes since ${formatDate(period.previous ?? period.latest)}.`;
+    parts.length > 0 ? `Since ${since}: ${parts.join(', ')}.` : `No changes in your Google positions since ${since}.`;
 
   const ordered = [...movers].sort(
     (a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || (b.delta ?? 0) - (a.delta ?? 0),
@@ -173,49 +173,28 @@ export function RankMovement({
   const visible = ordered.slice(0, 8);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Rank movement</CardTitle>
-        <CardDescription>
-          Latest pull {formatDate(period.latest)}
-          {period.previous ? ` vs ${formatDate(period.previous)}` : ''}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <p className="text-sm">{summary}</p>
-        {visible.length > 0 ? (
-          <ul className="flex flex-col gap-2">
+    <Section icon={TrendingUp} eyebrow="Your Google positions" description={summary}>
+      {visible.length > 0 ? (
+        <ul className="flex flex-col gap-1.5">
           {visible.map((mover) => (
-            <li
-              key={`${mover.kind}-${mover.keyword}`}
-              className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
-            >
-              <p className="min-w-0 flex-1 truncate">{mover.line}</p>
+            <li key={`${mover.kind}-${mover.keyword}`} className="flex items-center justify-between gap-3 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+              <p className="min-w-0 flex-1">{mover.line}</p>
               {mover.kind === 'climber' ? (
-                <Badge variant="secondary" className="shrink-0 text-success">
-                  ▲ {mover.delta}
-                </Badge>
+                <StatusChip tone="good">▲ {mover.delta}</StatusChip>
               ) : mover.kind === 'faller' ? (
-                <Badge variant="secondary" className="shrink-0 text-danger">
-                  ▼ {mover.prev !== null && mover.position !== null ? mover.position - mover.prev : 0}
-                </Badge>
+                <StatusChip tone="bad">▼ {mover.prev !== null && mover.position !== null ? mover.position - mover.prev : 0}</StatusChip>
               ) : mover.kind === 'new' ? (
-                <Badge variant="secondary" className="shrink-0">
-                  NEW #{mover.position}
-                </Badge>
+                <StatusChip tone="neutral">New</StatusChip>
               ) : (
-                <Badge variant="outline" className="shrink-0">
-                  LOST
-                </Badge>
+                <StatusChip tone="bad">Dropped</StatusChip>
               )}
             </li>
           ))}
         </ul>
-        ) : null}
-        {movers.length > visible.length ? (
-          <p className="text-xs text-muted-foreground">+ {movers.length - visible.length} more movers in this period.</p>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : null}
+      {movers.length > visible.length ? (
+        <p className="mt-2 text-xs text-muted-foreground">Showing {visible.length} of {movers.length} changes.</p>
+      ) : null}
+    </Section>
   );
 }

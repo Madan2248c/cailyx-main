@@ -32,7 +32,7 @@ export function ClientGate({ children }: { children: ReactNode }) {
         <Card className="w-full max-w-md">
           <CardContent className="flex flex-col gap-4 pt-6">
             <p className="text-sm text-muted-foreground">
-              The client portal is for client accounts — admins don&apos;t belong to one.
+              The client portal is for client accounts. Admin accounts don&apos;t belong to a client.
             </p>
             <Button variant="secondary" nativeButton={false} render={<Link href="/dashboard">Back to dashboard</Link>} />
           </CardContent>

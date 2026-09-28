@@ -28,8 +28,8 @@ function rankingsOf(snapshot: DataforseoSnapshot | null | undefined): SerpRankRo
 }
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return 'the last pull';
-  return new Date(iso).toLocaleDateString();
+  if (!iso) return 'the last check';
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function shortLabel(mover: TopMover): string {
@@ -42,7 +42,7 @@ function shortLabel(mover: TopMover): string {
   if (mover.kind === 'new' && mover.position !== null) {
     return `“${mover.keyword}” new at #${mover.position}`;
   }
-  return `“${mover.keyword}” lost (was #${mover.prev ?? '—'})`;
+  return `“${mover.keyword}” dropped out (was #${mover.prev ?? '?'})`;
 }
 
 /**

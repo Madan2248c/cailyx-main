@@ -6,8 +6,9 @@ import { DomainStrip, type DomainOverview } from '@/components/overview/DomainSt
 import { RankTable } from '@/components/overview/RankTable';
 import { SerpSnapshotViewer, type SerpOption, type SerpResult } from '@/components/overview/SerpSnapshotViewer';
 import { ExploreLinks } from '@/components/overview/ExploreLinks';
-import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
+import { MetaDot, PageHeader, PortalPage, Tile } from '@/components/portal/layout';
+import { EmptyState, PortalLoading } from '@/components/portal/states';
+import { plural, relativeDate } from '@/components/portal/tone';
 
 function num(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
@@ -26,7 +27,7 @@ function newestFirst(snapshots: DataforseoSnapshot[]): DataforseoSnapshot[] {
   return [...snapshots].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Tolerates partial rows — keyword + position required, the rest defaulted. */
+/** Tolerates partial rows: keyword and position are required, the rest is defaulted. */
 function rankingsOf(snapshot: DataforseoSnapshot | null | undefined): SerpRankRow[] {
   const payload = payloadOf(snapshot);
   if ('dataset' in payload && payload.dataset !== undefined && payload.dataset !== 'serp-ranks') return [];
@@ -95,7 +96,7 @@ function domainOf(snapshot: DataforseoSnapshot | null | undefined): DomainOvervi
 /**
  * Performance overview: domain strip, rank tracking, SERP snapshots, and
  * onward links. Every section degrades to an empty state when its dataset
- * hasn't landed yet — a failed or missing pull never breaks the page.
+ * hasn't landed yet, so a failed or missing check never breaks the page.
  */
 export function OverviewTab({
   accessToken,
@@ -229,7 +230,7 @@ export function OverviewTab({
     return <PortalLoading label="Loading performance" />;
   }
 
-  // ─── Headline (insights first) ─────────────────────────────────────
+  // ─── Headline: the answer before the numbers ───────────────────────
   let climbers = 0;
   let fallers = 0;
   for (const row of rankRows) {
@@ -239,41 +240,60 @@ export function OverviewTab({
       else if (row.position > prev) fallers += 1;
     }
   }
-  const headlineParts: string[] = [];
+  const pageOne = rankRows.filter((r) => r.position <= 10).length;
+  const nothingYet = !domain && rankRows.length === 0 && serpOptions.length === 0;
+  const checkedAt = [ranksAt, domainAt].filter((d): d is string => !!d).sort().at(-1) ?? null;
+
+  let summary: string | null = null;
   if (rankRows.length > 0) {
-    headlineParts.push(
-      `${rankRows.length} keyword${rankRows.length === 1 ? '' : 's'} tracked` +
-        (climbers > 0 || fallers > 0 ? ` · ${climbers} climbing, ${fallers} falling` : ' · steady'),
-    );
-  }
-  if (domain?.rank !== null && domain?.rank !== undefined) {
-    headlineParts.push(`domain rank #${domain.rank.toLocaleString()}`);
+    summary = `You're on Google's first page for ${pageOne} of ${plural(rankRows.length, 'tracked search', 'tracked searches')}.`;
+    if (climbers > 0 || fallers > 0) summary += ` Since the last check, ${climbers} moved up and ${fallers} moved down.`;
   }
 
   return (
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Performance overview</h1>
-        <p className="text-sm text-muted-foreground">
-          {projectName}
-          {headlineParts.length > 0 ? ` · ${headlineParts.join(' · ')}` : ''}
-        </p>
-      </div>
-
-      <DomainStrip domain={domain} pulledAt={domainAt} />
-
-      <RankTable rows={rankRows} prevByKeyword={prevByKeyword} pulledAt={ranksAt} />
-
-      <SerpSnapshotViewer
-        options={serpOptions}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        results={selectedId ? (serpCache[selectedId] ?? null) : null}
+    <PortalPage>
+      <PageHeader
+        eyebrow="Performance"
+        title="Search overview"
+        meta={
+          <>
+            <span>{projectName}</span>
+            {checkedAt ? (
+              <>
+                <MetaDot />
+                <span>Checked {relativeDate(checkedAt)}</span>
+              </>
+            ) : null}
+          </>
+        }
+        summary={summary ?? undefined}
       />
 
-      <ExploreLinks projectId={projectId} />
-    </div>
-    </StaggerIn>
+      {nothingYet ? (
+        <Tile index={1}>
+          <EmptyState
+            title="Your search overview is on its way"
+            body="This page will show how strong your site is in Google, where you appear for the searches that matter and who shows up above you."
+          />
+        </Tile>
+      ) : (
+        <>
+          <DomainStrip domain={domain} />
+          <RankTable index={5} rows={rankRows} prevByKeyword={prevByKeyword} pulledAt={ranksAt} />
+          <SerpSnapshotViewer
+            index={6}
+            options={serpOptions}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            results={selectedId ? (serpCache[selectedId] ?? null) : null}
+          />
+        </>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <p className="g-eyebrow">Look closer</p>
+        <ExploreLinks projectId={projectId} index={7} />
+      </div>
+    </PortalPage>
   );
 }

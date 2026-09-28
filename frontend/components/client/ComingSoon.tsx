@@ -13,7 +13,7 @@ export function ComingSoon({ title, description }: { title: string; description?
         </CardHeader>
         <CardContent>
           <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-            Coming soon — this section is still being built.
+            Coming soon. We&apos;re still building this page.
           </p>
         </CardContent>
       </Card>

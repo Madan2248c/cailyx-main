@@ -1,8 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   backlinkRowsOf,
   backlinksSummaryOf,
@@ -13,9 +11,11 @@ import {
   type ReferringDomainRow,
   type TopPageRow,
 } from '@/lib/dataforseo-api';
-import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
-import { Num } from '@/components/portal/motion';
+import { EmptyPage, MoreNote, NextSteps, Section, Stat, StatRow, type NextStep } from '@/components/portal/blocks';
+import { Meter } from '@/components/portal/charts';
+import { MetaDot, PageHeader, PortalPage, StatusChip } from '@/components/portal/layout';
+import { ErrorState, PortalLoading } from '@/components/portal/states';
+import { plural, TONE_TEXT, type Tone } from '@/components/portal/tone';
 
 const TOXIC_SPAM_SCORE = 60;
 const ROW_LIMIT = 20;
@@ -23,9 +23,21 @@ const DOMAIN_LIMIT = 15;
 const PAGE_LIMIT = 10;
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
+  if (!iso) return '–';
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+  return Number.isNaN(date.getTime())
+    ? '–'
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/** Just the path of one of your own pages ("/pricing"), or "Homepage". */
+function shortPath(url: string): string {
+  try {
+    const path = new URL(url).pathname;
+    return path === '/' || path === '' ? 'Homepage' : path;
+  } catch {
+    return url;
+  }
 }
 
 function shortUrl(url: string): string {
@@ -38,11 +50,11 @@ function shortUrl(url: string): string {
   }
 }
 
-function spamTone(score: number): string {
-  if (!Number.isFinite(score)) return 'text-muted-foreground';
-  if (score >= TOXIC_SPAM_SCORE) return 'text-danger';
-  if (score >= 30) return 'text-warning';
-  return 'text-success';
+function spamTone(score: number): Tone {
+  if (!Number.isFinite(score)) return 'neutral';
+  if (score >= TOXIC_SPAM_SCORE) return 'bad';
+  if (score >= 30) return 'watch';
+  return 'good';
 }
 
 interface Loaded {
@@ -98,41 +110,28 @@ export function BacklinksSection({
     };
   }, [accessToken, clientId, projectId]);
 
-  if (state === 'loading') {
-    return <PortalLoading label="Loading backlinks" />;
-  }
-
-  if (state === 'error') {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
+  if (state === 'loading') return <PortalLoading label="Loading backlinks" />;
+  if (state === 'error') return <ErrorState title="We couldn't load your backlinks" message={error ?? 'Unknown error'} />;
   if (!data) return null;
 
   const hasAnything =
     data.summary !== null || data.rows.length > 0 || data.domains.length > 0 || data.pages.length > 0;
 
-  // Empty state: the backend lands snapshot datasets in parallel, so any or
-  // all of them may legitimately be absent.
+  // The datasets land independently, so any or all may be absent early on.
   if (!hasAnything) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-        <div>
-          <h1 className="text-2xl font-semibold">Backlinks</h1>
-          <p className="text-sm text-muted-foreground">{projectName}</p>
-        </div>
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No backlink data yet. Snapshots appear here automatically once the first backlink pull
-              runs for this project — check back soon.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <EmptyPage
+        eyebrow="Search"
+        title="Backlinks"
+        projectName={projectName}
+        emptyTitle="Your backlink check is on its way"
+        body="Backlinks are links to your site from other websites. Search engines and AI tools treat them as votes of trust, so this page shows who links to you and what changed."
+        steps={[
+          'We find the websites that link to yours.',
+          'Each link is checked for quality, so spammy ones are flagged.',
+          'After that, you see new and lost links every time we check again.',
+        ]}
+      />
     );
   }
 
@@ -141,251 +140,176 @@ export function BacklinksSection({
   const toxicRows = [...liveRows]
     .filter((row) => Number.isFinite(row.spamScore) && row.spamScore >= TOXIC_SPAM_SCORE)
     .sort((a, b) => b.spamScore - a.spamScore);
-  const newRows = [...liveRows].sort((a, b) =>
-    (b.firstSeen ?? '').localeCompare(a.firstSeen ?? ''),
-  );
+  const newRows = [...liveRows].sort((a, b) => (b.firstSeen ?? '').localeCompare(a.firstSeen ?? ''));
 
   const referringDomains = data.summary?.referringDomains ?? data.domains.length;
   const newBacklinks = data.summary?.newBacklinks ?? newRows.length;
   const lostBacklinks = data.summary?.lostBacklinks ?? lostRows.length;
-  const broken = lostRows.length;
 
-  const actions: string[] = [];
-  if (newBacklinks > 0) {
-    const newest = newRows[0];
-    actions.push(
-      newest
-        ? `${newBacklinks} new ${newBacklinks === 1 ? 'backlink' : 'backlinks'} — latest from ${shortUrl(newest.sourceUrl)}. Keep earning links from sites like it.`
-        : `${newBacklinks} new ${newBacklinks === 1 ? 'backlink' : 'backlinks'} since the last pull.`,
-    );
-  }
+  const steps: NextStep[] = [];
   if (lostBacklinks > 0) {
-    actions.push(
-      `${lostBacklinks} lost ${lostBacklinks === 1 ? 'backlink' : 'backlinks'} — review the flagged rows below and reclaim the ones on pages you control or can reach out to.`,
-    );
+    steps.push({
+      tone: 'bad',
+      lead: `${plural(lostBacklinks, 'link')} lost.`,
+      text: 'Check the ones marked Lost below. If a site you know removed its link, a short note asking them to restore it often works.',
+    });
   }
   if (toxicRows.length > 0) {
-    actions.push(
-      `${toxicRows.length} live ${toxicRows.length === 1 ? 'link looks' : 'links look'} toxic (spam score ≥ ${TOXIC_SPAM_SCORE}) — disavow ${toxicRows.length === 1 ? 'it' : 'them'} so they stop dragging down trust.`,
-    );
+    steps.push({
+      tone: 'watch',
+      lead: `${plural(toxicRows.length, 'link looks', 'links look')} spammy.`,
+      text: 'Links from low-quality sites can hurt trust. Your Rothenhall lead can ask Google to ignore them.',
+    });
   }
-  if (actions.length === 0) {
-    actions.push('No new, lost, or toxic links in the latest pull — your link profile is steady.');
+  if (newBacklinks > 0) {
+    const newest = newRows[0];
+    steps.push({
+      tone: 'good',
+      lead: `${plural(newBacklinks, 'new link')} since the last check.`,
+      text: newest ? `The latest is from ${shortUrl(newest.sourceUrl)}. Sites like it are worth approaching again.` : undefined,
+    });
   }
 
-  const visibleRows = [...data.rows].sort((a, b) => Number(a.lost) - Number(b.lost)).slice(0, ROW_LIMIT);
-  const visibleDomains = [...data.domains]
-    .sort((a, b) => b.backlinks - a.backlinks)
-    .slice(0, DOMAIN_LIMIT);
-  const visiblePages = [...data.pages]
-    .sort((a, b) => b.backlinks - a.backlinks)
-    .slice(0, PAGE_LIMIT);
+  const visibleRows = [...data.rows].sort((a, b) => Number(b.lost) - Number(a.lost)).slice(0, ROW_LIMIT);
+  const visibleDomains = [...data.domains].sort((a, b) => b.backlinks - a.backlinks).slice(0, DOMAIN_LIMIT);
+  const visiblePages = [...data.pages].sort((a, b) => b.backlinks - a.backlinks).slice(0, PAGE_LIMIT);
+  const topPageMax = Math.max(1, ...visiblePages.map((p) => p.backlinks));
 
   return (
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Backlinks</h1>
-        <p className="text-sm text-muted-foreground">
-          {projectName}
-          {referringDomains > 0 ? ` · ${referringDomains} referring domains` : ''}
-        </p>
-      </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Search"
+        title="Backlinks"
+        meta={
+          <>
+            <span>{projectName}</span>
+            {referringDomains > 0 ? (
+              <>
+                <MetaDot />
+                <span>{plural(referringDomains, 'website')} link to you</span>
+              </>
+            ) : null}
+          </>
+        }
+        summary="Links from other websites tell search engines and AI tools that you can be trusted. More links from good sites means more trust."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Referring domains</p>
-            <p className="text-4xl font-semibold"><Num value={referringDomains} /></p>
-            <p className="text-xs text-muted-foreground">unique sites linking to you</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">New backlinks</p>
-            <p className="text-4xl font-semibold text-success"><Num value={newBacklinks} /></p>
-            <p className="text-xs text-muted-foreground">gained since the last pull</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Lost backlinks</p>
-            <p className="text-4xl font-semibold text-danger"><Num value={lostBacklinks} /></p>
-            <p className="text-xs text-muted-foreground">gone since the last pull</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Broken</p>
-            <p className="text-4xl font-semibold text-warning"><Num value={broken} /></p>
-            <p className="text-xs text-muted-foreground">flagged links to reclaim</p>
-          </CardContent>
-        </Card>
-      </div>
+      <StatRow cols={4}>
+        <Stat
+          index={1}
+          label="Linking websites"
+          value={referringDomains}
+          caption="Different websites that link to you"
+          hint="Counted once per website, however many links it has. Ten sites with one link each count for more than one site with ten."
+        />
+        <Stat index={2} label="New links" value={newBacklinks} tone={newBacklinks > 0 ? 'good' : 'neutral'} caption="Gained since the last check" />
+        <Stat index={3} label="Lost links" value={lostBacklinks} tone={lostBacklinks > 0 ? 'bad' : 'neutral'} caption="Gone since the last check" />
+        <Stat
+          index={4}
+          label="Spammy links"
+          value={toxicRows.length}
+          tone={toxicRows.length > 0 ? 'watch' : 'neutral'}
+          caption="From low-quality sites"
+          hint={`Each link gets a spam score from 0 to 100. We flag links scoring ${TOXIC_SPAM_SCORE} or more.`}
+        />
+      </StatRow>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">What to do next</CardTitle>
-          <CardDescription>New, lost, and toxic links first</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-1.5">
-          {actions.map((action) => (
-            <p key={action.slice(0, 48)} className="text-sm">
-              {action}
-            </p>
-          ))}
-        </CardContent>
-      </Card>
+      <NextSteps index={5} items={steps} allClear="Nothing to act on. Your links are steady since the last check." />
 
-      {data.rows.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Backlinks</CardTitle>
-            <CardDescription>Source → target, newest and lost first</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col overflow-x-auto p-0">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
+      <div className="grid gap-4 lg:grid-cols-2">
+        {visibleDomains.length > 0 ? (
+          <Section index={6} eyebrow="Who links to you most" flush>
+            <table className="g-table">
               <thead>
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-6 py-2.5 font-medium">Source → target</th>
-                  <th className="px-4 py-2.5 font-medium">Anchor</th>
-                  <th className="px-4 py-2.5 font-medium">Link</th>
-                  <th className="px-4 py-2.5 font-medium">Spam</th>
-                  <th className="px-6 py-2.5 font-medium">Status</th>
+                <tr>
+                  <th>Website</th>
+                  <th className="g-num-cell">Links</th>
+                  <th className="g-num-cell">Since</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleDomains.map((domain) => (
+                  <tr key={domain.domain}>
+                    <td className="break-all font-medium">{domain.domain}</td>
+                    <td className="g-num-cell">{domain.backlinks.toLocaleString()}</td>
+                    <td className="g-num-cell text-muted-foreground">{formatDate(domain.firstSeen)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <MoreNote shown={visibleDomains.length} total={data.domains.length} noun="websites" />
+          </Section>
+        ) : null}
+
+        {visiblePages.length > 0 ? (
+          <Section index={7} eyebrow="Your most linked pages">
+            <ul className="flex flex-col gap-3">
+              {visiblePages.map((page, i) => (
+                <li key={page.url} className="flex flex-col gap-1.5 text-sm">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 truncate font-medium" title={page.url}>
+                      {shortPath(page.url)}
+                    </p>
+                    <p className="g-num shrink-0 text-muted-foreground">
+                      <span className="font-medium text-foreground">{page.backlinks.toLocaleString()}</span> links ·{' '}
+                      {plural(page.refDomains, 'site')}
+                    </p>
+                  </div>
+                  <Meter value={page.backlinks} max={topPageMax} height={4} index={i} label={`${page.backlinks} links`} />
+                </li>
+              ))}
+            </ul>
+            {data.pages.length > visiblePages.length ? (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Showing the top {visiblePages.length} of {data.pages.length} pages.
+              </p>
+            ) : null}
+          </Section>
+        ) : null}
+      </div>
+
+      {visibleRows.length > 0 ? (
+        <Section index={8} eyebrow="Individual links" description="Lost links first, then the rest." flush>
+          <div className="overflow-x-auto">
+            <table className="g-table min-w-[720px]">
+              <thead>
+                <tr>
+                  <th>Linking page</th>
+                  <th>Link text</th>
+                  <th title="Followed links pass trust to your site. Unfollowed links still bring visitors but pass less trust.">Passes trust</th>
+                  <th className="g-num-cell">Spam score</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row) => (
-                  <tr key={`${row.sourceUrl}${row.targetUrl}`} className="border-t border-border align-top">
-                    <td className="px-6 py-3">
+                  <tr key={`${row.sourceUrl}${row.targetUrl}`}>
+                    <td>
                       <p className="break-all font-medium">{shortUrl(row.sourceUrl)}</p>
-                      <p className="break-all text-xs text-muted-foreground">→ {shortUrl(row.targetUrl)}</p>
+                      <p className="break-all text-xs text-muted-foreground">to {shortPath(row.targetUrl)}</p>
                     </td>
-                    <td className="max-w-40 truncate px-4 py-3">
-                      {row.anchor === '' ? <span className="text-muted-foreground">—</span> : row.anchor}
+                    <td className="max-w-44 truncate">
+                      {row.anchor === '' ? <span className="text-muted-foreground">No text</span> : row.anchor}
                     </td>
-                    <td className="px-4 py-3">
-                      <Badge variant={row.isDofollow ? 'secondary' : 'outline'} className="shrink-0">
-                        {row.isDofollow ? 'Dofollow' : 'Nofollow'}
-                      </Badge>
+                    <td className={row.isDofollow ? '' : 'text-muted-foreground'}>{row.isDofollow ? 'Yes' : 'No'}</td>
+                    <td className={`g-num-cell font-medium ${TONE_TEXT[spamTone(row.spamScore)]}`}>
+                      {Number.isFinite(row.spamScore) ? row.spamScore : '–'}
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`font-medium ${spamTone(row.spamScore)}`}>
-                        {Number.isFinite(row.spamScore) ? row.spamScore : '—'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3">
+                    <td>
                       {row.lost ? (
-                        <Badge variant="destructive" className="shrink-0">
-                          LOST
-                        </Badge>
+                        <StatusChip tone="bad">Lost</StatusChip>
                       ) : (
-                        <span className="text-xs text-muted-foreground">
-                          seen {formatDate(row.lastSeen)}
-                        </span>
+                        <span className="text-xs text-muted-foreground">Seen {formatDate(row.lastSeen)}</span>
                       )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            {data.rows.length > visibleRows.length ? (
-              <p className="px-6 py-3 text-xs text-muted-foreground">
-                + {data.rows.length - visibleRows.length} more backlinks in this pull.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No individual backlink rows in the latest pull yet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {data.domains.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Referring domains</CardTitle>
-            <CardDescription>Who links to you the most</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col overflow-x-auto p-0">
-            <table className="w-full min-w-[480px] border-collapse text-sm">
-              <thead>
-                <tr className="text-left text-xs text-muted-foreground">
-                  <th className="px-6 py-2.5 font-medium">Domain</th>
-                  <th className="px-4 py-2.5 font-medium">Backlinks</th>
-                  <th className="px-6 py-2.5 font-medium">First seen</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleDomains.map((domain) => (
-                  <tr key={domain.domain} className="border-t border-border">
-                    <td className="break-all px-6 py-3 font-medium">{domain.domain}</td>
-                    <td className="px-4 py-3">{domain.backlinks}</td>
-                    <td className="px-6 py-3 text-muted-foreground">{formatDate(domain.firstSeen)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {data.domains.length > visibleDomains.length ? (
-              <p className="px-6 py-3 text-xs text-muted-foreground">
-                + {data.domains.length - visibleDomains.length} more domains in this pull.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No referring-domain breakdown in the latest pull yet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
-      {data.pages.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Top linked pages</CardTitle>
-            <CardDescription>Your pages attracting the most links</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            <ul className="flex flex-col gap-2">
-              {visiblePages.map((page) => (
-                <li
-                  key={page.url}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
-                >
-                  <p className="min-w-0 flex-1 truncate font-medium">{shortUrl(page.url)}</p>
-                  <p className="shrink-0 text-muted-foreground">
-                    {page.backlinks} {page.backlinks === 1 ? 'link' : 'links'} · {page.refDomains}{' '}
-                    {page.refDomains === 1 ? 'domain' : 'domains'}
-                  </p>
-                </li>
-              ))}
-            </ul>
-            {data.pages.length > visiblePages.length ? (
-              <p className="text-xs text-muted-foreground">
-                + {data.pages.length - visiblePages.length} more pages in this pull.
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No top-pages breakdown in the latest pull yet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-    </StaggerIn>
+          </div>
+          <MoreNote shown={visibleRows.length} total={data.rows.length} noun="links" />
+        </Section>
+      ) : null}
+    </PortalPage>
   );
 }

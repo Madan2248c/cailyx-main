@@ -1,7 +1,7 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Search } from 'lucide-react';
+import { InlineEmpty, Section } from '@/components/portal/blocks';
 
 export interface SerpOption {
   id: string;
@@ -15,55 +15,50 @@ export interface SerpResult {
   features: string[];
 }
 
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
+
 /**
- * SERP snapshot viewer: keyword picker → top-10 results with position,
- * title, URL, and SERP-feature badges. Empty state when no serp-snapshot
- * data exists.
+ * Google's first page for one search: who actually shows up, in order.
+ * Hidden entirely until at least one search has been captured.
  */
 export function SerpSnapshotViewer({
   options,
   selectedId,
   onSelect,
   results,
+  index = 0,
 }: {
   options: SerpOption[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Null while the selected snapshot's detail is loading. */
+  /** Null while the selected search's results are loading. */
   results: SerpResult[] | null;
+  index?: number;
 }) {
-  if (options.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">SERP snapshot</CardTitle>
-          <CardDescription>Who actually ranks on page one for your keywords.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-            No SERP snapshots yet — they appear here once the first data pull completes.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (options.length === 0) return null;
 
   const top = (results ?? []).slice(0, 10);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <CardTitle className="text-base">SERP snapshot</CardTitle>
-            <CardDescription>Who actually ranks on page one for your keywords.</CardDescription>
-          </div>
+    <Section
+      index={index}
+      icon={Search}
+      eyebrow="Google's first page"
+      description="Who shows up first when buyers make this search."
+      right={
+        options.length > 1 ? (
           <label className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Keyword</span>
+            <span className="sr-only">Search</span>
             <select
               value={selectedId ?? ''}
               onChange={(event) => onSelect(event.target.value)}
-              className="h-8 rounded-lg border border-border bg-background px-2 text-sm"
+              className="h-8 max-w-56 truncate rounded-lg border border-border bg-background px-2 text-sm"
             >
               {options.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -72,47 +67,37 @@ export function SerpSnapshotViewer({
               ))}
             </select>
           </label>
-        </div>
-      </CardHeader>
+        ) : (
+          <span className="text-sm font-medium">“{options[0].keyword}”</span>
+        )
+      }
+      flush
+    >
       {results === null ? (
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading snapshot…</p>
-        </CardContent>
+        <div className="px-5 pb-5">
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </div>
       ) : top.length === 0 ? (
-        <CardContent>
-          <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-            This snapshot has no results.
-          </p>
-        </CardContent>
+        <div className="px-5 pb-5">
+          <InlineEmpty>We couldn&apos;t capture results for this search. It will be tried again at the next check.</InlineEmpty>
+        </div>
       ) : (
-        <CardContent className="flex flex-col p-0">
+        <ol className="flex flex-col pb-2">
           {top.map((result) => (
-            <div
-              key={`${result.position}-${result.url}`}
-              className="flex items-start gap-3 border-t border-border px-6 py-2.5 text-sm first:border-t-0"
-            >
-              <p className="w-7 shrink-0 font-semibold text-muted-foreground">#{result.position}</p>
-              <div className="flex min-w-0 flex-1 flex-col gap-1">
+            <li key={`${result.position}-${result.url}`} className="flex items-start gap-3 border-t border-border px-5 py-3 text-sm">
+              <span className="g-num w-6 shrink-0 pt-0.5 text-right font-semibold text-muted-foreground">{result.position}</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <p className="truncate font-medium" title={result.title}>
-                  {result.title || result.url}
+                  {result.title || hostOf(result.url)}
                 </p>
                 <p className="truncate text-xs text-muted-foreground" title={result.url}>
-                  {result.url}
+                  {hostOf(result.url)}
                 </p>
-                {result.features.length > 0 ? (
-                  <div className="flex flex-wrap gap-1">
-                    {result.features.map((feature) => (
-                      <Badge key={feature} variant="outline">
-                        {feature}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
               </div>
-            </div>
+            </li>
           ))}
-        </CardContent>
+        </ol>
       )}
-    </Card>
+    </Section>
   );
 }

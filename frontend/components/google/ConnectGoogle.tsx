@@ -41,13 +41,13 @@ export function ConnectGoogle({
       </div>
       {!canEdit ? (
         <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-          Only your account&apos;s POC can connect Google accounts.
+          Only your company&apos;s main contact can connect Google.
         </p>
       ) : null}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Google Search Console</CardTitle>
-          <CardDescription>Clicks, impressions, and rankings — required to unlock this dashboard.</CardDescription>
+          <CardDescription>Your real clicks, searches and positions in Google. Needed to unlock this page.</CardDescription>
         </CardHeader>
         <CardContent>
           <Button onClick={() => connect('gsc')} disabled={!canEdit || pending !== null}>
@@ -59,7 +59,7 @@ export function ConnectGoogle({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Google Analytics</CardTitle>
-            <CardDescription>Sessions and users — optional, adds on once connected.</CardDescription>
+            <CardDescription>Visits and visitors to your site. Optional, and adds more detail once connected.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="secondary" onClick={() => connect('ga')} disabled={!canEdit || pending !== null}>

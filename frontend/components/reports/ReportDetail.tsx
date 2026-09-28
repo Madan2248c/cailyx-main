@@ -11,32 +11,16 @@ import type {
   GapAnalysisSection,
   ReportDelta,
   ReportDetail as ReportDetailData,
-  ReportStatus,
   SocialActivitySection,
   TechnicalAuditSection,
 } from '@/types/report';
-import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
+import { ErrorState, PortalLoading } from '@/components/portal/states';
+import { MetaDot, PageHeader, PortalPage, StatusChip } from '@/components/portal/layout';
+import { REPORT_KIND_WORD, REPORT_STATUS } from '@/components/reports/ReportsList';
+import { checkResult, humanize, impactWord, platformName } from '@/components/portal/words';
+import { CHECK_LABEL, type AuditCheckType } from '@/types/technical';
+import { PATTERN_LABEL, type ActivityPattern } from '@/types/social';
 import { ScrollProgress, ScrollProgressProvider } from '@/components/animate-ui/primitives/animate/scroll-progress';
-
-function statusVariant(status: ReportStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
-  switch (status) {
-    case 'RELEASED':
-      return 'default';
-    case 'IN_REVIEW':
-      return 'outline';
-    case 'WITHDRAWN':
-      return 'destructive';
-    default:
-      return 'secondary';
-  }
-}
-
-function findingVariant(status: string): 'default' | 'secondary' | 'outline' | 'destructive' {
-  if (status === 'fail' || status === 'error') return 'destructive';
-  if (status === 'pass') return 'secondary';
-  return 'outline';
-}
 
 function formatDate(value: string | null): string {
   if (!value) return 'Date unknown';
@@ -150,7 +134,7 @@ function growthSentence(delta: ReportDelta): string {
   if (direction === 'unknown') return `${subject}: ${prev} → ${cur}.`;
   if (direction === 'unchanged') return `${subject} held steady at ${cur} since last month.`;
   const verdict = direction === 'improved' ? "That's growth." : 'A dip to watch.';
-  return `${subject} was ${prev} last month — now it's ${cur}. ${verdict}`;
+  return `${subject} went from ${prev} last month to ${cur} now. ${verdict}`;
 }
 
 function GrowthBand({ deltas }: { deltas: ReportDelta[] }) {
@@ -158,7 +142,7 @@ function GrowthBand({ deltas }: { deltas: ReportDelta[] }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">How you&apos;ve grown</CardTitle>
-        <CardDescription>Last month vs now — every measured change in this report</CardDescription>
+        <CardDescription>Last month compared with now, for everything we measure</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col p-0">
         {deltas.map((d, i) => {
@@ -208,7 +192,7 @@ function ActionsCard({ gapAnalysis }: { gapAnalysis: GapAnalysisSection }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">What needs doing</CardTitle>
-        <CardDescription>Top actions from this report&apos;s gap analysis</CardDescription>
+        <CardDescription>The three most important actions from this report</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2.5">
         {top.map((rec) => (
@@ -232,9 +216,9 @@ function TechnicalSection({ section }: { section: TechnicalAuditSection }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Technical audit</CardTitle>
+        <CardTitle className="text-base">Technical health</CardTitle>
         <CardDescription>
-          {section.score !== null ? `Site score ${section.score}/100` : 'Site score unavailable'}
+          {section.score !== null ? `Site score ${section.score}/100` : 'No site score this time'}
           {failing.length > 0 ? ` · ${failing.length} failing ${failing.length === 1 ? 'check' : 'checks'}` : ''}
         </CardDescription>
       </CardHeader>
@@ -249,9 +233,9 @@ function TechnicalSection({ section }: { section: TechnicalAuditSection }) {
               className="flex flex-col gap-1 rounded-lg border border-border p-2.5 text-sm"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">{finding.type}</p>
-                <Badge variant={findingVariant(finding.status)}>{finding.status}</Badge>
-                <span className="text-xs text-muted-foreground">{finding.severity} severity</span>
+                <p className="font-medium">{CHECK_LABEL[finding.type as AuditCheckType] ?? humanize(finding.type)}</p>
+                <StatusChip tone={checkResult(finding.status).tone}>{checkResult(finding.status).word}</StatusChip>
+                <span className="text-xs text-muted-foreground">{impactWord(finding.severity)}</span>
               </div>
               <p className="text-muted-foreground">{finding.recommendedFix}</p>
             </div>
@@ -279,8 +263,10 @@ function SocialSection({ section }: { section: SocialActivitySection }) {
               className="flex items-baseline justify-between gap-3 rounded-lg border border-border p-2.5 text-sm"
             >
               <div className="flex min-w-0 flex-col gap-0.5">
-                <p className="font-medium">{platform.platform}</p>
-                <p className="text-xs text-muted-foreground">{platform.pattern}</p>
+                <p className="font-medium">{platformName(platform.platform)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Posts {(PATTERN_LABEL[platform.pattern as ActivityPattern] ?? humanize(platform.pattern)).toLowerCase()}
+                </p>
               </div>
               <p className="shrink-0 text-muted-foreground">
                 {platform.postsInWindow} {platform.postsInWindow === 1 ? 'post' : 'posts'}
@@ -295,11 +281,9 @@ function SocialSection({ section }: { section: SocialActivitySection }) {
             className="flex flex-col gap-1 rounded-lg border border-border p-2.5 text-sm"
           >
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-medium">{finding.type}</p>
-              <Badge variant={findingVariant(finding.status)}>{finding.status}</Badge>
-              <span className="text-xs text-muted-foreground">
-                {finding.platform} · {finding.severity}
-              </span>
+              <p className="font-medium">{platformName(finding.platform)}: {humanize(finding.type).toLowerCase()}</p>
+              <StatusChip tone={checkResult(finding.status).tone}>{checkResult(finding.status).word}</StatusChip>
+              <span className="text-xs text-muted-foreground">{impactWord(finding.severity)}</span>
             </div>
             <p className="text-muted-foreground">{finding.detail}</p>
           </div>
@@ -339,8 +323,8 @@ function AeoSection({ section }: { section: AeoAuditSection }) {
               >
                 <p className="min-w-0 flex-1 truncate font-medium">{row.name}</p>
                 <p className="shrink-0 text-muted-foreground">
-                  <span className="font-medium text-success">{row.timesAhead}</span> ahead ·{' '}
-                  <span className="font-medium text-danger">{row.timesBehind}</span> behind
+                  Ahead <span className="font-medium text-success">{row.timesAhead}×</span> · behind{' '}
+                  <span className="font-medium text-danger">{row.timesBehind}×</span>
                 </p>
               </div>
             ))}
@@ -356,7 +340,7 @@ function CompetitorsSection({ section }: { section: CompetitorsSection }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">Competitors</CardTitle>
-        <CardDescription>How you compare on SEO and AI standing</CardDescription>
+        <CardDescription>Homepage SEO score out of 100, and who AI answers prefer</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col p-0">
         {[{ ...section.own, reviewRating: null, aeoStanding: null }, ...section.rows].map((row, i) => (
@@ -377,7 +361,7 @@ function CompetitorsSection({ section }: { section: CompetitorsSection }) {
               ) : null}
               {row.aeoStanding ? (
                 <p className="text-xs text-muted-foreground">
-                  AI: {row.aeoStanding.timesAhead} ahead · {row.aeoStanding.timesBehind} behind
+                  In AI answers: ahead {row.aeoStanding.timesAhead}×, behind {row.aeoStanding.timesBehind}×
                 </p>
               ) : null}
             </div>
@@ -396,11 +380,11 @@ function GapSection({ section }: { section: GapAnalysisSection }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Gap analysis</CardTitle>
+        <CardTitle className="text-base">Recommendations</CardTitle>
         <CardDescription>
           {ordered.length === 0
             ? 'No recommendations in this report.'
-            : `${ordered.length} ranked ${ordered.length === 1 ? 'recommendation' : 'recommendations'}`}
+            : `${ordered.length} ${ordered.length === 1 ? 'recommendation' : 'recommendations'}, most important first`}
         </CardDescription>
       </CardHeader>
       {ordered.length > 0 ? (
@@ -413,7 +397,7 @@ function GapSection({ section }: { section: GapAnalysisSection }) {
               <div className="flex min-w-0 flex-col gap-0.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{rec.title}</p>
-                  <span className="text-xs text-muted-foreground">{rec.status}</span>
+                  {rec.status === 'DONE' ? <StatusChip tone="good">Done</StatusChip> : rec.status === 'DISMISSED' ? <StatusChip tone="neutral">Not needed</StatusChip> : null}
                 </div>
                 <p className="text-muted-foreground">{rec.description}</p>
               </div>
@@ -455,16 +439,7 @@ export function ReportDetail({
     };
   }, [accessToken, clientId, reportId]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-        <Button variant="outline" size="sm" className="self-start" onClick={onBack}>
-          ← All reports
-        </Button>
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
+  if (error) return <ErrorState title="We couldn't open this report" message={error} />;
 
   if (!report) {
     return <PortalLoading label="Loading report" />;
@@ -483,20 +458,25 @@ export function ReportDetail({
           className="fixed inset-x-0 top-0 z-50 h-[3px] origin-left bg-foreground/70"
         />
       </ScrollProgressProvider>
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={onBack}>
+    <PortalPage>
+      <div className="flex flex-col gap-2">
+        <Button variant="ghost" size="sm" className="-ml-2 self-start" onClick={onBack}>
           ← All reports
         </Button>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={report.kind === 'MONTHLY' ? 'default' : 'secondary'}>{report.kind}</Badge>
-          <Badge variant={statusVariant(report.status)}>{report.status}</Badge>
-        </div>
-        <h1 className="mt-2 text-2xl font-semibold">{report.title}</h1>
-        <p className="text-sm text-muted-foreground">
-          {content.meta.domain} · {formatDate(report.releasedAt ?? report.createdAt)}
-        </p>
+        <PageHeader
+          eyebrow={REPORT_KIND_WORD[report.kind]}
+          title={report.title}
+          meta={
+            <>
+              <span>{content.meta.domain}</span>
+              <MetaDot />
+              <span>{formatDate(report.releasedAt ?? report.createdAt)}</span>
+              {report.status !== 'RELEASED' ? (
+                <StatusChip tone={REPORT_STATUS[report.status].tone}>{REPORT_STATUS[report.status].word}</StatusChip>
+              ) : null}
+            </>
+          }
+        />
       </div>
 
       {report.kind === 'MONTHLY' && deltas.length > 0 ? <GrowthBand deltas={deltas} /> : null}
@@ -537,8 +517,7 @@ export function ReportDetail({
           }
           return null;
         })}
-    </div>
-    </StaggerIn>
+    </PortalPage>
     </>
   );
 }

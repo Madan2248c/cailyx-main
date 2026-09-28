@@ -518,6 +518,51 @@
   letter-spacing: -0.03em;
 }
 
+/* Data tables inside a tile: quiet header, hairline rows, numbers right-aligned via .g-num-cell. */
+.theme-graphite .g-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.theme-graphite .g-table th {
+  padding: 0.5rem 1rem;
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--g-ink-soft);
+  white-space: nowrap;
+}
+
+.theme-graphite .g-table td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--g-line);
+  vertical-align: middle;
+}
+
+.theme-graphite .g-table th:first-child,
+.theme-graphite .g-table td:first-child {
+  padding-left: 1.25rem;
+}
+
+.theme-graphite .g-table th:last-child,
+.theme-graphite .g-table td:last-child {
+  padding-right: 1.25rem;
+}
+
+.theme-graphite .g-table .g-num-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.theme-graphite .g-table tbody tr {
+  transition: background-color var(--g-duration-fast) var(--g-ease-out);
+}
+
+.theme-graphite .g-table tbody tr:hover {
+  background-color: var(--g-surface-strong);
+}
+
 .theme-graphite .g-row-link {
   transition: background-color var(--g-duration-fast) var(--g-ease-out);
 }

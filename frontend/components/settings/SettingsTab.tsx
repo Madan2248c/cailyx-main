@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FolderOpen, Link2, ListChecks, Users } from 'lucide-react';
 import { getGoogleStatus } from '@/lib/google-api';
 import { getDay1Status, type Day1Status } from '@/lib/settings-api';
 import { listMembers } from '@/lib/team-api';
 import type { GoogleStatus } from '@/types/google';
 import type { Project } from '@/types/project';
 import type { TeamMembers } from '@/types/team';
+import { InlineEmpty, Section } from '@/components/portal/blocks';
+import { PageHeader, PortalPage, StatusChip } from '@/components/portal/layout';
 import { PortalLoading } from '@/components/portal/states';
-import { StaggerIn } from '@/components/portal/reveal';
 
 /** Day-1 stages in execution order (mirrors the backend pipeline). */
 const DAY1_STAGE_ORDER = [
@@ -25,27 +26,45 @@ const DAY1_STAGE_ORDER = [
   'notify',
 ];
 
+const STAGE_LABEL: Record<string, string> = {
+  discovery: 'Learning about your business',
+  'technical-audit': 'Technical health check',
+  'social-activity': 'Social channels check',
+  'query-set': 'Choosing buyer questions',
+  'aeo-audit': 'AI visibility check',
+  competitors: 'Finding your rivals',
+  'gap-analysis': 'Working out priorities',
+  remediation: 'Building your Fix Plan',
+  reporting: 'Writing your first report',
+  notify: 'Letting you know',
+};
+
 function stageLabel(stage: string): string {
-  if (stage === 'remediation') return 'Fix Plan';
-  return stage.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return STAGE_LABEL[stage] ?? stage.replace(/-/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 }
 
-function stageDot(status: string): string {
-  if (status === 'completed') return 'bg-success';
-  if (status === 'failed') return 'bg-danger';
-  if (status === 'skipped') return 'bg-muted-foreground/40';
-  if (status === 'running') return 'bg-warning';
-  return 'bg-muted-foreground/20';
-}
+const STAGE_WORD: Record<string, string> = {
+  completed: 'Done',
+  failed: 'Stopped',
+  skipped: 'Skipped',
+  running: 'Running now',
+  pending: 'Waiting',
+};
 
-function connectionDot(connected: boolean): string {
-  return connected ? 'bg-success' : 'bg-muted-foreground/40';
-}
+const STAGE_DOT: Record<string, string> = {
+  completed: 'var(--success)',
+  failed: 'var(--danger)',
+  skipped: 'var(--g-line-strong)',
+  running: 'var(--warning)',
+  pending: 'var(--g-line)',
+};
 
 function formatDate(raw: string | null): string {
-  if (!raw) return '—';
+  if (!raw) return '–';
   const date = new Date(raw);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString();
+  return Number.isNaN(date.getTime())
+    ? '–'
+    : date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /**
@@ -80,7 +99,7 @@ export function SettingsTab({
         if (!cancelled) setGoogleError(err instanceof Error ? err.message : 'Failed to load connection status');
       });
 
-    // Best-effort: manage_team-gated, so members get a 403 — hidden, not an error.
+    // Best-effort: manage_team-gated, so members get a 403 and the card is hidden.
     listMembers(accessToken)
       .then((members) => {
         if (!cancelled) setTeam(members);
@@ -89,7 +108,7 @@ export function SettingsTab({
         // Silently omitted for roles that cannot read the team.
       });
 
-    // Best-effort: admin-only on the backend — hidden for client roles, never an error.
+    // Best-effort: admin-only on the backend, so client roles simply don't see it.
     getDay1Status(accessToken, clientId, project.id)
       .then((status) => {
         if (!cancelled) setDay1(status);
@@ -103,133 +122,105 @@ export function SettingsTab({
     };
   }, [accessToken, clientId, project.id]);
 
-  if (!google && !googleError) {
-    return <PortalLoading label="Loading settings" />;
-  }
+  if (!google && !googleError) return <PortalLoading label="Loading settings" />;
+
+  const pipelineWord =
+    day1?.status === 'COMPLETE' ? 'Finished' : day1?.status === 'FAILED' ? 'Stopped' : day1?.status === 'RUNNING' ? 'Running' : 'Queued';
 
   return (
-    <StaggerIn>
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm text-muted-foreground">{project.name}</p>
-      </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Settings"
+        title="Project settings"
+        meta={<span>{project.name}</span>}
+        summary="These settings are managed by Rothenhall. To change anything here, ask your Rothenhall lead."
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Project</CardTitle>
-            <CardDescription>Basics for this workspace</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col p-0">
-            {[
+        <Section index={1} icon={FolderOpen} eyebrow="Project">
+          <Rows
+            rows={[
               ['Name', project.name],
-              ['Domain', project.domain],
-              ['Created', formatDate(project.createdAt)],
-            ].map(([label, value], i) => (
-              <div
-                key={label}
-                className={`flex items-baseline justify-between gap-3 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <p className="text-muted-foreground">{label}</p>
-                <p className="shrink-0 font-medium">{value}</p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+              ['Website', project.domain],
+              ['Started', formatDate(project.createdAt)],
+            ]}
+          />
+        </Section>
 
         {team ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Account &amp; seats</CardTitle>
-              <CardDescription>Your team&apos;s seat usage</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col p-0">
-              {[
+          <Section index={2} icon={Users} eyebrow="Your team">
+            <Rows
+              rows={[
                 ['Seats used', `${team.seatsUsed} of ${team.seatLimit}`],
-                ['Team members', String(team.members.length)],
-              ].map(([label, value], i) => (
-                <div
-                  key={label}
-                  className={`flex items-baseline justify-between gap-3 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-                >
-                  <p className="text-muted-foreground">{label}</p>
-                  <p className="shrink-0 font-medium">{value}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ['People on the team', String(team.members.length)],
+              ]}
+            />
+          </Section>
         ) : null}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Connected accounts</CardTitle>
-            <CardDescription>Google services linked to your account</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 text-sm">
-            {googleError ? (
-              <p className="text-sm text-destructive">{googleError}</p>
-            ) : google ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className={`size-2 rounded-full ${connectionDot(google.gsc.connected)}`} />
-                  <p className="font-medium">Search Console</p>
-                  <p className="ml-auto text-muted-foreground">
-                    {google.gsc.connected ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span aria-hidden="true" className={`size-2 rounded-full ${connectionDot(google.ga.connected)}`} />
-                  <p className="font-medium">Analytics</p>
-                  <p className="ml-auto text-muted-foreground">
-                    {google.ga.connected ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                {!google.gsc.connected && !google.ga.connected ? (
-                  <p className="text-xs text-muted-foreground">
-                    Ask your admin to connect Google to unlock the Organic dashboard.
-                  </p>
-                ) : null}
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
+        <Section index={3} icon={Link2} eyebrow="Connected accounts" description="Connecting Google unlocks your real clicks and visits.">
+          {googleError ? (
+            <InlineEmpty>We couldn&apos;t check your connections right now. Refresh to try again.</InlineEmpty>
+          ) : google ? (
+            <div className="flex flex-col gap-2.5 text-sm">
+              <Connection name="Google Search Console" connected={google.gsc.connected} />
+              <Connection name="Google Analytics" connected={google.ga.connected} />
+              {!google.gsc.connected && !google.ga.connected ? (
+                <p className="text-xs text-muted-foreground">Ask your Rothenhall lead to connect Google for you.</p>
+              ) : null}
+            </div>
+          ) : null}
+        </Section>
 
         {day1 ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Day-1 pipeline</CardTitle>
-              <CardDescription>
-                Setup status
-                {day1.currentStage && day1.status === 'RUNNING' ? ` — ${stageLabel(day1.currentStage)}` : null}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col p-0">
-              {DAY1_STAGE_ORDER.map((stage, i) => {
+          <Section
+            index={4}
+            icon={ListChecks}
+            eyebrow="First-day setup"
+            right={<StatusChip tone={day1.status === 'COMPLETE' ? 'good' : day1.status === 'FAILED' ? 'bad' : 'watch'}>{pipelineWord}</StatusChip>}
+            flush
+          >
+            <ul className="flex flex-col pb-2">
+              {DAY1_STAGE_ORDER.map((stage) => {
                 const record = day1.stages[stage];
                 const status =
-                  record?.status ??
-                  (stage === day1.currentStage && day1.status === 'RUNNING' ? 'running' : 'pending');
+                  record?.status ?? (stage === day1.currentStage && day1.status === 'RUNNING' ? 'running' : 'pending');
                 return (
-                  <div
-                    key={stage}
-                    className={`flex items-center gap-2 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-                  >
-                    <span aria-hidden="true" className={`size-2 rounded-full ${stageDot(status)}`} />
-                    <p>{stageLabel(stage)}</p>
-                    <p className="ml-auto shrink-0 capitalize text-muted-foreground">{status}</p>
-                  </div>
+                  <li key={stage} className="flex items-center gap-2.5 border-t border-border px-5 py-2.5 text-sm">
+                    <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: STAGE_DOT[status] ?? STAGE_DOT.pending }} />
+                    <span>{stageLabel(stage)}</span>
+                    <span className="ml-auto shrink-0 text-muted-foreground">{STAGE_WORD[status] ?? status}</span>
+                  </li>
                 );
               })}
-            </CardContent>
-          </Card>
+            </ul>
+          </Section>
         ) : null}
       </div>
+    </PortalPage>
+  );
+}
 
-      <p className="text-xs text-muted-foreground">
-        Settings are read-only — contact your admin to change anything on this page.
-      </p>
+function Rows({ rows }: { rows: Array<[string, string]> }) {
+  return (
+    <dl className="flex flex-col text-sm">
+      {rows.map(([label, value]) => (
+        <div key={label} className="flex items-baseline justify-between gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="truncate font-medium">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Connection({ name, connected }: { name: string; connected: boolean }) {
+  return (
+    <div className="flex items-center gap-2">
+      <p className="font-medium">{name}</p>
+      <span className="ml-auto">
+        <StatusChip tone={connected ? 'good' : 'neutral'}>{connected ? 'Connected' : 'Not connected'}</StatusChip>
+      </span>
     </div>
-    </StaggerIn>
   );
 }

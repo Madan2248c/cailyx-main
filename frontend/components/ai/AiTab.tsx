@@ -107,7 +107,7 @@ export function AiTab({
         <Tile index={1}>
           <EmptyState
             title="Not measured yet"
-            body="Your first answer-engine audit runs in the Day-1 pipeline. We ask ChatGPT, Perplexity and Gemini the questions your buyers ask, then show how often they name you."
+            body="We're asking ChatGPT, Perplexity and Gemini the questions your buyers ask. This page shows how often they name you, as soon as the answers are in."
           />
         </Tile>
       </PortalPage>

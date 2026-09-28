@@ -38,5 +38,5 @@ export function ProjectTabPage({
     );
   }
 
-  return <ComingSoon title={`${project.name} — ${title}`} description={description} />;
+  return <ComingSoon title={`${title} · ${project.name}`} description={description} />;
 }

@@ -39,7 +39,7 @@ function GaPropertyPicker({
   return (
     <PropertyPicker
       title="Choose an Analytics property"
-      description="This account has no property matching the project domain — pick one to view its data."
+      description="We couldn't find an Analytics property for this website. Pick the right one to see its data."
       items={(properties ?? []).map((p) => ({ key: p.id, label: p.name, hint: p.id }))}
       onPick={onPick}
       isLoading={properties === null}
@@ -116,10 +116,10 @@ export function GaSection({
           <CardTitle className="text-base">Google Analytics</CardTitle>
           <CardDescription>
             {scopeMissing
-              ? 'Analytics access was revoked or never fully granted — reconnect and check every box on Google’s consent screen.'
+              ? 'Google Analytics access was removed or not fully granted. Reconnect and tick every box on Google’s permission screen.'
               : failure
-                ? 'Analytics is linked but its data could not be read — reconnecting usually fixes it.'
-                : 'Sessions and users — optional, adds on once connected.'}
+                ? 'Google Analytics is linked but we couldn’t read its data. Reconnecting usually fixes this.'
+                : 'Visits and visitors to your site. Optional, and adds more detail once connected.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
@@ -129,7 +129,7 @@ export function GaSection({
             </Button>
           </div>
           {!canEdit ? (
-            <p className="text-sm text-muted-foreground">Only your account&apos;s POC can connect Google accounts.</p>
+            <p className="text-sm text-muted-foreground">Only your company&apos;s main contact can connect Google.</p>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </CardContent>

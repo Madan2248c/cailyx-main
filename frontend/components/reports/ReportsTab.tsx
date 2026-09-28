@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
 import { ReportDetail } from '@/components/reports/ReportDetail';
 import { ReportsList } from '@/components/reports/ReportsList';
+import { EmptyPage } from '@/components/portal/blocks';
+import { ErrorState, PortalLoading } from '@/components/portal/states';
 import { listReports } from '@/lib/report-api';
 import type { ReportListItem } from '@/types/report';
-import { PortalLoading } from '@/components/portal/states';
 
 export function ReportsTab({
   accessToken,
@@ -39,17 +39,8 @@ export function ReportsTab({
     };
   }, [accessToken, clientId, projectId]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
-
-  if (!reports) {
-    return <PortalLoading label="Loading reports" />;
-  }
+  if (error) return <ErrorState title="We couldn't load your reports" message={error} />;
+  if (!reports) return <PortalLoading label="Loading reports" />;
 
   if (selectedId) {
     return (
@@ -64,22 +55,20 @@ export function ReportsTab({
 
   if (reports.length === 0) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
-        <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{projectName}</p>
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No reports yet. Your Day-1 report appears here once the pipeline releases it, and a
-              fresh monthly report follows each cycle.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <EmptyPage
+        eyebrow="Reports"
+        title="Your reports"
+        projectName={projectName}
+        emptyTitle="Your first report is being prepared"
+        body="Reports sum up where you stand, what changed and what to do next, in plain language."
+        steps={[
+          'We run your first checks on your site, AI answers and social channels.',
+          'Your Rothenhall lead reviews the findings and releases your starting-point report.',
+          'After that, a new report arrives every month so you can see progress.',
+        ]}
+      />
     );
   }
 
-  return (
-    <ReportsList reports={reports} projectName={projectName} onOpen={setSelectedId} />
-  );
+  return <ReportsList reports={reports} projectName={projectName} onOpen={setSelectedId} />;
 }

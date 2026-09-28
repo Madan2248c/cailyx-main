@@ -1,42 +1,39 @@
 'use client';
 
-import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
+import { Gauge, Globe, Sparkles } from 'lucide-react';
+import { Tile, TileHeader } from '@/components/portal/layout';
 
-/** Onward links to the deeper Technical / Organic / AI tabs. */
-export function ExploreLinks({ projectId }: { projectId: string }) {
+/** Onward links to the deeper Technical / Organic / AI pages. */
+export function ExploreLinks({ projectId, index = 0 }: { projectId: string; index?: number }) {
   const base = `/client/projects/${projectId}`;
   const links = [
     {
       href: `${base}/performance/technical`,
-      label: 'Technical',
-      note: 'Site score, Core Web Vitals, and page issues.',
+      icon: Gauge,
+      label: 'Technical health',
+      note: 'Whether search engines and AI tools can reach and read your site.',
     },
     {
       href: `${base}/performance/visibility/organic`,
-      label: 'Organic',
-      note: 'Search Console clicks, queries, and index coverage.',
+      icon: Globe,
+      label: 'Google search',
+      note: 'Clicks, searches and pages from your own Google Search Console.',
     },
     {
       href: `${base}/performance/visibility/ai`,
+      icon: Sparkles,
       label: 'AI visibility',
-      note: 'How often AI answers mention you vs rivals.',
+      note: 'How often ChatGPT, Perplexity and Gemini name you when buyers ask.',
     },
   ];
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      {links.map((link) => (
-        <Link key={link.label} href={link.href} className="block">
-          <Card className="h-full transition-colors hover:bg-muted/30">
-            <CardContent className="flex flex-col gap-1 pt-5">
-              <p className="text-sm font-medium">
-                {link.label} <span className="text-muted-foreground">→</span>
-              </p>
-              <p className="text-xs text-muted-foreground">{link.note}</p>
-            </CardContent>
-          </Card>
-        </Link>
+      {links.map((link, i) => (
+        <Tile key={link.label} href={link.href} index={index + i} ariaLabel={link.label}>
+          <TileHeader icon={link.icon} eyebrow={link.label} linkHint />
+          <p className="text-sm text-muted-foreground">{link.note}</p>
+        </Tile>
       ))}
     </div>
   );
