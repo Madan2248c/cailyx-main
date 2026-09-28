@@ -11,7 +11,8 @@
  * @module social-activity/services/social-activity.service
  */
 
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { AuditEvents } from '../../../common/events/audit-events.js';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
@@ -66,6 +67,7 @@ export class SocialActivityService {
     private readonly apify: ApifyService,
     private readonly llm: LlmService,
     @InjectQueue(SOCIAL_ACTIVITY_QUEUE) private readonly queue: Queue<SocialActivityJobData>,
+    @Optional() private readonly auditEvents?: AuditEvents,
   ) {}
 
   // ─── Producing runs ─────────────────────────────────────────────────────
@@ -282,6 +284,7 @@ export class SocialActivityService {
       this.logger.log(
         `Social activity complete for project ${run.projectId}: ${aggregates.length} platforms, $${totalCostUsd.toFixed(3)} spend`,
       );
+      this.auditEvents?.completed({ module: 'social-activity', projectId: run.projectId, runId });
 
       // Post-persist narrative: best-effort, never throws, never touches numbers.
       await this.writeNarrative(runId).catch((err) => {

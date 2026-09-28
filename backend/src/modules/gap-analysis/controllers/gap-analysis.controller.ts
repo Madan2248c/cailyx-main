@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { SetRecommendationStatusDto } from '../dto/gap-analysis.dto.js';
@@ -14,7 +15,7 @@ import { GapAnalysisService } from '../services/gap-analysis.service.js';
  * spends one LLM call.
  */
 @Controller('team/clients/:clientId/projects/:projectId/gap-analysis')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class GapAnalysisController {
   constructor(private readonly gapAnalysis: GapAnalysisService) {}
 
@@ -36,7 +37,7 @@ export class GapAnalysisController {
 
 /** Run-id-scoped: read one run + its ranked recommendations. A globally unique, unguessable id. */
 @Controller('team/clients/:clientId/gap-analysis/runs/:id')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class GapAnalysisRunController {
   constructor(private readonly gapAnalysis: GapAnalysisService) {}
 
@@ -49,7 +50,7 @@ export class GapAnalysisRunController {
 
 /** Recommendation-id-scoped: update status only. */
 @Controller('team/clients/:clientId/gap-analysis/recommendations/:id')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class GapAnalysisRecommendationController {
   constructor(private readonly gapAnalysis: GapAnalysisService) {}
 

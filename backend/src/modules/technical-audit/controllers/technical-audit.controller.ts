@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { SetTechnicalAuditScheduleDto } from '../dto/technical-audit.dto.js';
@@ -20,7 +21,7 @@ import { TechnicalAuditService } from '../services/technical-audit.service.js';
  * run itself executes on the background queue, never inside the HTTP call.
  */
 @Controller('team/clients/:clientId/projects/:projectId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class TechnicalAuditController {
   constructor(
     private readonly audits: TechnicalAuditService,
@@ -70,7 +71,7 @@ export class TechnicalAuditController {
  * service still scopes it to the caller's client.
  */
 @Controller('team/clients/:clientId/technical-audit-runs')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class TechnicalAuditRunController {
   constructor(private readonly audits: TechnicalAuditService) {}
 

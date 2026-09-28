@@ -27,6 +27,7 @@ import { QuerySetService } from '../../query-set/services/query-set.service.js';
 import { AeoAuditService } from '../../aeo-audit/services/aeo-audit.service.js';
 import { CompetitorsService } from '../../competitors/services/competitors.service.js';
 import { GapAnalysisService } from '../../gap-analysis/services/gap-analysis.service.js';
+import { RemediationSyncService } from '../../remediation/services/remediation-sync.service.js';
 import { ReportingService } from '../../reporting/services/reporting.service.js';
 import { TeamService } from '../../auth/services/team.service.js';
 import type { Surface } from '../../measurement/measurement.types.js';
@@ -75,6 +76,7 @@ export class Day1PipelineService {
     private readonly gapAnalysis: GapAnalysisService,
     private readonly reporting: ReportingService,
     private readonly team: TeamService,
+    private readonly remediation: RemediationSyncService,
   ) {}
 
   /**
@@ -229,6 +231,8 @@ export class Day1PipelineService {
         return this.runCompetitors(clientId, projectId);
       case 'gap-analysis':
         return this.runGapAnalysis(clientId, projectId);
+      case 'remediation':
+        return this.runRemediation(clientId, projectId);
       case 'reporting':
         return this.runReporting(clientId, projectId);
       case 'notify':
@@ -390,6 +394,12 @@ export class Day1PipelineService {
       throw new Error(`Gap analysis run ${run.id} finished with status ${run.status}.`);
     }
     return { status: 'completed', runId: run.id };
+  }
+
+  /** Builds the Fix Plan from every audit above. Deterministic, no spend; a failure never blocks the report. */
+  private async runRemediation(clientId: string, projectId: string): Promise<Day1StageRecord> {
+    const outcome = await this.remediation.sync(clientId, projectId, null);
+    return { status: 'completed', runId: outcome.runId };
   }
 
   private async runReporting(clientId: string, projectId: string): Promise<Day1StageRecord> {

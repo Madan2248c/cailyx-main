@@ -14,6 +14,7 @@ import { CompetitorsService } from '../../competitors/services/competitors.servi
 import { GapAnalysisService } from '../../gap-analysis/services/gap-analysis.service.js';
 import { ReportingService } from '../../reporting/services/reporting.service.js';
 import { TeamService } from '../../auth/services/team.service.js';
+import { RemediationSyncService } from '../../remediation/services/remediation-sync.service.js';
 import { DAY1_QUEUE } from '../queue/day1-pipeline.queue.js';
 import { Day1PipelineService } from './day1-pipeline.service.js';
 
@@ -61,6 +62,7 @@ describe('Day1PipelineService', () => {
   let gapAnalysis: { run: ReturnType<typeof vi.fn> };
   let reporting: { generate: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn> };
   let team: { sendDay1ReadyEmail: ReturnType<typeof vi.fn> };
+  let remediation: { sync: ReturnType<typeof vi.fn> };
 
   function mockHappyStages() {
     discovery.startRun.mockResolvedValue({ id: 'd1' });
@@ -102,6 +104,7 @@ describe('Day1PipelineService', () => {
     gapAnalysis = { run: vi.fn() };
     reporting = { generate: vi.fn(), list: vi.fn() };
     team = { sendDay1ReadyEmail: vi.fn() };
+    remediation = { sync: vi.fn().mockResolvedValue({ runId: 'rem1' }) };
 
     const configService = {
       get: vi.fn((key: string, fallback?: unknown) => {
@@ -126,6 +129,7 @@ describe('Day1PipelineService', () => {
         { provide: GapAnalysisService, useValue: gapAnalysis },
         { provide: ReportingService, useValue: reporting },
         { provide: TeamService, useValue: team },
+        { provide: RemediationSyncService, useValue: remediation },
       ],
     }).compile();
 
@@ -217,13 +221,15 @@ describe('Day1PipelineService', () => {
       );
       expect(reporting.generate).toHaveBeenCalledWith('client-1', 'project-1', 'DAY1');
       expect(team.sendDay1ReadyEmail).toHaveBeenCalledWith('client-1');
+      expect(remediation.sync).toHaveBeenCalledWith('client-1', 'project-1', null);
 
       const updates = prisma.day1PipelineRun.update.mock.calls.map((c) => (c[0] as { data: Record<string, unknown> }).data);
       const final = updates[updates.length - 1];
       expect(final.status).toBe('COMPLETE');
       expect(final.reportId).toBe('r1');
       const stages = final.stages as Record<string, { status: string; runId?: string }>;
-      expect(Object.values(stages)).toHaveLength(9);
+      expect(Object.values(stages)).toHaveLength(10);
+      expect(stages.remediation).toEqual({ status: 'completed', runId: 'rem1' });
       expect(Object.values(stages).every((s) => s.status === 'completed')).toBe(true);
       expect(stages['aeo-audit'].runId).toBe('a1');
     });

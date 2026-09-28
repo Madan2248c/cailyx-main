@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { SetSocialActivityScheduleDto, TriggerSocialActivityRunDto } from '../dto/social-activity.dto.js';
@@ -20,7 +21,7 @@ import { SocialActivityService } from '../services/social-activity.service.js';
  * the HTTP call.
  */
 @Controller('team/clients/:clientId/projects/:projectId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class SocialActivityController {
   constructor(
     private readonly activity: SocialActivityService,
@@ -70,7 +71,7 @@ export class SocialActivityController {
  * unguessable) — the service still scopes it to the caller's client.
  */
 @Controller('team/clients/:clientId/social-activity-runs')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class SocialActivityRunController {
   constructor(private readonly activity: SocialActivityService) {}
 

@@ -15,7 +15,8 @@
  */
 
 import { createHash } from 'node:crypto';
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import { AuditEvents, type AuditCompletedEvent } from '../../../common/events/audit-events.js';
 import type { FixStatus } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { SourceSnapshotCollector } from '../collectors/source-snapshot.collector.js';
@@ -80,15 +81,59 @@ export interface SyncOutcome {
 }
 
 @Injectable()
-export class RemediationSyncService {
+export class RemediationSyncService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RemediationSyncService.name);
   /** Overridable in tests. */
   handlers: readonly RemediationHandler[] = HANDLERS;
 
+  /** Projects with a sync in flight, and those that need one more when it finishes. */
+  private readonly inFlight = new Set<string>();
+  private readonly rerun = new Set<string>();
+  private unsubscribe: (() => void) | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly collector: SourceSnapshotCollector,
+    @Optional() private readonly auditEvents?: AuditEvents,
   ) {}
+
+  /** Keep every project's Fix Plan current: re-sync whenever one of its audits completes. */
+  onModuleInit(): void {
+    this.unsubscribe = this.auditEvents?.onCompleted((event) => this.syncAfterAudit(event)) ?? null;
+  }
+
+  onModuleDestroy(): void {
+    this.unsubscribe?.();
+  }
+
+  /**
+   * One sync at a time per project. An audit that lands mid-sync schedules
+   * exactly one follow-up, so the plan always reflects the newest data.
+   */
+  async syncAfterAudit(event: AuditCompletedEvent): Promise<void> {
+    if (this.inFlight.has(event.projectId)) {
+      this.rerun.add(event.projectId);
+      return;
+    }
+    this.inFlight.add(event.projectId);
+    try {
+      do {
+        this.rerun.delete(event.projectId);
+        const project = await this.prisma.project.findFirst({ where: { id: event.projectId, deletedAt: null }, select: { clientId: true } });
+        if (!project) return;
+        try {
+          await this.sync(project.clientId, event.projectId, null);
+        } catch (err) {
+          // No completed source yet (409) is normal early on; anything else is logged, never thrown at the audit.
+          if (!(err instanceof ConflictException)) {
+            this.logger.warn(`Auto-sync after ${event.module} run ${event.runId} failed: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      } while (this.rerun.has(event.projectId));
+    } finally {
+      this.inFlight.delete(event.projectId);
+    }
+  }
 
   async sync(clientId: string, projectId: string, actorId: string | null): Promise<SyncOutcome> {
     const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null } });

@@ -147,6 +147,56 @@ describe('RemediationSyncService', () => {
   });
 });
 
+describe('auto-sync after an audit completes', () => {
+  function setup() {
+    const prisma = createRemediationPrismaMock();
+    const collector = { collect: vi.fn() };
+    const service = new RemediationSyncService(asPrisma(prisma), collector as unknown as SourceSnapshotCollector);
+    prisma.project.findFirst.mockResolvedValue({ clientId: 'client-1' });
+    return { prisma, service };
+  }
+  const event = { module: 'technical-audit' as const, projectId: 'project-1', runId: 'run-1' };
+
+  it('syncs the project the audit belongs to, as the system', async () => {
+    const { service } = setup();
+    const sync = vi.spyOn(service, 'sync').mockResolvedValue({ runId: 'r', created: 0, updated: 0, verified: 0, regressed: 0, dropped: 0 });
+    await service.syncAfterAudit(event);
+    expect(sync).toHaveBeenCalledWith('client-1', 'project-1', null);
+  });
+
+  it('runs one sync at a time per project, with exactly one follow-up for audits that land mid-sync', async () => {
+    const { service } = setup();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const sync = vi.spyOn(service, 'sync').mockImplementationOnce(async () => {
+      await gate;
+      return { runId: 'r1', created: 0, updated: 0, verified: 0, regressed: 0, dropped: 0 };
+    }).mockResolvedValue({ runId: 'r2', created: 0, updated: 0, verified: 0, regressed: 0, dropped: 0 });
+
+    const first = service.syncAfterAudit(event);
+    await Promise.resolve();
+    await service.syncAfterAudit({ ...event, module: 'social-activity' });
+    await service.syncAfterAudit({ ...event, module: 'aeo-audit' });
+    release();
+    await first;
+    expect(sync).toHaveBeenCalledTimes(2);
+  });
+
+  it('treats "no completed audit yet" as normal and never throws at the audit', async () => {
+    const { service } = setup();
+    vi.spyOn(service, 'sync').mockRejectedValue(new ConflictException('nothing to fix'));
+    await expect(service.syncAfterAudit(event)).resolves.toBeUndefined();
+  });
+
+  it('skips archived projects', async () => {
+    const { prisma, service } = setup();
+    prisma.project.findFirst.mockResolvedValue(null);
+    const sync = vi.spyOn(service, 'sync');
+    await service.syncAfterAudit(event);
+    expect(sync).not.toHaveBeenCalled();
+  });
+});
+
 describe('sync helpers', () => {
   it('fingerprint is stable and distinguishes targets', () => {
     expect(fingerprint('p', 'k', 'a')).toBe(fingerprint('p', 'k', 'a'));

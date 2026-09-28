@@ -4,6 +4,7 @@ import { createObserveModule } from '@nestjs/observe';
 import { BullModule } from '@nestjs/bullmq';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
+import { AuditEventsModule } from './common/events/audit-events.js';
 import { GlobalJwtModule } from './common/jwt/global-jwt.module.js';
 import configuration from './config/configuration.js';
 import { validationSchema } from './config/validation.schema.js';
@@ -41,6 +42,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     }),
     PrismaModule,
     GlobalJwtModule,
+    AuditEventsModule,
     AuthModule,
     ProjectsModule,
     TechnicalAuditModule,

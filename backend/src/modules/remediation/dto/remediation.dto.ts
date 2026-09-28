@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
 /** Every status a person may request — VERIFIED is rejected by the service with a pointer to /verify. */
 const REQUESTABLE = ['OPEN', 'IN_PROGRESS', 'APPLIED', 'DISMISSED', 'VERIFIED'] as const;
@@ -32,4 +32,21 @@ export class FixDecisionDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+}
+
+/** The client's "we've applied this": an optional note and a link to the change. */
+export class ClientAppliedDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+
+  @IsOptional()
+  @IsUrl({ require_protocol: true })
+  prUrl?: string;
+}
+
+export class DraftSharedDto {
+  @IsBoolean()
+  shared!: boolean;
 }

@@ -28,7 +28,8 @@
  */
 
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { AuditEvents } from '../../../common/events/audit-events.js';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -93,6 +94,7 @@ export class TechnicalAuditService {
     private readonly pageInventoryCheck: PageInventoryCheck,
     private readonly pageMetadata: PageMetadataService,
     private readonly narrative: NarrativeService,
+    @Optional() private readonly auditEvents?: AuditEvents,
   ) {}
 
   // ─── Producing runs ─────────────────────────────────────────────────────
@@ -619,6 +621,7 @@ export class TechnicalAuditService {
       }
     }
     this.logger.debug(`Audit persisted to DB: ${runId} (${compiled.pages.length} pages)`);
+    this.auditEvents?.completed({ module: 'technical-audit', projectId, runId });
   }
 
   // ─── Reading runs (staff-facing) ──────────────────────────────────────

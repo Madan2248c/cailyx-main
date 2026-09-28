@@ -12,6 +12,7 @@ import type { PrismaService } from '../../../prisma/prisma.service.js';
 export function createRemediationPrismaMock() {
   const mock = {
     project: { findFirst: vi.fn() },
+    user: { findMany: vi.fn() },
     remediationRun: { create: vi.fn(), update: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
     fixSpec: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     fixSpecSource: { deleteMany: vi.fn() },

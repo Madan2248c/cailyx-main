@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CreateMeasurementRunDto } from '../dto/measurement.dto.js';
@@ -15,7 +16,7 @@ import { MeasurementService } from '../services/measurement.service.js';
  * Admin-triggered: measuring an active query set spends real Cloro credit.
  */
 @Controller('team/clients/:clientId/projects/:projectId/measurement')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class MeasurementController {
   constructor(private readonly measurement: MeasurementService) {}
 
@@ -44,7 +45,7 @@ export class MeasurementController {
 
 /** Run-id-scoped route: execute + read a run. A run id is globally unique and unguessable. */
 @Controller('team/clients/:clientId/measurement-runs/:runId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class MeasurementRunController {
   constructor(private readonly measurement: MeasurementService) {}
 

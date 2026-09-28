@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { AddPromptDto, CreateQuerySetDto, GenerateQuerySetDto } from '../dto/query-set.dto.js';
@@ -14,7 +15,7 @@ import { QuerySetService } from '../services/query-set.service.js';
  * id alone (add/remove/activate/fork), since a set id is globally unique.
  */
 @Controller('team/clients/:clientId/projects/:projectId/query-sets')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class QuerySetController {
   constructor(private readonly querySets: QuerySetService) {}
 
@@ -50,7 +51,7 @@ export class QuerySetController {
 
 /** Query-set-id-scoped routes: read one, add/remove a manual prompt, activate, fork. */
 @Controller('team/clients/:clientId/query-sets/:id')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class QuerySetItemController {
   constructor(private readonly querySets: QuerySetService) {}
 

@@ -10,7 +10,8 @@
  * @module remediation/services/remediation.service
  */
 
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import type { FixClass, FixStatus } from '../../../generated/prisma/enums.js';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { siteOrigin } from '../collectors/source-snapshot.collector.js';
@@ -40,6 +41,52 @@ export interface StatusChange {
 
 const SEVERITY_ORDER = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
 
+/** Who is looking. Admins see everything; client users get the client-safe view. */
+export type Viewer = Pick<AccessTokenPayload, 'sub' | 'role' | 'clientId'>;
+
+/** Statuses a client may mark as applied (their developer did the work). */
+const CLIENT_APPLICABLE: readonly FixStatus[] = ['OPEN', 'IN_PROGRESS', 'REGRESSED'];
+
+/** One live re-check per fix per minute for client users: it fetches their site, cheap but not a loop. */
+export const CLIENT_VERIFY_COOLDOWN_MS = 60_000;
+
+export interface ClientApplied {
+  note?: string;
+  prUrl?: string;
+}
+
+function isClient(viewer?: Viewer): viewer is Viewer {
+  return !!viewer && viewer.role !== 'ADMIN';
+}
+
+/** Client-safe view: unreviewed drafts hidden until staff share them; history shows who, not internal ids. */
+export function toClientFix<T extends { llmDraft: unknown; draftShared: boolean; events?: Array<{ actor: string }> }>(
+  fix: T,
+  viewer: Viewer,
+  actors: Map<string, { role: string; clientId: string | null }>,
+) {
+  const { events, ...rest } = fix;
+  return {
+    ...rest,
+    llmDraft: fix.draftShared ? fix.llmDraft : null,
+    ...(events
+      ? {
+          events: events.map(({ actor, ...e }) => ({
+            ...e,
+            actor: actorLabel(actor, viewer, actors.get(actor)),
+          })),
+        }
+      : {}),
+  };
+}
+
+export function actorLabel(actor: string, viewer: Viewer, who?: { role: string; clientId: string | null }): string {
+  if (actor === 'system') return 'Automatic check';
+  if (actor === viewer.sub) return 'You';
+  if (who && who.role !== 'ADMIN' && who.clientId && who.clientId === viewer.clientId) return 'Your team';
+  return 'Rothenhall';
+}
+
 @Injectable()
 export class RemediationService {
   constructor(
@@ -63,7 +110,7 @@ export class RemediationService {
   // ─── Fixes ────────────────────────────────────────────────────────────
 
   /** Severity first (high → low), then group, then target — the order someone works through them. */
-  async listFixes(clientId: string, projectId: string, filter: FixListFilter = {}) {
+  async listFixes(clientId: string, projectId: string, filter: FixListFilter = {}, viewer?: Viewer) {
     await this.assertProjectInClient(projectId, clientId);
     const rows = await this.prisma.fixSpec.findMany({
       where: {
@@ -75,10 +122,22 @@ export class RemediationService {
       },
       include: { sources: true },
     });
-    return rows.sort(
+    const sorted = rows.sort(
       (a, b) =>
         SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.groupKey.localeCompare(b.groupKey) || a.target.localeCompare(b.target),
     );
+    return isClient(viewer) ? sorted.map((f) => toClientFix(f, viewer, new Map())) : sorted;
+  }
+
+  /** One fix with its sources and history, shaped for whoever is asking. */
+  async getFixFor(clientId: string, fixId: string, viewer?: Viewer) {
+    const fix = await this.getFix(clientId, fixId);
+    if (!isClient(viewer)) return fix;
+    const ids = [...new Set(fix.events.map((e) => e.actor).filter((a) => a !== 'system'))];
+    const users = ids.length
+      ? await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true, clientId: true } })
+      : [];
+    return toClientFix(fix, viewer, new Map(users.map((u) => [u.id, { role: u.role, clientId: u.clientId }])));
   }
 
   async getFix(clientId: string, fixId: string) {
@@ -123,12 +182,12 @@ export class RemediationService {
   }
 
   /** Records the client's call on a fix that needs one (staff record it on the client's behalf in v1). */
-  async decide(clientId: string, fixId: string, decision: 'APPROVED' | 'DECLINED', note: string | undefined, actorId: string) {
+  async decide(clientId: string, fixId: string, decision: 'APPROVED' | 'DECLINED', note: string | undefined, actorId: string, viewer?: Viewer) {
     const fix = await this.getFix(clientId, fixId);
     if (!fix.needsClientDecision) throw new BadRequestException('This fix does not need a client decision.');
     if (fix.status !== 'AWAITING_DECISION') throw new ConflictException(`Fix is ${fix.status}, not awaiting a decision.`);
     const to: FixStatus = decision === 'APPROVED' ? 'OPEN' : 'DISMISSED';
-    return this.prisma.fixSpec.update({
+    const updated = await this.prisma.fixSpec.update({
       where: { id: fix.id },
       data: {
         decision,
@@ -139,15 +198,22 @@ export class RemediationService {
       },
       include: { sources: true },
     });
+    return isClient(viewer) ? this.getFixFor(clientId, fix.id, viewer) : updated;
   }
 
   /**
    * Re-checks the live site. Pass → VERIFIED. Fail → an APPLIED fix goes back
    * to OPEN; anything else stays put. Either way the result is recorded.
    */
-  async verify(clientId: string, fixId: string, actorId: string) {
+  async verify(clientId: string, fixId: string, actorId: string, viewer?: Viewer) {
     const fix = await this.getFix(clientId, fixId);
     if (!VERIFIABLE.includes(fix.status)) throw new ConflictException(`A ${fix.status} fix cannot be verified.`);
+    if (isClient(viewer)) {
+      const last = (fix.lastVerifyResult as { checkedAt?: string } | null)?.checkedAt;
+      if (last && Date.now() - new Date(last).getTime() < CLIENT_VERIFY_COOLDOWN_MS) {
+        throw new HttpException('This fix was just checked. Try again in a minute.', HttpStatus.TOO_MANY_REQUESTS);
+      }
+    }
     const check = fix.acceptance as unknown as AcceptanceCheck;
     if (!isLiveCheckable(check)) {
       throw new ConflictException('This fix is verified by the next audit, not a live check: re-run the source audit, then sync.');
@@ -157,13 +223,60 @@ export class RemediationService {
     const result = await this.verifier.verify(check, siteOrigin(project!.domain));
     const to: FixStatus = result.passed ? 'VERIFIED' : afterFailedVerify(fix.status);
 
-    return this.prisma.fixSpec.update({
+    await this.prisma.fixSpec.update({
       where: { id: fix.id },
       data: {
         status: to,
         lastVerifyResult: asJson(result),
         ...(result.passed ? { lastVerifiedAt: new Date(result.checkedAt) } : {}),
         events: { create: { kind: 'verify', fromStatus: fix.status, toStatus: to, actor: actorId, detail: asJson(result) } },
+      },
+    });
+    return this.getFixFor(clientId, fix.id, viewer);
+  }
+
+  /**
+   * The client's "we've applied this": their developer shipped the fix. Moves
+   * it to APPLIED and, when the fix has a live acceptance check, checks the
+   * site straight away so the client sees the result without waiting for the
+   * next audit. Clients never get the general status endpoint.
+   */
+  async markApplied(clientId: string, fixId: string, input: ClientApplied, viewer: Viewer) {
+    const fix = await this.getFix(clientId, fixId);
+    if (!CLIENT_APPLICABLE.includes(fix.status)) {
+      throw new ConflictException(`A ${fix.status.toLowerCase().replace('_', ' ')} fix cannot be marked as applied.`);
+    }
+    await this.prisma.fixSpec.update({
+      where: { id: fix.id },
+      data: {
+        status: 'APPLIED',
+        ...(input.prUrl ? { prUrl: input.prUrl } : {}),
+        events: {
+          create: {
+            kind: 'status',
+            fromStatus: fix.status,
+            toStatus: 'APPLIED',
+            actor: viewer.sub,
+            detail: asJson({ note: input.note?.trim() || null, prUrl: input.prUrl ?? null, via: 'client' }),
+          },
+        },
+      },
+    });
+    if (isLiveCheckable(fix.acceptance as unknown as AcceptanceCheck)) {
+      await this.verify(clientId, fix.id, 'system');
+    }
+    return this.getFixFor(clientId, fix.id, viewer);
+  }
+
+  /** Staff decide whether a drafted rewrite is ready for the client to see. */
+  async setDraftShared(clientId: string, fixId: string, shared: boolean, actorId: string) {
+    const fix = await this.getFix(clientId, fixId);
+    if (shared && !fix.llmDraft) throw new BadRequestException('There is no draft on this fix to share.');
+    return this.prisma.fixSpec.update({
+      where: { id: fix.id },
+      data: {
+        draftShared: shared,
+        events: { create: { kind: 'draft', actor: actorId, detail: asJson({ shared }) } },
       },
       include: { sources: true },
     });
@@ -174,23 +287,38 @@ export class RemediationService {
   /** Counts for a dashboard or a report section. */
   async summary(clientId: string, projectId: string) {
     await this.assertProjectInClient(projectId, clientId);
-    const rows = await this.prisma.fixSpec.findMany({ where: { projectId }, select: { status: true, fixClass: true, severity: true } });
+    const [rows, firstRun] = await Promise.all([
+      this.prisma.fixSpec.findMany({ where: { projectId }, select: { status: true, fixClass: true, severity: true, lastVerifiedAt: true } }),
+      this.prisma.remediationRun.findFirst({ where: { projectId, status: 'COMPLETE' }, orderBy: { createdAt: 'asc' }, select: { createdAt: true } }),
+    ]);
     const byStatus: Record<string, number> = {};
     const byClass: Record<string, number> = {};
     let openHigh = 0;
+    let verifiedSinceBaseline = 0;
     for (const r of rows) {
       byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
       byClass[r.fixClass] = (byClass[r.fixClass] ?? 0) + 1;
       if (r.severity === 'HIGH' && (r.status === 'OPEN' || r.status === 'REGRESSED' || r.status === 'IN_PROGRESS')) openHigh++;
+      if (r.status === 'VERIFIED' && r.lastVerifiedAt && firstRun && r.lastVerifiedAt > firstRun.createdAt) verifiedSinceBaseline++;
     }
-    return { total: rows.length, byStatus, byClass, openHigh };
+    return {
+      total: rows.length,
+      byStatus,
+      byClass,
+      openHigh,
+      awaitingDecision: byStatus.AWAITING_DECISION ?? 0,
+      regressed: byStatus.REGRESSED ?? 0,
+      verified: byStatus.VERIFIED ?? 0,
+      verifiedSinceBaseline,
+      baselineAt: firstRun?.createdAt ?? null,
+    };
   }
 
   /** Every non-dismissed fix, as Markdown for a developer/agency or JSON for an agent. */
-  async exportFixPack(clientId: string, projectId: string, format: 'md' | 'json') {
+  async exportFixPack(clientId: string, projectId: string, format: 'md' | 'json', viewer?: Viewer) {
     const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null } });
     if (!project) throw new NotFoundException('Project not found.');
-    const fixes = (await this.listFixes(clientId, projectId)).filter((f) => f.status !== 'DISMISSED');
+    const fixes = (await this.listFixes(clientId, projectId, {}, viewer)).filter((f) => f.status !== 'DISMISSED');
     const pack = toFixPackJson(project, fixes);
     return format === 'json' ? pack : renderFixPackMarkdown(pack);
   }

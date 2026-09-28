@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CreateAeoAuditDto, CreateCompetitorDto, SetCompetitorStatusDto } from '../dto/aeo-audit.dto.js';
@@ -15,7 +16,7 @@ import { CompetitorService } from '../services/competitor.service.js';
  * Cloro credit and LLM tokens across every surface x market pair.
  */
 @Controller('team/clients/:clientId/projects/:projectId/aeo-audits')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class AeoAuditController {
   constructor(private readonly audits: AeoAuditService) {}
 
@@ -37,7 +38,7 @@ export class AeoAuditController {
 
 /** Audit-id-scoped routes: run, read, verdict, narrative. A globally unique, unguessable id. */
 @Controller('team/clients/:clientId/aeo-audits/:auditId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class AeoAuditRunController {
   constructor(private readonly audits: AeoAuditService) {}
 
@@ -72,7 +73,7 @@ export class AeoAuditRunController {
 
 /** Competitor list, nested under a project — the source of truth stance judging reads. */
 @Controller('team/clients/:clientId/projects/:projectId/competitors')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class CompetitorController {
   constructor(private readonly competitors: CompetitorService) {}
 
@@ -92,7 +93,7 @@ export class CompetitorController {
 
 /** Competitor-id-scoped: confirm/demote a candidate. */
 @Controller('team/clients/:clientId/competitors/:id')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class CompetitorItemController {
   constructor(private readonly competitors: CompetitorService) {}
 

@@ -8,12 +8,13 @@ import type { Response } from 'express';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { ConnectQueryDto, DaysQueryDto } from '../dto/google.dto.js';
 import { GoogleService } from '../google.service.js';
 
 @Controller('team/clients/:clientId/google')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class GoogleController {
   constructor(private readonly google: GoogleService) {}
 
@@ -41,7 +42,7 @@ export class GoogleController {
 }
 
 @Controller('team/clients/:clientId/projects/:projectId/google')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class GoogleProjectController {
   constructor(private readonly google: GoogleService) {}
 

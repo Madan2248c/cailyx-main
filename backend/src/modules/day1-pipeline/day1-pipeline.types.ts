@@ -14,6 +14,7 @@ export const DAY1_STAGES = [
   'aeo-audit',
   'competitors',
   'gap-analysis',
+  'remediation',
   'reporting',
   'notify',
 ] as const;

@@ -5,6 +5,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { Role } from '../../../generated/prisma/enums.js';
@@ -17,7 +18,7 @@ import { ReportingService } from '../services/reporting.service.js';
  * directly here — the endpoint exists for retries.
  */
 @Controller('team/clients/:clientId/projects/:projectId/reports')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class ReportsController {
   constructor(private readonly reporting: ReportingService) {}
 
@@ -37,7 +38,7 @@ export class ReportsController {
 
 /** Report-id-scoped: read, editorial lifecycle, share links. A globally unique, unguessable id. */
 @Controller('team/clients/:clientId/reports/:id')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class ReportController {
   constructor(private readonly reporting: ReportingService) {}
 
@@ -101,7 +102,7 @@ export class PublicReportController {
 
 /** Client-portal read by slug, `view_projects` scoped — HTML directly, same reasoning as the public route. */
 @Controller('reports')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class ClientPortalReportController {
   constructor(private readonly reporting: ReportingService) {}
 

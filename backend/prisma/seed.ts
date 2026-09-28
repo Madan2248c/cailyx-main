@@ -14,11 +14,13 @@ const PERMISSIONS = [
   { key: 'manage_team', description: "Invite, resend, and disable/enable a client's team members." },
   { key: 'manage_client_settings', description: "Manage the client's own account settings." },
   { key: 'view_projects', description: "View the caller's own client's projects." },
+  { key: 'decide_fixes', description: "Approve or decline Fix Plan items that need the client's decision." },
+  { key: 'update_fixes', description: 'Mark Fix Plan items as applied and request a re-check.' },
 ] as const;
 
 const ROLE_GRANTS: Record<string, string[]> = {
-  [Role.CLIENT_POC]: ['manage_team', 'manage_client_settings', 'view_projects'],
-  [Role.CLIENT_MEMBER]: ['view_projects'],
+  [Role.CLIENT_POC]: ['manage_team', 'manage_client_settings', 'view_projects', 'decide_fixes', 'update_fixes'],
+  [Role.CLIENT_MEMBER]: ['view_projects', 'update_fixes'],
 };
 
 async function main() {

@@ -5,6 +5,7 @@ import { Roles } from '../../../common/decorators/roles.decorator.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CreateProjectDto } from '../dto/create-project.dto.js';
@@ -16,7 +17,7 @@ import { ProjectsService } from '../services/projects.service.js';
  * that scope instead of the request body.
  */
 @Controller('team/clients/:clientId/projects')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class ProjectsController {
   constructor(private readonly projectsService: ProjectsService) {}
 

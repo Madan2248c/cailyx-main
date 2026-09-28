@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CollectDataforseoDto, SetDataforseoScheduleDto } from '../dto/dataforseo.dto.js';
@@ -20,7 +21,7 @@ import { DataforseoService } from '../services/dataforseo.service.js';
  * append-only and read-only: no update/delete endpoint exists on purpose.
  */
 @Controller('team/clients/:clientId/projects/:projectId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class DataforseoController {
   constructor(
     private readonly dataforseo: DataforseoService,
@@ -66,7 +67,7 @@ export class DataforseoController {
  * unguessable) — the service still scopes it to the caller's client.
  */
 @Controller('team/clients/:clientId/dataforseo-snapshots')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class DataforseoSnapshotController {
   constructor(private readonly dataforseo: DataforseoService) {}
 

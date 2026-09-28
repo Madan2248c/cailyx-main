@@ -18,6 +18,7 @@ import { QuerySetModule } from '../query-set/query-set.module.js';
 import { AeoAuditModule } from '../aeo-audit/aeo-audit.module.js';
 import { CompetitorsModule } from '../competitors/competitors.module.js';
 import { GapAnalysisModule } from '../gap-analysis/gap-analysis.module.js';
+import { RemediationModule } from '../remediation/remediation.module.js';
 import { ReportingModule } from '../reporting/reporting.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { DAY1_QUEUE } from './queue/day1-pipeline.queue.js';
@@ -34,6 +35,7 @@ import { Day1PipelineService } from './services/day1-pipeline.service.js';
     AeoAuditModule,
     CompetitorsModule,
     GapAnalysisModule,
+    RemediationModule,
     ReportingModule,
     AuthModule,
   ],

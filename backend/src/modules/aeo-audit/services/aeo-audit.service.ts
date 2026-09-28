@@ -16,7 +16,8 @@
  * @module aeo-audit/services/aeo-audit.service
  */
 
-import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
+import { AuditEvents } from '../../../common/events/audit-events.js';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { MeasurementService } from '../../measurement/services/measurement.service.js';
@@ -54,6 +55,7 @@ export class AeoAuditService {
     private readonly stance: AeoStanceService,
     private readonly narrative: AeoNarrativeService,
     private readonly competitors: CompetitorService,
+    @Optional() private readonly auditEvents?: AuditEvents,
   ) {}
 
   // ─── Creating an audit (cheap, no spend) ───────────────────────────────
@@ -227,6 +229,7 @@ export class AeoAuditService {
         finishedAt: new Date(),
       },
     });
+    this.auditEvents?.completed({ module: 'aeo-audit', projectId: audit.projectId, runId: audit.id });
 
     // Best-effort narrative — never blocks completion, failure is logged only.
     await this.writeNarrative(clientId, audit.id, verdict).catch((err) => {

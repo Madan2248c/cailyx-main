@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { UpdateCompanyContextDto, UpdateSocialProfileDto } from '../dto/discovery.dto.js';
@@ -19,7 +20,7 @@ import { DiscoveryService } from '../services/discovery.service.js';
  * ability to see why a profile looks wrong, and to re-run one.
  */
 @Controller('team/clients/:clientId/projects/:projectId')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class DiscoveryController {
   constructor(private readonly discovery: DiscoveryService) {}
 
@@ -89,7 +90,7 @@ export class DiscoveryController {
  * service still scopes it to the caller's client.
  */
 @Controller('team/clients/:clientId/discovery-runs')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class DiscoveryRunController {
   constructor(private readonly discovery: DiscoveryService) {}
 

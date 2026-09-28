@@ -3,6 +3,7 @@ import { RequirePermission } from '../../../common/decorators/require-permission
 import { Roles } from '../../../common/decorators/roles.decorator.js';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
+import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { CreateCompetitorDto, UpdateCompetitorDto } from '../dto/competitors.dto.js';
@@ -14,7 +15,7 @@ import { CompetitorsService } from '../services/competitors.service.js';
  * duplicate status route here.
  */
 @Controller('team/clients/:clientId/projects/:projectId/competitors')
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class CompetitorsController {
   constructor(private readonly competitors: CompetitorsService) {}
 

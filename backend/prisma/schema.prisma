@@ -1519,6 +1519,8 @@ model FixSpec {
   acceptance          Json
   /// Latest LLM copy draft, on request only. A re-sync never overwrites it.
   llmDraft            Json?        @map("llm_draft")
+  /// Staff chose to show the draft to the client. Drafts are unreviewed proposals until then.
+  draftShared         Boolean      @default(false) @map("draft_shared")
   needsClientDecision Boolean      @default(false) @map("needs_client_decision")
   decision            FixDecision?
   decisionNote        String?      @map("decision_note")
