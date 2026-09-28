@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from 'cn';
+import { Hint } from './hint';
 import { TONE_COLOR, TONE_SOFT, TONE_TEXT, type Tone } from './tone';
 
 /** The page frame every portal tab sits in. */
@@ -84,10 +85,13 @@ export function TileHeader({
   title,
   linkHint,
   right,
+  hint,
 }: {
   icon?: React.ComponentType<{ className?: string }>;
   eyebrow: string;
   title?: string;
+  /** Plain-language explanation shown in a tooltip next to the eyebrow. */
+  hint?: React.ReactNode;
   /** Shows the "go" arrow; use on tiles that are links. */
   linkHint?: boolean;
   right?: React.ReactNode;
@@ -98,6 +102,7 @@ export function TileHeader({
         <div className="flex items-center gap-1.5">
           {Icon ? <Icon className="size-3.5 opacity-70" /> : null}
           <p className="g-eyebrow">{eyebrow}</p>
+          {hint ? <Hint label={`About ${eyebrow.toLowerCase()}`}>{hint}</Hint> : null}
         </div>
         {title ? <h2 className="text-lg font-semibold leading-snug">{title}</h2> : null}
       </div>

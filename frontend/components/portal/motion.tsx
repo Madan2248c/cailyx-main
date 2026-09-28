@@ -1,48 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { MotionConfig, useReducedMotion } from 'motion/react';
+import { SlidingNumber } from '@/components/animate-ui/primitives/texts/sliding-number';
+import { TooltipProvider } from '@/components/animate-ui/components/animate/tooltip';
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+/**
+ * Motion defaults for every themed surface: Motion honors the OS
+ * "reduce motion" setting (transforms off, fades kept), and one tooltip
+ * provider so hints open instantly once one has been seen.
+ */
+export function PortalMotion({ children }: { children: React.ReactNode }) {
+  return (
+    <MotionConfig reducedMotion="user">
+      <TooltipProvider openDelay={200} closeDelay={150}>
+        {children}
+      </TooltipProvider>
+    </MotionConfig>
+  );
 }
 
 /**
- * Counts up to a measured value once, on mount. It animates the reveal of a
- * number that already exists, never progress toward one. Instant when the
- * user prefers reduced motion.
+ * A measured number that rolls into place (Animate UI Sliding Number) the
+ * first time it scrolls into view. It animates the reveal of a value that
+ * already exists, never progress toward one. Plain text for users who
+ * prefer reduced motion, since the digit roller runs on its own spring.
  */
-export function CountUp({
-  value,
-  format = (n) => Math.round(n).toLocaleString(),
-  durationMs = 900,
-}: {
-  value: number;
-  format?: (n: number) => string;
-  durationMs?: number;
-}) {
-  const [shown, setShown] = useState(0);
-
-  useEffect(() => {
-    let frame = 0;
-    if (prefersReducedMotion() || value === 0) {
-      frame = requestAnimationFrame(() => setShown(value));
-      return () => cancelAnimationFrame(frame);
-    }
-    const start = performance.now();
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
-      // easeOutQuart, matching the soft brand curve's feel
-      const eased = 1 - Math.pow(1 - t, 4);
-      setShown(value * eased);
-      if (t < 1) frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [value, durationMs]);
-
+export function CountUp({ value, prefix = '', suffix = '' }: { value: number; prefix?: string; suffix?: string }) {
+  const reduced = useReducedMotion();
+  const label = `${prefix}${value.toLocaleString()}${suffix}`;
+  if (reduced) return <span className="g-num">{label}</span>;
   return (
-    <span className="g-num" aria-label={format(value)}>
-      <span aria-hidden>{format(shown)}</span>
+    <span className="g-num inline-flex items-baseline" aria-label={label} role="text">
+      <span aria-hidden className="inline-flex items-baseline">
+        {prefix}
+        <SlidingNumber number={value} fromNumber={0} inView inViewOnce thousandSeparator="," />
+        {suffix}
+      </span>
     </span>
   );
 }

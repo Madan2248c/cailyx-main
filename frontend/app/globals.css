@@ -560,3 +560,20 @@
     animation: none;
   }
 }
+
+/* Animate UI tooltip content renders in a portal (outside .theme-graphite),
+   so it carries the portal's type and ink directly. */
+.g-tooltip {
+  max-width: 17rem;
+  background-color: #313337;
+  color: #fefefe;
+  font-family: var(--font-montserrat), system-ui, sans-serif;
+  font-weight: 425;
+  line-height: 1.45;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(49, 51, 55, 0.18);
+}
+
+.g-tooltip svg {
+  fill: #313337;
+}

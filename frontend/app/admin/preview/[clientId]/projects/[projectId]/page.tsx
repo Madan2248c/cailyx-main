@@ -13,6 +13,7 @@ import { SocialTab } from '@/components/social/SocialTab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
+import { PortalMotion } from '@/components/portal/motion';
 import { listProjects } from '@/lib/projects-api';
 import { listClients } from '@/lib/team-api';
 import type { Project } from '@/types/project';
@@ -142,6 +143,7 @@ export default function AdminPreviewProjectPage() {
             ))}
           </div>
           {/* Same theme scope as the client portal, so the preview matches what the client sees. */}
+          <PortalMotion>
           <div className="theme-graphite flex flex-col overflow-hidden rounded-xl border border-border bg-canvas">
           <SectionErrorBoundary key={activeTab} label={TABS.find((t) => t.key === activeTab)?.label ?? activeTab}>
             {activeTab === 'dashboard' ? (
@@ -205,6 +207,7 @@ export default function AdminPreviewProjectPage() {
             ) : null}
           </SectionErrorBoundary>
           </div>
+          </PortalMotion>
         </>
       )}
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Bot, CircleCheck, Clock, Code, FileSearch, Gauge, ListChecks, Minus, TriangleAlert, Zap } from 'lucide-react';
+import { ShimmeringText } from '@/components/animate-ui/primitives/texts/shimmering';
 import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
 import { DeltaChip, MetaDot, PageHeader, PortalPage, StatusChip, Tile, TileHeader } from '@/components/portal/layout';
 import { CountUp } from '@/components/portal/motion';
@@ -93,6 +94,11 @@ export function TechnicalTab({
       <PortalPage>
         <PageHeader eyebrow="Performance" title="Technical health" meta={<span>{projectName}</span>} />
         <Tile index={1}>
+          {pending ? (
+            <div className="flex justify-center pt-8">
+              <ShimmeringText text="Auditing your site…" className="text-sm font-medium" color="var(--g-ink-muted)" shimmeringColor="var(--g-ink)" />
+            </div>
+          ) : null}
           <EmptyState
             title={pending ? 'Audit in progress' : 'Not measured yet'}
             body={
@@ -185,7 +191,7 @@ export function TechnicalTab({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {/* Hero: score + the eight checks at a glance */}
         <Tile index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6">
-          <TileHeader icon={Gauge} eyebrow="Site score" right={<StatusChip tone={tone}>{TONE_WORD[tone]}</StatusChip>} />
+          <TileHeader icon={Gauge} eyebrow="Site score" hint="A weighted score across the 8 checks below. 80+ is healthy, 50 to 79 needs work, under 50 is at risk." right={<StatusChip tone={tone}>{TONE_WORD[tone]}</StatusChip>} />
           <div className="flex flex-wrap items-center gap-6">
             <ScoreRing value={latest.score} tone={tone} size={148} stroke={12} label={`Site score ${latest.score ?? 'not available'} out of 100`}>
               <span className={`text-5xl font-semibold ${TONE_TEXT[tone]}`}>{latest.score !== null ? <CountUp value={latest.score} /> : '—'}</span>
@@ -225,7 +231,7 @@ export function TechnicalTab({
         </Tile>
 
         <Tile index={2}>
-          <TileHeader icon={Bot} eyebrow="Agent readiness" />
+          <TileHeader icon={Bot} eyebrow="Agent readiness" hint="How easily AI assistants and agents can use your site: things like llms.txt, clear structure and machine-readable actions." />
           <div className="flex items-center gap-4">
             <ScoreRing value={agentScore} tone={scoreTone(agentScore)} size={72} stroke={7} index={2} label={`Agent readiness ${agentScore ?? 'not available'} out of 100`}>
               <span className={`text-xl font-semibold ${TONE_TEXT[scoreTone(agentScore)]}`}>{agentScore ?? '—'}</span>
@@ -235,7 +241,7 @@ export function TechnicalTab({
         </Tile>
 
         <Tile index={3}>
-          <TileHeader icon={Code} eyebrow="Structured data" />
+          <TileHeader icon={Code} eyebrow="Structured data" hint="Hidden JSON-LD that tells machines who you are and what a page is about. AI engines lean on it to describe you accurately." />
           <div className="flex items-center gap-4">
             <ScoreRing value={jsonLdPct} tone={scoreTone(jsonLdPct)} size={72} stroke={7} index={3} label={`${jsonLdPct ?? 'Unknown'} percent of pages have structured data`}>
               <span className={`text-lg font-semibold ${TONE_TEXT[scoreTone(jsonLdPct)]}`}>{jsonLdPct !== null ? `${jsonLdPct}%` : '—'}</span>
@@ -247,7 +253,7 @@ export function TechnicalTab({
         </Tile>
 
         <Tile index={4}>
-          <TileHeader icon={Code} eyebrow="JavaScript rendering" />
+          <TileHeader icon={Code} eyebrow="JavaScript rendering" hint="Most AI crawlers don't run JavaScript. Content that only appears after scripts run is invisible to them." />
           <StatusChip tone={jsDependent ? 'watch' : 'good'}>{jsDependent ? 'Needs JavaScript' : 'Server-rendered'}</StatusChip>
           <div className="mt-3 flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between text-sm">
@@ -260,7 +266,7 @@ export function TechnicalTab({
 
         {/* PageSpeed */}
         <Tile index={5} className="md:col-span-2">
-          <TileHeader icon={Zap} eyebrow="Page speed" title="Core Web Vitals" />
+          <TileHeader icon={Zap} eyebrow="Page speed" title="Core Web Vitals" hint="Google's real-user speed measures: how fast the main content loads (LCP), how stable the layout is (CLS), and how quickly the page responds (INP)." />
           <div className="grid grid-cols-3 gap-2">
             {[
               { label: 'Loading', code: 'LCP', value: num(cwv.lcp), unit: 'ms' as const, status: str(cwv.lcpStatus) },

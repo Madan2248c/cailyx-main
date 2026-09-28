@@ -3,22 +3,18 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import {
-  ChevronDown,
-  ChevronRight,
-  FileText,
-  Gauge,
-  KeyRound,
-  LayoutDashboard,
-  Link2,
-  LogOut,
-  Search,
-  Settings,
-  Share2,
-  Sparkles,
-  Users,
-  Wrench,
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Share2, Wrench } from 'lucide-react';
+import { AnimateIcon } from '@/components/animate-ui/icons/icon';
+import { Gauge } from '@/components/animate-ui/icons/gauge';
+import { Key } from '@/components/animate-ui/icons/key';
+import { LayoutDashboard } from '@/components/animate-ui/icons/layout-dashboard';
+import { Link as LinkIcon } from '@/components/animate-ui/icons/link';
+import { LogOut } from '@/components/animate-ui/icons/log-out';
+import { Search } from '@/components/animate-ui/icons/search';
+import { Settings } from '@/components/animate-ui/icons/settings';
+import { Sparkles } from '@/components/animate-ui/icons/sparkles';
+import { Users } from '@/components/animate-ui/icons/users';
+import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
@@ -27,7 +23,7 @@ import { useClientProject } from '@/components/client/use-client-project';
 interface NavItem {
   label: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
   indent?: boolean;
   /** Prefix match instead of exact (covers future sub-routes). */
   prefix?: boolean;
@@ -65,8 +61,8 @@ function projectNav(projectId: string): NavSection[] {
       label: 'Compare',
       items: [
         { label: 'Competitors', href: `${base}/competitors`, icon: Users },
-        { label: 'Backlinks', href: `${base}/competitors/backlinks`, icon: Link2, indent: true },
-        { label: 'Keywords', href: `${base}/keywords`, icon: KeyRound },
+        { label: 'Backlinks', href: `${base}/competitors/backlinks`, icon: LinkIcon, indent: true },
+        { label: 'Keywords', href: `${base}/keywords`, icon: Key },
       ],
     },
     {
@@ -140,6 +136,7 @@ export function ClientSidebar() {
 
     return (
       <div key={index} className="flex flex-col gap-0.5">
+        <AnimateIcon animateOnHover asChild>
         <button
           type="button"
           aria-expanded={open}
@@ -150,10 +147,11 @@ export function ClientSidebar() {
           }}
           className="flex min-h-10 items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground transition-colors duration-150 outline-none hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <Gauge className="size-4 shrink-0" />
+          <Gauge size={16} className="size-4 shrink-0" />
           <span className="flex-1 text-left">{section.label}</span>
           {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
         </button>
+        </AnimateIcon>
         {open ? (
           <div className="ml-4 flex flex-col gap-0.5 border-l border-border pl-2">
             {section.items.map((item) => (
@@ -200,9 +198,20 @@ export function ClientSidebar() {
         className={mobileOpen ? 'flex flex-col gap-4' : 'hidden flex-col gap-4 md:flex'}
       >
         {projectId ? (
-          projectNav(projectId).map((section, i) =>
-            renderSection(section, i, `/client/projects/${projectId}/performance`),
-          )
+          <Highlight
+            controlledItems
+            hover
+            click={false}
+            mode="children"
+            className="inset-0 rounded-lg bg-muted"
+            transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+          >
+            <div className="flex flex-col gap-4">
+              {projectNav(projectId).map((section, i) =>
+                renderSection(section, i, `/client/projects/${projectId}/performance`),
+              )}
+            </div>
+          </Highlight>
         ) : (
           <p className="px-2 text-sm text-muted-foreground">Select a project to see its sections.</p>
         )}
@@ -210,10 +219,12 @@ export function ClientSidebar() {
 
       <div className="flex flex-col gap-2 border-t border-border pt-3 md:mt-auto">
         {user ? <p className="truncate px-1 text-xs text-muted-foreground">{user.email}</p> : null}
-        <Button variant="outline" size="sm" onClick={handleLogout}>
-          <LogOut className="size-4" />
-          Log out
-        </Button>
+        <AnimateIcon animateOnHover asChild>
+          <Button variant="outline" size="sm" onClick={handleLogout}>
+            <LogOut size={16} className="size-4" />
+            Log out
+          </Button>
+        </AnimateIcon>
       </div>
     </aside>
   );
@@ -222,6 +233,8 @@ export function ClientSidebar() {
 function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
   const active = isActive(pathname, item);
   return (
+    <HighlightItem value={item.href}>
+    <AnimateIcon animateOnHover asChild>
     <Link
       href={item.href}
       aria-current={active ? 'page' : undefined}
@@ -230,12 +243,14 @@ function NavLink({ pathname, item }: { pathname: string; item: NavItem }) {
         item.indent && 'pl-4',
         active
           ? 'bg-accent font-medium text-foreground before:absolute before:top-2 before:bottom-2 before:-left-2 before:w-[3px] before:rounded-full before:bg-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+          : 'text-muted-foreground hover:text-foreground',
       )}
     >
-      <item.icon aria-hidden="true" className="size-4 shrink-0" />
+      <item.icon aria-hidden="true" size={16} className="size-4 shrink-0" />
       {item.label}
     </Link>
+    </AnimateIcon>
+    </HighlightItem>
   );
 }
 

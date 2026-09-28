@@ -7,6 +7,7 @@ import { MetaDot, PageHeader, PortalPage, Tile, TileHeader } from '@/components/
 import { CountUp } from '@/components/portal/motion';
 import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
 import { formatDate, pct, plural, rateTone, TONE_TEXT } from '@/components/portal/tone';
+import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import type { AeoVerdict, Stance } from '@/types/aeo';
 import { STANCE_LABEL, SURFACE_LABEL } from '@/types/aeo';
@@ -156,7 +157,7 @@ export function AiTab({
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {/* Hero: the two rates that define visibility */}
         <Tile ink index={0} className="md:col-span-2 gap-5 p-6">
-          <TileHeader icon={Sparkles} eyebrow="How often AI names you" />
+          <TileHeader icon={Sparkles} eyebrow="How often AI names you" hint="Mentioned: the answer names your company. Cited: the answer links to your site as a source, which usually drives visits." />
           <div className="grid grid-cols-2 gap-6">
             <RateRing label="Mentioned" hint="named in the answer" rate={overall.mentionRate} index={0} />
             <RateRing label="Cited" hint="linked as a source" rate={overall.citationRate} index={1} />
@@ -167,7 +168,7 @@ export function AiTab({
         </Tile>
 
         <Tile index={1}>
-          <TileHeader icon={Target} eyebrow="Recommended first" />
+          <TileHeader icon={Target} eyebrow="Recommended first" hint="Answers where the engine put you forward as its top pick, not just a mention in a list." />
           <p className="text-4xl font-semibold text-success">
             <CountUp value={firstPicks} />
           </p>
@@ -182,11 +183,11 @@ export function AiTab({
         </Tile>
 
         <Tile index={2}>
-          <TileHeader icon={Radar} eyebrow="Unprompted" />
+          <TileHeader icon={Radar} eyebrow="Unprompted" hint="Questions that don't include your name, like &quot;best tool for X&quot;. This is how new buyers find you, so it matters most." />
           {verdict.counted.unbranded ? (
             <>
               <p className={`text-4xl font-semibold ${TONE_TEXT[rateTone(verdict.counted.unbranded.mentionRate)]}`}>
-                <CountUp value={Math.round(verdict.counted.unbranded.mentionRate * 100)} format={(n) => `${Math.round(n)}%`} />
+                <CountUp value={Math.round(verdict.counted.unbranded.mentionRate * 100)} suffix="%" />
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 of questions that don&apos;t name you still bring you up
@@ -218,7 +219,7 @@ export function AiTab({
 
         {/* Stance */}
         <Tile index={4} className="md:col-span-2">
-          <TileHeader icon={MessageSquareQuote} eyebrow="How AI talks about you" />
+          <TileHeader icon={MessageSquareQuote} eyebrow="How AI talks about you" hint="How each judged answer positioned you, from recommended first through to not mentioned at all." />
           {judged && judgedTotal > 0 ? (
             <StackedBar segments={segments} label={`Stance across ${judgedTotal} judged answers`} />
           ) : (
@@ -231,6 +232,7 @@ export function AiTab({
           <TileHeader
             icon={Swords}
             eyebrow="Head to head"
+            hint="In answers that mention both of you, how often each side came out ahead."
             right={
               rivals.length > 0 ? (
                 <span className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -264,7 +266,7 @@ export function AiTab({
 
         {/* Funnel */}
         <Tile index={6} className="md:col-span-2">
-          <TileHeader icon={Target} eyebrow="Across the buyer journey" />
+          <TileHeader icon={Target} eyebrow="Across the buyer journey" hint="Awareness questions are early research, decision questions are close to buying. Visibility late in the journey converts best." />
           {funnel.length === 0 ? (
             <p className="text-sm text-muted-foreground">No funnel-stage breakdown in this audit.</p>
           ) : (
@@ -284,49 +286,63 @@ export function AiTab({
           )}
         </Tile>
 
-        {/* Where you lose / win */}
-        <Tile index={7} className="md:col-span-2 p-0">
-          <div className="px-5 pt-5">
-            <TileHeader icon={TriangleAlert} eyebrow="Questions you lose" right={<span className="text-xs text-muted-foreground">{judged?.losingPrompts.length ?? 0} total</span>} />
-          </div>
-          {!judged || judged.losingPrompts.length === 0 ? (
-            <p className="px-5 pb-5 text-sm text-muted-foreground">No questions lost to a rival in this audit.</p>
-          ) : (
-            <ul className="flex flex-col pb-2">
-              {judged.losingPrompts.slice(0, 6).map((row) => (
-                <li key={row.observationId} className="flex flex-col gap-0.5 border-t border-border px-5 py-2.5 first:border-t-0">
-                  <p className="truncate text-sm font-medium" title={row.prompt}>“{row.prompt}”</p>
-                  <p className="text-xs text-muted-foreground">
-                    AI recommends <span className="text-danger">{row.losesTo.length > 0 ? row.losesTo.join(', ') : 'a rival'}</span> instead
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Tile>
-
-        <Tile index={8} className="md:col-span-2 p-0">
-          <div className="px-5 pt-5">
-            <TileHeader icon={CircleCheck} eyebrow="Questions you win" right={<span className="text-xs text-muted-foreground">{judged?.winningPrompts.length ?? 0} total</span>} />
-          </div>
-          {!judged || judged.winningPrompts.length === 0 ? (
-            <p className="px-5 pb-5 text-sm text-muted-foreground">No first-place recommendations yet. This is where progress shows up first.</p>
-          ) : (
-            <ul className="flex flex-col pb-2">
-              {judged.winningPrompts.slice(0, 6).map((row) => (
-                <li key={row.observationId} className="flex items-center gap-2.5 border-t border-border px-5 py-2.5 text-sm first:border-t-0">
-                  <CircleCheck className="size-4 shrink-0 text-success" />
-                  <span className="truncate" title={row.prompt}>“{row.prompt}”</span>
-                </li>
-              ))}
-            </ul>
-          )}
+        {/* Where you lose / win: one tile, Animate UI sliding tabs */}
+        <Tile index={7} className={verdict.headlines.length > 0 ? 'md:col-span-2' : 'md:col-span-4'}>
+          <TileHeader
+            icon={MessageSquareQuote}
+            eyebrow="Buyer questions"
+            hint="Real questions your buyers ask AI assistants. 'Lost' means an engine recommended a rival instead of you; 'won' means you were recommended first."
+          />
+          <Tabs defaultValue={judged && judged.losingPrompts.length === 0 && judged.winningPrompts.length > 0 ? 'won' : 'lost'}>
+            <TabsList className="w-full">
+              <TabsTrigger value="lost">
+                <TriangleAlert className="size-3.5 text-danger" /> Lost to rivals
+                <span className="g-num text-xs text-muted-foreground">{judged?.losingPrompts.length ?? 0}</span>
+              </TabsTrigger>
+              <TabsTrigger value="won">
+                <CircleCheck className="size-3.5 text-success" /> Won
+                <span className="g-num text-xs text-muted-foreground">{judged?.winningPrompts.length ?? 0}</span>
+              </TabsTrigger>
+            </TabsList>
+            <TabsContents>
+              <TabsContent value="lost">
+                {!judged || judged.losingPrompts.length === 0 ? (
+                  <p className="py-3 text-sm text-muted-foreground">No questions lost to a rival in this audit.</p>
+                ) : (
+                  <ul className="flex flex-col divide-y divide-border">
+                    {judged.losingPrompts.slice(0, 6).map((row) => (
+                      <li key={row.observationId} className="flex flex-col gap-0.5 py-2.5">
+                        <p className="truncate text-sm font-medium" title={row.prompt}>“{row.prompt}”</p>
+                        <p className="text-xs text-muted-foreground">
+                          AI recommends <span className="text-danger">{row.losesTo.length > 0 ? row.losesTo.join(', ') : 'a rival'}</span> instead
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </TabsContent>
+              <TabsContent value="won">
+                {!judged || judged.winningPrompts.length === 0 ? (
+                  <p className="py-3 text-sm text-muted-foreground">No first-place recommendations yet. This is where progress shows up first.</p>
+                ) : (
+                  <ul className="flex flex-col divide-y divide-border">
+                    {judged.winningPrompts.slice(0, 6).map((row) => (
+                      <li key={row.observationId} className="flex items-center gap-2.5 py-2.5 text-sm">
+                        <CircleCheck className="size-4 shrink-0 text-success" />
+                        <span className="truncate" title={row.prompt}>“{row.prompt}”</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </TabsContent>
+            </TabsContents>
+          </Tabs>
         </Tile>
 
         {verdict.headlines.length > 0 ? (
-          <Tile index={9} className="md:col-span-4">
+          <Tile index={8} className="md:col-span-2">
             <TileHeader icon={Sparkles} eyebrow="In short" />
-            <ul className="grid gap-3 md:grid-cols-2">
+            <ul className="flex flex-col gap-3">
               {verdict.headlines.map((headline) => (
                 <li key={headline.slice(0, 48)} className="flex gap-3 text-sm">
                   <span className="mt-2 h-px w-4 shrink-0 bg-foreground/40" />
@@ -346,7 +362,7 @@ function RateRing({ label, hint, rate, index }: { label: string; hint: string; r
     <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
       <ScoreRing value={Math.round(rate * 100)} tone="neutral" onInk size={104} stroke={9} index={index} label={`${label} in ${pct(rate)} of answers`}>
         <span className="text-3xl font-semibold text-white">
-          <CountUp value={Math.round(rate * 100)} format={(n) => `${Math.round(n)}%`} />
+          <CountUp value={Math.round(rate * 100)} suffix="%" />
         </span>
       </ScoreRing>
       <div className="flex flex-col">

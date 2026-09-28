@@ -14,6 +14,7 @@ import {
   TriangleAlert,
   Trophy,
 } from 'lucide-react';
+import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { RankHistory } from '@/components/dashboard/RankHistory';
 import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
 import { PageHeader, MetaDot, PortalPage, StatusChip, Tile, TileHeader, DeltaChip } from '@/components/portal/layout';
@@ -313,7 +314,7 @@ export function DashboardTab({
       <div className="grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 md:grid-cols-4">
         {/* Hero: AI visibility, the product's reason to exist */}
         <Tile ink href={`${base}/performance/visibility/ai`} index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6" ariaLabel="AI visibility details">
-          <TileHeader icon={Sparkles} eyebrow="AI visibility" linkHint />
+          <TileHeader icon={Sparkles} eyebrow="AI visibility" linkHint hint="How often ChatGPT, Perplexity and Gemini name your company when buyers ask the questions we track. A rate across many answers, not a ranking." />
           {verdict ? (
             <>
               <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
@@ -326,7 +327,7 @@ export function DashboardTab({
                   label={`Mentioned in ${pct(verdict.counted.overall.mentionRate)} of AI answers`}
                 >
                   <span className="text-4xl font-semibold text-white">
-                    <CountUp value={Math.round(verdict.counted.overall.mentionRate * 100)} format={(n) => `${Math.round(n)}%`} />
+                    <CountUp value={Math.round(verdict.counted.overall.mentionRate * 100)} suffix="%" />
                   </span>
                   <span className="text-xs text-white/60">mention rate</span>
                 </ScoreRing>
@@ -372,7 +373,7 @@ export function DashboardTab({
 
         {/* Technical health */}
         <Tile href={`${base}/performance/technical`} index={1} ariaLabel="Technical health details">
-          <TileHeader icon={Gauge} eyebrow="Technical health" linkHint />
+          <TileHeader icon={Gauge} eyebrow="Technical health" linkHint hint="Whether search engines and AI crawlers can reach, read and understand your site, scored out of 100." />
           {snapshot.tech ? (
             <div className="flex flex-1 flex-col justify-between gap-3">
               <div className="flex items-center gap-4">
@@ -398,7 +399,7 @@ export function DashboardTab({
 
         {/* Open priorities */}
         <Tile href={`${base}/reports`} index={2} ariaLabel="Priorities">
-          <TileHeader icon={Lightbulb} eyebrow="Open priorities" linkHint />
+          <TileHeader icon={Lightbulb} eyebrow="Open priorities" linkHint hint="The ranked list of what to do next, drawn from all your audits. Numbered by impact." />
           {snapshot.gapRun ? (
             <div className="flex flex-1 flex-col gap-2">
               <p className={`text-4xl font-semibold ${openRecs.length > 0 ? 'text-warning' : 'text-success'}`}>
@@ -439,7 +440,7 @@ export function DashboardTab({
 
         {/* Competitors */}
         <Tile href={`${base}/competitors`} index={4} ariaLabel="Competitor comparison">
-          <TileHeader icon={Swords} eyebrow="Versus rivals" linkHint />
+          <TileHeader icon={Swords} eyebrow="Versus rivals" linkHint hint="Your homepage SEO score next to your strongest tracked competitor." />
           {ownSeo !== null && bestRival ? (
             <div className="flex flex-1 flex-col justify-center gap-3">
               <CompareRow name="You" value={ownSeo} strong index={1} />
@@ -470,10 +471,18 @@ export function DashboardTab({
               Nothing urgent. Every source is healthy or still waiting on its first run.
             </div>
           ) : (
+            <Highlight
+              controlledItems
+              hover
+              click={false}
+              mode="children"
+              className="inset-x-2 inset-y-0 rounded-xl bg-muted"
+              transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+            >
             <ul className="flex flex-col pb-2">
               {attention.map((item) => (
-                <li key={item.source}>
-                  <Link href={item.href} className="g-row-link flex items-center gap-3 px-5 py-3">
+                <HighlightItem key={item.source} as="li" value={item.source}>
+                  <Link href={item.href} className="flex items-center gap-3 px-5 py-3 outline-none focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-ring">
                     <span
                       className="flex size-8 shrink-0 items-center justify-center rounded-lg"
                       style={{ background: item.tone === 'bad' ? 'var(--danger-soft)' : 'var(--warning-soft)' }}
@@ -484,11 +493,12 @@ export function DashboardTab({
                       <span className="block text-xs text-muted-foreground">{item.source}</span>
                       <span className="block truncate text-sm">{item.text}</span>
                     </span>
-                    <ArrowRight className="g-row-arrow size-4 shrink-0 text-muted-foreground" />
+                    <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                   </Link>
-                </li>
+                </HighlightItem>
               ))}
             </ul>
+            </Highlight>
           )}
         </Tile>
 
