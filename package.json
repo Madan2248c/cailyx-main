@@ -3,8 +3,8 @@
   "private": true,
   "description": "Railway infrastructure (.railway/railway.ts). The apps live in /backend and /frontend, each with its own package.json; this root has no workspaces on purpose.",
   "scripts": {
-    "railway:plan": "railway config plan",
-    "railway:apply": "railway config apply"
+    "railway:plan": "node scripts/railway-config.mjs plan",
+    "railway:apply": "node scripts/railway-config.mjs apply"
   },
   "devDependencies": {
     "railway": "^3.11.0"

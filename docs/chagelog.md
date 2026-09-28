@@ -3,6 +3,31 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Railway: infrastructure-as-code works and matches production
+
+`railway config plan` never ran on this Windows/Volta setup: the CLI's version check and
+its `node -e` evaluation both go through Volta shims that can't take them. So
+`.railway/railway.ts` had silently drifted from production. Applying it would have:
+
+- **deleted** 9 backend variables;
+- dropped the public domains, including the custom `cailyx.rothenhall.com`.
+
+Fixed:
+
+- `npm run railway:plan` / `railway:apply` now go through `scripts/railway-config.mjs`,
+  which runs the real `railway.exe` and `node.exe` on Windows.
+- `railway.ts` now declares:
+  - the existing domains under `networking.serviceDomains` / `customDomains`;
+  - the 9 variables (`PLUNK_PUBLIC_KEY` as `preserve()`);
+  - the Singapore region.
+- Removed from the file: explicit `privateNetworkEndpoint` and `restartPolicyType`. Both
+  equal Railway's defaults, and declaring them read as permanent drift.
+- Applied once. `railway:plan` now reports "already up to date": zero drift, all domains
+  intact.
+
+`docs/deploy/railway.md` documents the rules: missing domains and variables are removed
+on apply, so read the plan and look for "0 to destroy".
+
 ## 2026-09-29 — Brand: Cailyx logo, Rothenhall credit + favicon, themed auth screens, sidebar alignment
 
 - **Cailyx logo:** `public/brand/cailyx-mark.svg` is a vector trace of the approved mark

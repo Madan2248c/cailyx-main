@@ -38,8 +38,15 @@ export default defineRailway(() => {
     preDeploy: "npm run db:migrate",
     healthcheck: "/health",
     healthcheckTimeout: 300,
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
-    networking: { privateNetworkEndpoint: "backend" },
+    // Restart policy is ON_FAILURE, Railway's default (stored as unset, so it is
+    // not written here — declaring it shows as permanent drift in `config plan`).
+    deploy: { restartPolicyMaxRetries: 5 },
+    // The public domain is declared as it exists on Railway, so
+    // `railway config apply` keeps it: a domain missing here would be removed,
+    // taking the API offline.
+    networking: {
+      serviceDomains: { "backend-production-9558a.up.railway.app": { port: 3001 } },
+    },
     env: {
       NODE_ENV: "production",
       PORT: "3001",
@@ -49,6 +56,17 @@ export default defineRailway(() => {
       PLUNK_SENDER_EMAIL: "noreply@rothenhall.com",
       AEO_LLM_MODEL: "deepseek/deepseek-v4.1-flash",
       DAY1_SURFACES: "cloro_chatgpt",
+
+      // Auth + tuning, pinned explicitly (each equals the code default).
+      INVITE_TOKEN_TTL_HOURS: "72",
+      JWT_ACCESS_EXPIRES_IN: "15m",
+      LOGIN_LOCKOUT_MINUTES: "15",
+      LOGIN_MAX_ATTEMPTS: "5",
+      REFRESH_TOKEN_TTL_DAYS: "30",
+      RESET_TOKEN_TTL_HOURS: "1",
+      PRESENCE_SERP_MAX_QUERIES: "20",
+      // Live (paid) DataForSEO calls stay off until someone opts in.
+      SWARM_ALLOW_LIVE: "0",
 
       // Secrets, set on Railway and kept out of git.
       DATABASE_URL: preserve(),
@@ -61,6 +79,7 @@ export default defineRailway(() => {
       APIFY_API_KEY: preserve(),
       CLORO_API_KEY: preserve(),
       PLUNK_SECRET_KEY: preserve(),
+      PLUNK_PUBLIC_KEY: preserve(),
       DATAFORSEO_LOGIN: preserve(),
       DATAFORSEO_PASSWORD: preserve(),
     },
@@ -74,8 +93,16 @@ export default defineRailway(() => {
     regions: { [REGION]: 1 },
     healthcheck: "/robots.txt",
     healthcheckTimeout: 120,
-    deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 5 },
-    networking: { privateNetworkEndpoint: "frontend" },
+    // Restart policy is ON_FAILURE, Railway's default (stored as unset, so it is
+    // not written here — declaring it shows as permanent drift in `config plan`).
+    deploy: { restartPolicyMaxRetries: 5 },
+    // Both public domains, including the custom cailyx.rothenhall.com, are
+    // declared as they exist on Railway so `railway config apply` keeps them:
+    // a domain missing here would be removed, taking the portal offline.
+    networking: {
+      serviceDomains: { "frontend-production-1f7f.up.railway.app": { port: 3000 } },
+      customDomains: { "cailyx.rothenhall.com": { port: 3000 } },
+    },
     env: {
       // Pinned so the generated domain's target port (3000) always matches.
       PORT: "3000",

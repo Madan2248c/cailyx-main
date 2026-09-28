@@ -29,21 +29,33 @@ Edit `.railway/railway.ts`, then from the repo root:
 
 ```bash
 npm install            # once: the Railway SDK the file imports
-railway config plan    # preview, changes nothing
-railway config apply   # apply after reviewing the plan
+npm run railway:plan   # preview, changes nothing
+npm run railway:apply  # apply after reviewing the plan
 ```
+
+The file is the whole production setup, and it matched live exactly on
+2026-09-29 (`railway:plan` → "already up to date"):
+
+- every service runs in Singapore (`REGION`), next to the Supabase database;
+- the public domains are declared under `networking`, including the custom
+  `cailyx.rothenhall.com`. **A domain missing from the file is removed on
+  apply**, so add new domains in the dashboard first, then declare them here;
+- every variable is either a literal or `preserve()` (secrets). A variable
+  missing from the file is **deleted** on apply, so add new ones here too;
+- restart policy is Railway's default (`ON_FAILURE`), which Railway stores as
+  unset. It isn't declared, because declaring it shows up as permanent drift.
+
+Always read the plan before applying. "0 to destroy" is the line that matters.
 
 Railway's per-service `railway.json` ("Config as Code") is deprecated and
 stops being read on 2026-12-01; this repo doesn't use it.
 
-**Windows + Volta:** `railway config` fails ("requires Railway CLI 5.42.1 or
-newer", or "node returned non-JSON output") because Volta's `node` and
-`railway` shims mangle the CLI's calls. Point both at the real binaries:
-
-```bash
-RW="$LOCALAPPDATA/Volta/tools/image/packages/@railway/cli/node_modules/@railway/cli/bin/railway.exe"
-PATH="$LOCALAPPDATA/Volta/tools/image/node/22.22.2:$PATH" _="$RW" "$RW" config plan
-```
+**Windows + Volta:** a bare `railway config …` fails ("requires Railway CLI
+5.42.1 or newer", or "node returned non-JSON output") because Volta's `node`
+and `railway` shims can't take the CLI's calls. The npm scripts go through
+`scripts/railway-config.mjs`, which runs the real `railway.exe` and `node.exe`,
+so use `npm run railway:plan` / `railway:apply` rather than calling
+`railway config` directly.
 
 ## Secrets
 
