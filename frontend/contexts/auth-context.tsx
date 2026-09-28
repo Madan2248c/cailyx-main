@@ -16,7 +16,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function parseOrThrow(response: Response): Promise<{ accessToken: string; user: SessionUser }> {
+/** `accessToken`/`user` are null only from the session bootstrap when there is no session cookie (signed out). */
+async function parseOrThrow(response: Response): Promise<{ accessToken: string | null; user: SessionUser | null }> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.message ?? 'Something went wrong');

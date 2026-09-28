@@ -6,8 +6,12 @@ import type { AuthResponse } from '@/types/auth';
 export async function POST() {
   const refreshToken = await getRefreshCookie();
 
+  // No cookie is the normal signed-out state, not a failure: answering 200
+  // with a null session keeps every signed-out page load (login, reset,
+  // invite) from logging a 401 in the browser console. A cookie that fails
+  // to refresh below is a real failure and still returns the error status.
   if (!refreshToken) {
-    return NextResponse.json({ message: 'No session' }, { status: 401 });
+    return NextResponse.json({ accessToken: null, user: null });
   }
 
   try {
