@@ -1,127 +1,89 @@
 # Deploying on Railway
 
-Three services in one Railway project: **backend** (NestJS API), **frontend**
-(Next.js portal) and **Redis**. Postgres stays on Supabase.
+Railway project **lively-gratitude** (production environment) runs three
+resources, all defined in [`.railway/railway.ts`](../../.railway/railway.ts):
 
-Each app carries its own config as code (`backend/railway.json`,
-`frontend/railway.json`): Dockerfile build, watch paths, healthcheck, restart
-policy, and for the API a pre-deploy step that runs database migrations.
-
-> Railway only auto-creates one service per package for JavaScript
-> **workspace** monorepos. This repo is two independent apps, each with its
-> own lockfile, so each service is pointed at its folder once (step 2). After
-> that, every push to `main` deploys on its own.
-
-## 1. Create the project
-
-1. Railway dashboard → **New Project** → **Deploy from GitHub repo** →
-   `Rothenhall/cailyx-main`. Railway creates one service; this becomes
-   **backend**.
-2. **+ Create** → **GitHub Repo** → the same repo again. This becomes
-   **frontend**.
-3. **+ Create** → **Database** → **Redis**.
-
-## 2. Point each service at its folder (one time)
-
-In each service → **Settings**:
-
-| Setting | backend | frontend |
+| Service | What | Public URL |
 | --- | --- | --- |
-| Service name | `backend` | `frontend` |
-| Source → Root Directory | `/backend` | `/frontend` |
-| Config-as-code → Railway Config File | `/backend/railway.json` | `/frontend/railway.json` |
+| `frontend` | Next.js client portal, built from `frontend/Dockerfile` | https://frontend-production-1f7f.up.railway.app |
+| `backend` | NestJS API, built from `backend/Dockerfile` | https://backend-production-9558a.up.railway.app (for `/health` and the Google sign-in callback) |
+| `redis` | Queues and fetch cache | private only |
 
-The config file path has to be absolute: Railway doesn't look for it inside
-the root directory. Once it's set, the build, healthcheck, watch paths and
-pre-deploy migration come from the file.
+Postgres is Supabase, outside Railway. The portal calls the API over
+Railway's private network (`BACKEND_URL`); the API reaches Redis privately.
 
-## 3. Variables
+## How it deploys
 
-In each service → **Variables** → **Raw Editor**, paste and fill in. Values in
-`${{ }}` are Railway reference variables and resolve by themselves; the
-service names must match step 2.
-
-### backend
-
-```env
-NODE_ENV=production
-PORT=3001
-DATABASE_URL=<Supabase pooler connection string>
-JWT_ACCESS_SECRET=<32+ random characters, unique to production>
-FRONTEND_URL=https://${{frontend.RAILWAY_PUBLIC_DOMAIN}}
-REDIS_URL=${{Redis.REDIS_URL}}
-
-# Needed for the features to work (each fails closed with a clear error when unset)
-OPENROUTER_API_KEY=
-PSI_API_KEY=
-APIFY_API_KEY=
-CLORO_API_KEY=
-PLUNK_SECRET_KEY=
-PLUNK_SENDER_EMAIL=
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_TOKEN_ENCRYPTION_KEY=<openssl rand -hex 32>
-GOOGLE_REDIRECT_URI=https://${{RAILWAY_PUBLIC_DOMAIN}}/auth/google/callback
-
-# Optional telemetry (off unless both are set)
-OBSERVE_APP_KEY=
-OBSERVE_APP_SECRET=
-```
-
-Leave `DATAFORSEO_ALLOW_MOCK` and `MEASUREMENT_ALLOW_MOCK` unset: the API
-refuses to start in production if either is `1`.
-
-### frontend
-
-```env
-BACKEND_URL=http://${{backend.RAILWAY_PRIVATE_DOMAIN}}:${{backend.PORT}}
-```
-
-The portal reaches the API over Railway's private network, so the API needs
-no public traffic except the Google sign-in callback.
-
-## 4. Domains
-
-- **frontend** → Settings → Networking → **Generate Domain** (or add your
-  own, e.g. `portal.rothenhall.com`). This is the address clients use.
-- **backend** → **Generate Domain** too, only because Google redirects the
-  browser to `/auth/google/callback`. Register
-  `https://<backend domain>/auth/google/callback` in Google Cloud Console.
-  Skip this if Google isn't configured.
-
-If you switch to custom domains later, `FRONTEND_URL` and
-`GOOGLE_REDIRECT_URI` follow automatically (they reference the public
-domain).
-
-## 5. Deploy
-
-Deploy **backend** first. Each release:
+Every push to `main` rebuilds only the app whose folder changed (watch paths
+`/backend/**`, `/frontend/**`). An API release:
 
 1. builds `backend/Dockerfile` (Node + Chromium for page rendering and the
    Fix Plan PDF),
 2. runs `npm run db:migrate` (`prisma migrate deploy`) as the pre-deploy
-   command. If a migration fails, the release stops and the old version keeps
-   serving,
-3. starts the API and waits for `GET /health` to return 200 (API and
-   database both up) before switching traffic.
+   command; if it fails the release stops and the old version keeps serving,
+3. starts the API and switches traffic once `GET /health` returns 200.
 
-Then deploy **frontend**; it's live once `/robots.txt` answers.
+## Changing the infrastructure
 
-## Check it
+Edit `.railway/railway.ts`, then from the repo root:
 
-- `https://<backend domain>/health` returns `{"status":"ok","database":"up",…}`.
-- Sign in on the frontend domain as a client: dashboard, Fix Plan, one fix,
-  and both downloads (the Markdown list and the PDF overview).
+```bash
+npm install            # once: the Railway SDK the file imports
+railway config plan    # preview, changes nothing
+railway config apply   # apply after reviewing the plan
+```
+
+Railway's per-service `railway.json` ("Config as Code") is deprecated and
+stops being read on 2026-12-01; this repo doesn't use it.
+
+**Windows + Volta:** `railway config` fails ("requires Railway CLI 5.42.1 or
+newer", or "node returned non-JSON output") because Volta's `node` and
+`railway` shims mangle the CLI's calls. Point both at the real binaries:
+
+```bash
+RW="$LOCALAPPDATA/Volta/tools/image/packages/@railway/cli/node_modules/@railway/cli/bin/railway.exe"
+PATH="$LOCALAPPDATA/Volta/tools/image/node/22.22.2:$PATH" _="$RW" "$RW" config plan
+```
+
+## Secrets
+
+Secrets are never in git. The file marks them `preserve()`; set or rotate
+them with the value on stdin so it isn't echoed or saved in shell history:
+
+```bash
+printf '%s' "$VALUE" | railway variable set KEY --stdin --service backend
+```
+
+Set on `backend`: `JWT_ACCESS_SECRET` (production-only, random),
+`GOOGLE_TOKEN_ENCRYPTION_KEY` (must stay the key that encrypted the stored
+Google tokens), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`,
+`OPENROUTER_API_KEY`, `PSI_API_KEY`, `APIFY_API_KEY`, `CLORO_API_KEY`,
+`PLUNK_SECRET_KEY`, `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`, and
+`DATABASE_URL` (Supabase pooler string).
+
+Never set `DATAFORSEO_ALLOW_MOCK` or `MEASUREMENT_ALLOW_MOCK` to `1`: the API
+refuses to start in production with made-up data on.
+
+## Google sign-in
+
+Register this redirect URI on the OAuth client in Google Cloud Console:
+
+```
+https://backend-production-9558a.up.railway.app/auth/google/callback
+```
+
+`GOOGLE_REDIRECT_URI` and `FRONTEND_URL` reference the services' public
+domains, so they follow a custom domain automatically.
+
+## Custom domain
+
+`railway domain portal.rothenhall.com --service frontend --port 3000`, then
+add the DNS record Railway prints. Nothing else changes.
+
+## Checks after a deploy
+
+- `https://backend-production-9558a.up.railway.app/health` →
+  `{"status":"ok","database":"up",…}`
+- Sign in on the portal as a client: dashboard, Fix Plan, one fix, both
+  downloads (fix list and PDF overview).
 - Sign in as an admin: **Preview as client** on one project.
-
-## What's already handled in code
-
-- Redis connections use dual-stack DNS (`family: 0`), so BullMQ and the fetch
-  cache reach `redis.railway.internal` on IPv6-only networks.
-- Both apps listen on IPv4 and IPv6 and on Railway's `PORT`.
-- Watch paths (`/backend/**`, `/frontend/**`): a change to one app doesn't
-  redeploy the other.
-- Clean shutdown on redeploy; the API drains its database pool and queue
-  workers.
-
-See `production.md` for the full list of settings and known gaps.

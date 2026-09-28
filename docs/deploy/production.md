@@ -26,8 +26,8 @@ browser ──https──> frontend (Next.js)  ──server-side only──> bac
 | Migrations | same image | `npm run db:migrate` (`prisma migrate deploy`), then exits |
 | Portal | `docker build -t cailyx-portal frontend/` | `node server.js` on 3000 |
 
-**On Railway:** follow [`railway.md`](./railway.md). Each app ships a
-`railway.json`; migrations run as the API's pre-deploy command.
+**On Railway:** see [`railway.md`](./railway.md). The whole project is
+defined in `.railway/railway.ts`; migrations run as the API's pre-deploy command.
 
 The portal can also go on Vercel as-is (`output: "standalone"` is ignored
 there). The API can't: it needs long-running workers, Redis and Chromium.
