@@ -18,6 +18,7 @@ import { GapAnalysisModule } from './modules/gap-analysis/gap-analysis.module.js
 import { MeasurementModule } from './modules/measurement/measurement.module.js';
 import { ProjectsModule } from './modules/projects/projects.module.js';
 import { QuerySetModule } from './modules/query-set/query-set.module.js';
+import { RemediationModule } from './modules/remediation/remediation.module.js';
 import { ReportingModule } from './modules/reporting/reporting.module.js';
 import { SocialActivityModule } from './modules/social-activity/social-activity.module.js';
 import { TechnicalAuditModule } from './modules/technical-audit/technical-audit.module.js';
@@ -54,6 +55,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     Day1PipelineModule,
     GoogleModule,
     DataforseoModule,
+    RemediationModule,
     // Distributed tracing, auto-correlated logs, request/job metrics, error
     // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
     ObserveModule.forRoot({

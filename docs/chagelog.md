@@ -66,6 +66,39 @@ all-false, real consent URL with signed state, honest 404
 `google-not-connected`. Live grant still open: redirect URI registration
 + browser click-through (operator steps, see `docs/analysis/google.md`).
 
+## 2026-09-28 — Remediation ("Fix Plan") module (DB, backend, tests, docs)
+
+New module: turns audit findings into tracked **fix specs** — evidence, a
+ready-made fix where one can be computed, numbered steps, and a
+machine-checkable acceptance check — and proves fixes on the live site.
+Design in `docs/analysis/remediation.md`, as-built in
+`backend/src/modules/remediation/README.md`.
+
+**DB**: `remediation_runs`, `fix_specs` (upserted by
+`sha256(projectId|problemKey|target)`), `fix_spec_sources`,
+`fix_spec_events` (append-only history) + 6 enums. Migration only creates
+new objects; `Project` gains two back-relations, nothing else changes.
+
+**Backend**: handlers for all 8 technical-audit checks + per-page issues,
+dormant social platforms and losing AEO prompts. Generated fixes: robots.txt
+(new / minimal-change unblock, self-checked with the real `RobotsService`
+matcher; training crawlers never unblocked without a client decision),
+Organization JSON-LD from confirmed facts only, canonical tags, llms.txt,
+sitemap line. Status machine where only a verifier sets `VERIFIED`; newer
+audits auto-verify fixed problems and flag regressions. On-demand LLM copy
+drafts (title/meta/answer-page brief) with length-band + no-invented-numbers
+guardrails and a per-project daily cap. Export as Markdown or JSON.
+
+**Verified**: 93 new tests; full suite 820 passed; `tsc` + `oxlint` clean;
+`nest build` ok; full `AppModule` DI preview boot resolves every new
+provider. Generator run against the real robots.txt of nytimes.com,
+theguardian.com and reuters.com: every targeted bot unblocked, no other
+bot's access changed, original file kept verbatim.
+
+**Not done**: live end-to-end sync against a real DB (none available in
+this build); Day-1 stage, auto-sync on audit completion, Reporting section,
+client endpoints, agent API/MCP — each a follow-up in the owning module.
+
 ## 2026-09-28 — Discovery Step 20 synthesis: profiles written from understanding, not transcription
 
 Implements the reference workflow's final synthesis (Call F) as a new
