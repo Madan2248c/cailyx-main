@@ -38,6 +38,6 @@ export class LiveDataforseoAdapter implements DataforseoAdapter {
    * wiring is explicitly authorized.
    */
   fetchDataset(): Promise<DatasetResult> {
-    throw new ServiceUnavailableException('Live DataForSEO is not wired in this build — all paid paths go through the mock adapter.');
+    throw new ServiceUnavailableException('Live DataForSEO is not wired in this build. All paid paths go through the mock adapter.');
   }
 }

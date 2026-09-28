@@ -111,7 +111,7 @@ export default function AdminSchedulesPage() {
       </div>
       <p className="text-sm text-muted-foreground">
         Every cadence control that exists today, per client and project. Reporting and AEO have no
-        schedule endpoints yet — those rows are marked as gaps, not schedules.
+        schedule endpoints yet. Those rows are marked as gaps, not schedules.
       </p>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

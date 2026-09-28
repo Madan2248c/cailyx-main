@@ -22,18 +22,18 @@ const GENERATE_MAX_TOKENS = 1500;
 
 const PROPOSE_SYSTEM = `You invent the prompt buckets an AI-answer-engine visibility audit will use for one business.
 
-Given the business's site context (offerings, positioning, customers, geography, go-to-market, credibility, technology), propose a list of buckets — topic/angle groupings that reflect how THIS business's real buyers would actually search or ask an AI assistant about it. Do not use a generic fixed taxonomy; invent names specific to this business (e.g. "integration-partner-fit", "on-call-coverage-questions" — whatever actually matches, never a name picked from a preset list).
+Given the business's site context (offerings, positioning, customers, geography, go-to-market, credibility, technology), propose a list of buckets, topic/angle groupings that reflect how THIS business's real buyers would actually search or ask an AI assistant about it. Do not use a generic fixed taxonomy; invent names specific to this business (e.g. "integration-partner-fit", "on-call-coverage-questions", whatever actually matches, never a name picked from a preset list).
 
-Hard limits, enforced after you respond — a proposal outside these is rejected outright and you will be asked to redo it, so stay inside them:
+Hard limits, enforced after you respond. A proposal outside these is rejected outright and you will be asked to redo it, so stay inside them:
 - Propose between ${MIN_BUCKETS} and ${MAX_BUCKETS} buckets total. Never more than ${MAX_BUCKETS}. If you have many good angles, merge the closest-related ones into one bucket rather than listing them separately.
 - Each bucket's target_count must be between ${MIN_PROMPTS_PER_BUCKET} and ${MAX_PROMPTS_PER_BUCKET}.
 
 For each bucket, provide:
 - name: a short kebab-case slug, unique in the list
-- rationale: ONE sentence that names a specific fact from the site context below (an actual service, ICP trait, competitor, pain point, or outcome — quote or closely paraphrase it, don't write something generic that could apply to any business)
+- rationale: ONE sentence that names a specific fact from the site context below (an actual service, ICP trait, competitor, pain point, or outcome. Quote or closely paraphrase it, don't write something generic that could apply to any business)
 - persona: one of buyer | researcher | end_user | evaluator
 - funnel_stage: one of problem_aware | solution_aware | product_aware | most_aware
-- branding: branded | unbranded — most buckets should be unbranded (real visibility test); justify any branded one in the rationale
+- branding: branded | unbranded. Most buckets should be unbranded (real visibility test); justify any branded one in the rationale
 - target_count: how many prompts this bucket should get (your judgment of its relative weight, within the limit above)
 
 Respond with ONLY JSON: {"buckets": [{"name": string, "rationale": string, "persona": string, "funnel_stage": string, "branding": string, "target_count": number}, ...]}`;
@@ -42,11 +42,11 @@ const GENERATE_SYSTEM = `You write realistic prompts a real person would type in
 
 Rules:
 - Every prompt must fit the bucket's rationale and stay in character for the funnel stage and persona given.
-- Branded prompts may name the business; unbranded prompts must NOT name the business, its brand, or its domain — they test whether the business surfaces unprompted.
+- Branded prompts may name the business; unbranded prompts must NOT name the business, its brand, or its domain, because they test whether the business surfaces unprompted.
 - Natural language a real person would type, not SEO keyword strings.
 - No duplicates, no near-duplicates.
 
-Respond with ONLY JSON: {"prompts": [{"prompt": string}, ...]} — exactly the requested count.`;
+Respond with ONLY JSON: {"prompts": [{"prompt": string}, ...]}. Exactly the requested count.`;
 
 interface RawBucketsResponse {
   buckets?: unknown;

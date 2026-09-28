@@ -89,7 +89,7 @@ export class SocialActivityService {
       orderBy: { createdAt: 'desc' },
     });
     if (active) {
-      this.logger.debug(`Social activity for project ${projectId} already ${active.status} (${active.id}) — not starting another.`);
+      this.logger.debug(`Social activity for project ${projectId} already ${active.status} (${active.id}). Not starting another.`);
       return active;
     }
 
@@ -129,7 +129,7 @@ export class SocialActivityService {
     await this.assertProjectInClient(projectId, clientId);
     if (body.confirmSpend !== true) {
       throw new BadRequestException(
-        'Social-activity pulls spend real Apify credit. Pass confirmSpend: true — nothing was run and nothing was spent.',
+        'Social-activity pulls spend real Apify credit. Pass confirmSpend: true. Nothing was run and nothing was spent.',
       );
     }
     const platforms = body.platforms ?? [...DEFAULT_SOCIAL_PLATFORMS];
@@ -175,7 +175,7 @@ export class SocialActivityService {
         where: { id: runId },
         data: { status: 'FAILED', completedAt: new Date() },
       });
-      this.logger.error(`Social activity run ${runId}: APIFY_API_KEY not configured — run failed closed.`);
+      this.logger.error(`Social activity run ${runId}: APIFY_API_KEY not configured. Run failed closed.`);
       return;
     }
 
@@ -254,7 +254,7 @@ export class SocialActivityService {
             platform,
             status: 'not-run',
             severity: 'info',
-            detail: `No rows pulled for ${platform} — no verified account on file or pull skipped.`,
+            detail: `Could not check ${platform}: no confirmed account on file, or the check was skipped.`,
           });
           continue;
         }
@@ -392,7 +392,8 @@ Write exactly three Markdown sections, in this order, and nothing before the fir
 
 Rules:
 - Be quantitative. Cite the real numbers you were given. Never invent a number that isn't in the input.
-- Total output under 250 words. No recommendations, no advice — describe the data only.
+- Total output under 250 words. No recommendations, no advice: describe the data only.
+- Never use em dashes or en dashes; use commas, colons or full stops instead.
 - Respond with ONLY JSON: {"narrative": string}.`,
         user: `Platforms:\n${lines.join('\n')}\nFindings: ${findings.map((f) => `${f.platform}:${f.type}:${f.status}`).join(', ') || 'none'}`,
         maxTokens: 500,

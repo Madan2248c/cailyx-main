@@ -19,7 +19,7 @@ import { plural, relativeDate, type Tone } from '@/components/portal/tone';
 import { platformName } from '@/components/portal/words';
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '–';
+  if (!iso) return 'Unknown';
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -60,7 +60,7 @@ const DELTA_LABEL: Record<SocialActivityDelta['metric'], string> = {
 };
 
 function formatDeltaValue(metric: SocialActivityDelta['metric'], value: number | string | null): string {
-  if (value === null) return '–';
+  if (value === null) return 'none';
   if (metric === 'pattern') return PATTERN_LABEL[value as ActivityPattern] ?? String(value);
   if (typeof value === 'number') return Math.round(value).toLocaleString();
   return String(value);

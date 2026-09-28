@@ -71,7 +71,7 @@ export class AeoAuditService {
     const querySet = await this.prisma.querySet.findFirst({ where: { id: input.querySetId, projectId } });
     if (!querySet) throw new NotFoundException('Query set not found in this project.');
     if (querySet.status !== 'active') {
-      throw new ConflictException(`Query set is ${querySet.status} — an AEO audit can only run against an active set.`);
+      throw new ConflictException(`Query set is ${querySet.status}. An AEO audit can only run against an active set.`);
     }
     const promptCount = await this.prisma.querySetItem.count({ where: { querySetId: input.querySetId } });
     if (promptCount === 0) throw new BadRequestException('Query set has no prompts.');
@@ -103,7 +103,7 @@ export class AeoAuditService {
   async run(clientId: string, auditId: string) {
     const audit = await this.getOwned(clientId, auditId);
     if (audit.status === 'completed') {
-      throw new ConflictException('Audit is already completed — create a new audit instead of re-running.');
+      throw new ConflictException('Audit is already completed. Create a new audit instead of re-running.');
     }
 
     await this.prisma.aeoAudit.update({ where: { id: audit.id }, data: { status: 'running', startedAt: audit.startedAt ?? new Date() } });

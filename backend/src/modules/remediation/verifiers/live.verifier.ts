@@ -39,7 +39,7 @@ export class LiveVerifier {
       }
       case 'robots-allows': {
         const res = await this.fresh(`${siteUrl}/robots.txt`);
-        if (res.status === 0) return result(false, 'Could not fetch /robots.txt (network error) — try again.');
+        if (res.status === 0) return result(false, 'Could not fetch /robots.txt (network error). Try again.');
         const body = res.status >= 400 ? '' : res.body;
         const bots = check.bots.map((n) => getBotByName(n)).filter((b): b is NonNullable<typeof b> => !!b);
         const verdicts = await robotsRootVerdicts(body, bots.map((b) => b.userAgent));

@@ -73,7 +73,7 @@ export function ListEditor({
       <Label id={`${id}-label`}>{label}</Label>
       {values.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {disabled ? 'Nothing found.' : 'Nothing here yet — add the first one below.'}
+          {disabled ? 'Nothing found.' : 'Nothing here yet. Add the first one below.'}
         </p>
       ) : (
         <ul aria-labelledby={`${id}-label`} className="flex flex-col gap-2">

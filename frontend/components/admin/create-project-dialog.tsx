@@ -68,7 +68,7 @@ export function CreateProjectDialog({
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
           <DialogDescription>
-            Just a name and domain — everything else is inferred later.
+            Just a name and domain. Everything else is worked out later.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">

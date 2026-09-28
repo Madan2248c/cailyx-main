@@ -141,7 +141,7 @@ export class LlmService {
     const provider = this.provider();
     if (!provider) {
       throw new Error(
-        'No LLM provider configured — set OPENROUTER_API_KEY (preferred) or ANTHROPIC_API_KEY',
+        'No LLM provider configured. Set OPENROUTER_API_KEY (preferred) or ANTHROPIC_API_KEY',
       );
     }
     return provider === 'openrouter' ? this.viaOpenRouter(req, validate) : this.viaAnthropic(req, validate);

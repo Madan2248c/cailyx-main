@@ -135,7 +135,7 @@ export function ProjectScheduleCard({
                   {social.active ? 'active' : 'inactive'}
                 </Badge>
                 {!social.spendOptIn ? (
-                  <span className="text-xs text-muted-foreground">scheduled ticks skipped — no spend opt-in</span>
+                  <span className="text-xs text-muted-foreground">Scheduled ticks skipped (no spend opt-in)</span>
                 ) : null}
               </>
             ) : (
@@ -156,7 +156,7 @@ export function ProjectScheduleCard({
             <Badge variant="outline">not scheduled yet</Badge>
           </div>
           <span className="text-xs text-muted-foreground">
-            Gap: no reporting schedule endpoint on the backend — reports are generated on demand.
+            Gap: no reporting schedule endpoint on the backend. Reports are generated on demand.
           </span>
         </div>
 
@@ -166,7 +166,7 @@ export function ProjectScheduleCard({
             <Badge variant="outline">not scheduled yet</Badge>
           </div>
           <span className="text-xs text-muted-foreground">
-            Gap: no AEO schedule endpoint on the backend — audits are created and run on demand.
+            Gap: no AEO schedule endpoint on the backend. Audits are created and run on demand.
           </span>
         </div>
 

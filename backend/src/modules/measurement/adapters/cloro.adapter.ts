@@ -127,7 +127,7 @@ export class CloroClient {
   private requireKeys(): string[] {
     const keys = this.keys();
     if (keys.length === 0) {
-      throw new CloroAdapterError('cloro-disabled', 'cloro', 'CLORO_API_KEY is not set — sign up at cloro.dev and add the key to run this surface.');
+      throw new CloroAdapterError('cloro-disabled', 'cloro', 'CLORO_API_KEY is not set. Sign up at cloro.dev and add the key to run this surface.');
     }
     return keys;
   }

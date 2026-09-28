@@ -109,7 +109,7 @@ export class PresenceSerpService {
         candidates: [],
         queriesSpent: 0,
         costUsd: 0,
-        skipped: 'no brand name to search for — set the project name or client name',
+        skipped: 'no brand name to search for. Set the project name or client name',
       };
     }
     if (platforms.length === 0) {
@@ -205,7 +205,7 @@ export class PresenceSerpService {
     const unsearched = platforms.filter((p) => !searchedPlatforms.has(p));
     const skipped =
       unsearched.length > 0
-        ? `budget of ${budget} queries reached — ${unsearched.length} platform(s) not searched`
+        ? `budget of ${budget} queries reached; ${unsearched.length} platform(s) not searched`
         : null;
 
     return { candidates, queriesSpent, costUsd, skipped };

@@ -36,12 +36,12 @@ export class CacheService {
 
       this.redis.on('error', (err: Error) => {
         if (this.connected) {
-          this.logger.warn(`Redis cache error: ${err.message} — caching will be skipped`);
+          this.logger.warn(`Redis cache error: ${err.message}. Caching will be skipped`);
         }
         this.connected = false;
       });
     } catch (err) {
-      this.logger.warn(`Redis init failed — caching disabled: ${(err as Error).message}`);
+      this.logger.warn(`Redis init failed. Caching disabled: ${(err as Error).message}`);
       this.redis = null;
     }
   }

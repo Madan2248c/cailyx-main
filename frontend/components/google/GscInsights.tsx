@@ -9,7 +9,7 @@ function shortUrl(url: string): string {
 }
 
 function MiniSpark({ points }: { points: number[] }) {
-  if (points.length < 2) return <span className="text-xs text-muted-foreground">—</span>;
+  if (points.length < 2) return <span className="text-xs text-muted-foreground">Not enough data</span>;
   const width = 80;
   const height = 24;
   const max = Math.max(...points, 1);

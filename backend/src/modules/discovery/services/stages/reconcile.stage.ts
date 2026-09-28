@@ -90,7 +90,7 @@ export class ReconcileStage {
       const values = new Set(merged.filter((f) => f.field === field).map((f) => f.value.trim().toLowerCase()));
       if (values.size <= 1) continue;
       await ctx.note(
-        `Unresolved conflict on "${field}": ${values.size} different values found across selected pages — the most-cited one wins, the rest are dropped.`,
+        `Unresolved conflict on "${field}": ${values.size} different values found across selected pages. The most-cited one wins, the rest are dropped.`,
       );
       for (const fact of merged.filter((f) => f.field === field)) {
         fact.factType = 'conflicted';

@@ -119,7 +119,7 @@ const GROUPED_TITLES: Partial<Record<PageIssueCode, string>> = {
 };
 
 const GROUPED_STEPS: Partial<Record<PageIssueCode, string[]>> = {
-  'thin-content': [`Each listed page has fewer than ${SEO_BANDS.minWords} words of readable text. Add a clear answer to the question the page targets, specifics, and an FAQ where useful — or merge the page into a stronger one.`],
+  'thin-content': [`Each listed page has fewer than ${SEO_BANDS.minWords} words of readable text. Add a clear answer to the question the page targets, specifics, and an FAQ where useful, or merge the page into a stronger one.`],
   'images-missing-alt': ['Add a short, descriptive alt attribute to every meaningful image; use alt="" for decorative ones.'],
   'duplicate-content': ['Pick one page as the original for each duplicate set; point the others at it with a canonical tag or a 301 redirect.'],
   noindex: ['Each listed page has a noindex robots meta tag. Confirm with the client whether they should be hidden; remove the tag from any that should appear in search and AI answers.'],

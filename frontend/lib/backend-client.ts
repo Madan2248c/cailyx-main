@@ -13,14 +13,39 @@ export class BackendError extends Error {
   }
 }
 
-/** Server-side only — calls the NestJS backend directly. Never import this from a Client Component. */
+/**
+ * Em and en dashes read as clutter in the portal, and older stored text
+ * (reports, narratives, page titles) still has them. Every backend response
+ * passes through here, so they're swapped for a comma once, in one place.
+ * Ranges like "2–3" (no spaces) are kept. File contents a client will
+ * paste into their site ("content") are left byte-for-byte.
+ */
+function withoutDashes(text: string): string {
+  if (!text.includes('—') && !text.includes('–')) return text;
+  return text
+    .replace(/\s*—\s*/g, ', ')
+    .replace(/(\S)\s+–\s+(\S)/g, '$1, $2')
+    .replace(/^, /, '')
+    .replace(/,\s*([,.;:!?])/g, '$1');
+}
+
+function cleanDashes(value: unknown, key?: string): unknown {
+  if (typeof value === 'string') return key === 'content' ? value : withoutDashes(value);
+  if (Array.isArray(value)) return value.map((item) => cleanDashes(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, cleanDashes(v, k)]));
+  }
+  return value;
+}
+
+/** Server-side only: calls the NestJS backend directly. Never import this from a Client Component. */
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BACKEND_URL}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
 
-  const body = await response.json().catch(() => undefined);
+  const body = cleanDashes(await response.json().catch(() => undefined));
 
   if (!response.ok) {
     throw new BackendError(response.status, body);

@@ -119,9 +119,9 @@ export class SynthesizeStage {
         synthesis.push(...await this.synthesizeGroup(ctx, keys, inputs));
       } catch (err) {
         this.logger.warn(
-          `Field synthesis failed for [${keys.join(', ')}] on run ${ctx.runId}: ${(err as Error).message} — those fields fall back to verbatim assembly.`,
+          `Field synthesis failed for [${keys.join(', ')}] on run ${ctx.runId}: ${(err as Error).message}. Those fields fall back to verbatim assembly.`,
         );
-        await ctx.note(`Synthesis could not run for ${keys.join(', ')} — those fields keep their extracted wording this run.`);
+        await ctx.note(`Synthesis could not run for ${keys.join(', ')}. Those fields keep their extracted wording this run.`);
       }
     }
     ctx.state.synthesis = synthesis;
@@ -144,7 +144,7 @@ export class SynthesizeStage {
         maxTokens: 2500,
         system:
           'You are a business analyst writing a company profile from researched facts. Read ALL the inputs until ' +
-          'you understand the business the way a careful human would — what it sells, who pays, why they win — ' +
+          'you understand the business the way a careful human would, what it sells, who pays, why they win, ' +
           'then write each requested field in plain buyer language: your own clear words, never site copy pasted ' +
           'verbatim. Microcopy, slogans and nav labels are raw material, never output.\n' +
           'Rules:\n' +
@@ -155,7 +155,7 @@ export class SynthesizeStage {
           '- descriptions.one_line follows "[Company] is a [category] that helps [ICP] achieve [outcome] through ' +
           '[main product/service]" using only supported elements; omit the slot when it cannot be grounded.\n' +
           'Respond with ONLY JSON: {"entries":[{"key":string,"value":string,"basedOn":string[]}],' +
-          `"dropped":[{"value":string,"reason":string}]} — key is one of: ${keys.join(', ')}.`,
+          `"dropped":[{"value":string,"reason":string}]}. Key is one of: ${keys.join(', ')}.`,
         user:
           `Business: ${snapshot}\n\n` +
           `Fields and their verified input values:\n${JSON.stringify(fields)}`,

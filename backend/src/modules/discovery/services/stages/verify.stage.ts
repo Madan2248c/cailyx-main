@@ -86,14 +86,14 @@ export class VerifyStage {
           purpose: 'independent claim verification',
           maxTokens: 2000,
           system:
-            'You are an independent verifier reviewing another pass\'s output, not the original extractor — read ' +
+            'You are an independent verifier reviewing another pass\'s output, not the original extractor. Read ' +
             'skeptically. For each category, you get its synthesized `claims`/`summary` and the raw `evidence` facts ' +
             '(with excerpts) they were supposedly built from. Check every claim against the evidence and flag:\n' +
             '- A claim with no evidence fact that actually supports it (fabricated or over-generalized during synthesis).\n' +
             '- A claim that is really about a customer, partner, or competitor named in the evidence, not the subject company.\n' +
             '- A claim that blends a current fact with a historical one, or a first-party claim with a third-party one, ' +
             'as if they were the same statement.\n' +
-            'Never add a new claim. Return only claims/summaries you keep — omit ones you drop. confidencePenalty is 0 ' +
+            'Never add a new claim. Return only claims/summaries you keep. Omit ones you drop. confidencePenalty is 0 ' +
             'when nothing is wrong, up to 1 when the summary is mostly unsupported.\n' +
             'For each synthesis entry: keep is true only when the label says nothing beyond its cited evidence ' +
             'inputs (same checks as claims). Respond with ONLY JSON: {"categories":[{"category":string,' +
@@ -113,7 +113,7 @@ export class VerifyStage {
       // which is the honest state, and better than losing a whole run's
       // synthesis over a failed second opinion.
       this.logger.warn(
-        `Independent verification failed for run ${ctx.runId}: ${(err as Error).message} — category summaries kept as consolidated, unverified.`,
+        `Independent verification failed for run ${ctx.runId}: ${(err as Error).message}. Category summaries kept as consolidated, unverified.`,
       );
     }
   }

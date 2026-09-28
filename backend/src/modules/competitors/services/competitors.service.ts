@@ -136,7 +136,7 @@ export class CompetitorsService {
       data.status = input.status;
     }
     if (Object.keys(data).length === 0) {
-      throw new BadRequestException('Nothing to update — provide name, domain, or status.');
+      throw new BadRequestException('Nothing to update. Provide name, domain, or status.');
     }
     return this.prisma.competitor.update({ where: { id }, data });
   }

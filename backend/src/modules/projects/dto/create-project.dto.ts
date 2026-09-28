@@ -21,7 +21,7 @@ export class CreateProjectDto {
    * docs/analysis/day1-pipeline.md). Creating a project starts the pipeline
    * — there is no mid-pipeline spend click — so consent must be explicit.
    */
-  @Equals(true, { message: 'day1SpendConsent must be true — creating a project authorizes its automatic Day-1 run.' })
+  @Equals(true, { message: 'day1SpendConsent must be true. Creating a project authorizes its automatic Day-1 run.' })
   day1SpendConsent!: boolean;
 
   /** Optional Day-1 spend ceiling in USD. Omitted = uncapped at this layer (per-module caps still apply). */

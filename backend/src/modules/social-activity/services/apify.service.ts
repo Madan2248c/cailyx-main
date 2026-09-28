@@ -190,7 +190,7 @@ export class ApifyService {
     const key = this.config.get<string>('APIFY_API_KEY');
     if (!key) {
       throw new ServiceUnavailableException(
-        'APIFY_API_KEY is not set — add it to run social-activity pulls (see docs/analysis/digital-presence-audit.md).',
+        'APIFY_API_KEY is not set. Add it to run social-activity pulls (see docs/analysis/digital-presence-audit.md).',
       );
     }
     return key;
@@ -203,7 +203,7 @@ export class ApifyService {
       const overrides = JSON.parse(raw) as Record<string, string>;
       return { ...DEFAULT_ACTORS, ...overrides };
     } catch {
-      this.logger.warn('APIFY_ACTORS is not valid JSON — ignoring it and using the built-in actor map.');
+      this.logger.warn('APIFY_ACTORS is not valid JSON. Ignoring it and using the built-in actor map.');
       return DEFAULT_ACTORS;
     }
   }

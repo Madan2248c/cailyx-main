@@ -188,7 +188,7 @@ export class DiscoverStage {
     if (!seen.has(urlKey(origin + '/'))) {
       homeHtml = await visit(origin + '/', 'homepage');
       if (!homeHtml) {
-        await ctx.note(`Homepage fetch failed for ${origin}/ — nav-link discovery and homepage content are unavailable this run.`);
+        await ctx.note(`Homepage fetch failed for ${origin}/. Nav-link discovery and homepage content are unavailable this run.`);
       }
     }
     // On a resumed run the homepage is already a row and its HTML is gone (not
@@ -233,10 +233,10 @@ export class DiscoverStage {
     const { maxPages, maxRequests } = ctx.budget.limits;
 
     if (total === 0) {
-      await ctx.note(`Discovery found no reachable pages on ${ctx.project.domain} — context will be metadata-only.`);
+      await ctx.note(`Discovery found no reachable pages on ${ctx.project.domain}. Context will be metadata-only.`);
     } else if (total < maxPages && ctx.budget.snapshot().requestsSpent >= maxRequests) {
       await ctx.note(
-        `Discovery stopped at the request budget (${maxRequests}) with only ${total} of up to ${maxPages} pages fetched — discovery is incomplete.`,
+        `Discovery stopped at the request budget (${maxRequests}) with only ${total} of up to ${maxPages} pages fetched. Discovery is incomplete.`,
       );
     }
     if (failed > 0) {

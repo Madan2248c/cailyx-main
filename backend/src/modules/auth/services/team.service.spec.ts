@@ -349,7 +349,7 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'target@test.com',
-        subject: 'Your Day-1 audit is ready — set up your account',
+        subject: 'Your Day-1 audit is ready: set up your account',
         html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
       });
       expect(result).toEqual({ sent: true, kind: 'invite' });

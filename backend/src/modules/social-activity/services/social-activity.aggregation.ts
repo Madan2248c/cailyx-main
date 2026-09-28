@@ -147,7 +147,7 @@ export function findingsFor(activity: PlatformActivity): SocialActivityFinding[]
       platform: activity.platform,
       status: 'not-run',
       severity: 'info',
-      detail: `${activity.platform} returned posts without usable dates — cadence unverified, not missing.`,
+      detail: `${activity.platform} returned posts without usable dates, so posting rhythm could not be confirmed.`,
     });
   }
   if (out.length === 0) {

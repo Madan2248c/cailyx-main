@@ -16,10 +16,11 @@ const SYSTEM = `You turn a set of already-computed audit headlines into customer
 
 Rules:
 - Never invent a number, percentage, or count that isn't already in the headlines you're given.
-- Rewrite for a business audience, not a technical one — same facts, clearer framing.
-- If prior-period facts are given, you may frame a change ("up from X"), but only using the exact prior numbers given — never estimate a delta yourself.
+- Rewrite for a business audience, not a technical one: same facts, clearer framing.
+- If prior-period facts are given, you may frame a change ("up from X"), but only using the exact prior numbers given. Never estimate a delta yourself.
 - Return at most ${NARRATIVE_MAX_HEADLINES} lines, each at most ${NARRATIVE_HEADLINE_CHAR_CAP} characters.
 
+- Never use em dashes or en dashes; use commas, colons or full stops instead.
 Respond with ONLY JSON: {"headlines": string[]}`;
 
 export interface NarrativeInput {

@@ -63,7 +63,7 @@ export class EmailService {
     const sender = this.config.get<string>('PLUNK_SENDER_EMAIL');
     if (!apiKey || !sender) {
       throw new ServiceUnavailableException(
-        'email-unconfigured: PLUNK_SECRET_KEY / PLUNK_SENDER_EMAIL is not set — nothing was sent',
+        'email-unconfigured: PLUNK_SECRET_KEY / PLUNK_SENDER_EMAIL is not set. Nothing was sent',
       );
     }
 

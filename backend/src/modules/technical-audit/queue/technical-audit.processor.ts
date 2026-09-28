@@ -45,7 +45,7 @@ export class TechnicalAuditProcessor extends WorkerHost {
       if (run.triggeredBy === 'SCHEDULED' && run.status === 'QUEUED') {
         await this.audits.executeRun(run.id);
       } else {
-        this.logger.debug(`Scheduled tick for project ${projectId} skipped — run ${run.id} already ${run.status}.`);
+        this.logger.debug(`Scheduled tick for project ${projectId} skipped. Run ${run.id} already ${run.status}.`);
       }
       return;
     }
@@ -66,9 +66,9 @@ export class TechnicalAuditProcessor extends WorkerHost {
     const giveUp = attempts >= max;
     const message = `Technical audit job ${job.id} failed on attempt ${attempts}/${max}: ${error.message}`;
     if (giveUp) {
-      this.logger.error(`${message} — no attempts left.`);
+      this.logger.error(`${message}. No attempts left.`);
     } else {
-      this.logger.warn(`${message} — will retry.`);
+      this.logger.warn(`${message}. Will retry.`);
     }
   }
 

@@ -23,10 +23,10 @@ const DOMAIN_LIMIT = 15;
 const PAGE_LIMIT = 10;
 
 function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '–';
+  if (!iso) return 'Unknown';
   const date = new Date(iso);
   return Number.isNaN(date.getTime())
-    ? '–'
+    ? 'Unknown'
     : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
@@ -293,7 +293,7 @@ export function BacklinksSection({
                     </td>
                     <td className={row.isDofollow ? '' : 'text-muted-foreground'}>{row.isDofollow ? 'Yes' : 'No'}</td>
                     <td className={`g-num-cell font-medium ${TONE_TEXT[spamTone(row.spamScore)]}`}>
-                      {Number.isFinite(row.spamScore) ? row.spamScore : '–'}
+                      {Number.isFinite(row.spamScore) ? row.spamScore : 'n/a'}
                     </td>
                     <td>
                       {row.lost ? (

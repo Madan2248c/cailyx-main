@@ -141,7 +141,7 @@ export class RemediationSyncService implements OnModuleInit, OnModuleDestroy {
 
     const snapshot = await this.collector.collect(project);
     if (!snapshot.technicalAudit && !snapshot.socialActivity && !snapshot.aeoAudit) {
-      throw new ConflictException('No completed Technical Audit, Social Activity or AEO Audit run exists yet — nothing to fix.');
+      throw new ConflictException('No completed Technical Audit, Social Activity or AEO Audit run exists yet. Nothing to fix.');
     }
 
     const run = await this.prisma.remediationRun.create({

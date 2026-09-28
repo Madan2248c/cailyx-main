@@ -81,7 +81,7 @@ export class AgentReadinessCheck {
 
     if (!report) {
       const triedCli = cliEnabled ? 'the CLI scan and ' : '';
-      return this.finding({ ...EMPTY_ANALYSIS, source: 'none', error: `Could not obtain a report — tried ${triedCli}the read-only API, neither returned a usable score.` });
+      return this.finding({ ...EMPTY_ANALYSIS, source: 'none', error: `Could not obtain a report. Tried ${triedCli}the read-only API, neither returned a usable score.` });
     }
 
     return this.finding({ ...this.mapReport(report, ctx.targetUrl), source, error: null });
@@ -236,7 +236,7 @@ export class AgentReadinessCheck {
     }
     const topIssues = analysis.issues.slice(0, 3).map((i) => i.name || i.id).filter(Boolean);
     const issueText = topIssues.length > 0 ? ` Top issues: ${topIssues.join(', ')}.` : '';
-    return `Agent readiness score ${analysis.score}/100${analysis.scoreLabel ? ` (${analysis.scoreLabel})` : ''} — below the ${PASS_SCORE_FLOOR} floor.${issueText} See the full report${analysis.reportUrl ? ` at ${analysis.reportUrl}` : ''} for details.`;
+    return `Agent readiness score ${analysis.score}/100${analysis.scoreLabel ? ` (${analysis.scoreLabel})` : ''}, below the ${PASS_SCORE_FLOOR} floor.${issueText} See the full report${analysis.reportUrl ? ` at ${analysis.reportUrl}` : ''} for details.`;
   }
 
   private extractHost(targetUrl: string): string | null {

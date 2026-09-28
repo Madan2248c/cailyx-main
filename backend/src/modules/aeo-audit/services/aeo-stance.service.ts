@@ -30,7 +30,7 @@ Classify the subject's stance as exactly one of:
 - mentioned_negative: the subject appears with negative framing
 - absent: the subject is not named at all
 
-Also extract, from the answer text only — never invent a name that isn't there:
+Also extract, from the answer text only. Never invent a name that isn't there:
 - rankAmongBrands: the subject's 1-based position among every named brand, if the answer orders them; else null
 - brandsNamed: every brand/company/product name the answer mentions, in the order they appear
 - recommendedOver: brands the subject is explicitly placed ahead of

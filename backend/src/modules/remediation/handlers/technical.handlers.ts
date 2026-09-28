@@ -61,7 +61,7 @@ export const robotsHandler: RemediationHandler = {
         'Deploy, then use "Check my site now" on this fix to confirm.',
       ];
       if (result.untargetable.length > 0) {
-        steps.splice(2, 0, `${result.untargetable.join(', ')} cannot be named in robots.txt by token; they follow the "User-agent: *" group — check that group does not block "/".`);
+        steps.splice(2, 0, `${result.untargetable.join(', ')} cannot be named in robots.txt by token; they follow the "User-agent: *" group, so check that group does not block "/".`);
       }
       out.push({
         problemKey: 'robots.unblock-ai-crawlers',
@@ -152,7 +152,7 @@ export const sitemapHandler: RemediationHandler = {
         steps: [
           `The newest <lastmod> in ${text(d['sitemapUrl']) || 'the sitemap'} is ${text(d['staleDays'])} days old.`,
           'Switch the sitemap from a one-time file to one generated on publish, so <lastmod> reflects real page changes.',
-          'Only change <lastmod> when the page content really changes — crawlers learn to ignore dates that always move.',
+          'Only change <lastmod> when the page content really changes. Crawlers learn to ignore dates that always move.',
         ],
         acceptance: { kind: 'finding-absent', module: 'technical-audit', findingRef: 'sitemap' },
       });

@@ -17,7 +17,7 @@ export class MockSurfaceAdapter implements SurfaceAdapter {
 
   async runPrompt(prompt: string): Promise<SurfaceAnswer> {
     if (this.config.get<string>('MEASUREMENT_ALLOW_MOCK') !== '1') {
-      throw new ServiceUnavailableException('The mock surface is disabled — set MEASUREMENT_ALLOW_MOCK=1 to enable it (test-only, never in prod).');
+      throw new ServiceUnavailableException('The mock surface is disabled. Set MEASUREMENT_ALLOW_MOCK=1 to enable it (test-only, never in prod).');
     }
     return {
       text: `Mock answer for: ${prompt}`,

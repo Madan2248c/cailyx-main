@@ -60,10 +60,10 @@ const STAGE_DOT: Record<string, string> = {
 };
 
 function formatDate(raw: string | null): string {
-  if (!raw) return '–';
+  if (!raw) return 'Unknown';
   const date = new Date(raw);
   return Number.isNaN(date.getTime())
-    ? '–'
+    ? 'Unknown'
     : date.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 

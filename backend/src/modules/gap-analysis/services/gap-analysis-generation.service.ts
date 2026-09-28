@@ -15,14 +15,15 @@ import type { RawRecommendation, SourceFinding, SourceModule } from '../gap-anal
 const SYSTEM = `You consolidate findings from multiple audit modules into ONE ranked list of concrete next steps for a business.
 
 You will be given a flat list of findings, each with a (module, findingRef) identifier and a summary. Your job:
-- Merge findings that describe the same underlying problem — across modules where relevant — into ONE recommendation, citing every finding it's based on.
+- Merge findings that describe the same underlying problem, across modules where relevant, into ONE recommendation, citing every finding it's based on.
 - Write each recommendation as a concrete next step ("Fix X by doing Y"), never a restated finding ("X is broken").
-- Rank recommendations by how influential fixing them would be, most influential first. This is an ORDER, not a score — never state a numeric priority value.
+- Rank recommendations by how influential fixing them would be, most influential first. This is an ORDER, not a score, so never state a numeric priority value.
 - Every recommendation MUST cite at least one real (module, findingRef) pair from the list you were given. Never cite one that wasn't given to you.
 - Never state a number, percentage, or count in a recommendation's title or description unless that exact number already appears in a finding you cite for it.
 - Propose between 3 and 15 recommendations total.
 
-Respond with ONLY JSON: {"recommendations": [{"title": string, "description": string, "sourceFindings": [{"module": string, "findingRef": string}, ...]}, ...]} — in your final priority order, most influential first.`;
+- Never use em dashes or en dashes; use commas, colons or full stops instead.
+Respond with ONLY JSON: {"recommendations": [{"title": string, "description": string, "sourceFindings": [{"module": string, "findingRef": string}, ...]}, ...]}. In your final priority order, most influential first.`;
 
 @Injectable()
 export class GapAnalysisGenerationService {

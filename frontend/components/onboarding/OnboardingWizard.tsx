@@ -252,7 +252,7 @@ export function OnboardingWizard({
         <CardContent className="flex flex-col gap-4">
           {!canEdit ? (
             <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-              You&apos;re viewing as a team member — only your account&apos;s POC can save changes.
+              You&apos;re viewing as a team member. Only your company&apos;s main contact can save changes.
             </p>
           ) : null}
 
@@ -346,7 +346,7 @@ export function OnboardingWizard({
                 disabled={isSaving}
                 aria-busy={isSaving}
               >
-                Finish — go to dashboard
+                Finish and go to your dashboard
               </Button>
             ) : (
               <Button
@@ -411,7 +411,7 @@ function ReviewSummary({
             {group.rows.map(([label, value]) => (
               <div key={label} className="flex justify-between gap-4">
                 <dt className="shrink-0 text-muted-foreground">{label}</dt>
-                <dd className="text-right break-words">{value === '' ? '—' : value}</dd>
+                <dd className="text-right break-words">{value === '' ? <span className="text-muted-foreground">Not given</span> : value}</dd>
               </div>
             ))}
           </dl>

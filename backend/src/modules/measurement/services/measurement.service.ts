@@ -72,7 +72,7 @@ export class MeasurementService {
     const querySet = await this.prisma.querySet.findFirst({ where: { id: input.querySetId, projectId }, include: { items: true } });
     if (!querySet) throw new NotFoundException('Query set not found in this project.');
     if (querySet.status !== 'active') {
-      throw new ConflictException(`Query set is ${querySet.status} — only active sets are measured (immutable versions).`);
+      throw new ConflictException(`Query set is ${querySet.status}. Only active sets are measured (immutable versions).`);
     }
     if (querySet.items.length === 0) throw new BadRequestException('Cannot measure an empty query set.');
 
@@ -101,7 +101,7 @@ export class MeasurementService {
     if (!run) throw new NotFoundException('Run not found.');
     if (run.status === 'running') throw new ConflictException('Run is already executing.');
     if (run.status === 'completed') {
-      throw new ConflictException('Run is already completed — create a new run instead of re-executing.');
+      throw new ConflictException('Run is already completed. Create a new run instead of re-executing.');
     }
     if (run.status === 'failed') {
       // Retry: wipe partial observations so rates never double-count.

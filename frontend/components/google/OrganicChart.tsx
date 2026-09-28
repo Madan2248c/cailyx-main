@@ -64,7 +64,7 @@ export function DeltaArrow({
     return (
       <span className="inline-flex items-center gap-1 text-muted-foreground">
         <Minus aria-hidden="true" className="size-3.5" />
-        <span aria-hidden="true">—</span>
+        <span aria-hidden="true">·</span>
         <span className="sr-only">No change</span>
       </span>
     );

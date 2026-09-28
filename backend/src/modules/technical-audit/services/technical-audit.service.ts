@@ -119,7 +119,7 @@ export class TechnicalAuditService {
       orderBy: { createdAt: 'desc' },
     });
     if (active) {
-      this.logger.debug(`Technical audit for project ${projectId} already ${active.status} (${active.id}) — not starting another.`);
+      this.logger.debug(`Technical audit for project ${projectId} already ${active.status} (${active.id}). Not starting another.`);
       return active;
     }
 
@@ -201,7 +201,7 @@ export class TechnicalAuditService {
       throw new NotFoundException('Technical audit run not found: ' + auditRunId);
     }
     if (TERMINAL_STATUSES.has(run.status)) {
-      this.logger.debug(`Technical audit run ${run.id} is already ${run.status} — nothing to do.`);
+      this.logger.debug(`Technical audit run ${run.id} is already ${run.status}. Nothing to do.`);
       return;
     }
     if (run.project.deletedAt) {

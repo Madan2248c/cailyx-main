@@ -206,7 +206,7 @@ describe('buildPageInsights', () => {
     const byUrl = new Map(out.map((i) => [i.url, i]));
 
     expect(byUrl.get('/a')).toMatchObject({ trend: 'up', onPageOne: true, actionLevel: 'win' });
-    expect(byUrl.get('/a')?.action).toContain('page 1');
+    expect(byUrl.get('/a')?.action).toContain('page one');
     expect(byUrl.get('/b')).toMatchObject({ trend: 'up', onPageOne: true });
     expect(byUrl.get('/c')).toMatchObject({ trend: 'new', actionLevel: 'win' });
   });
@@ -230,7 +230,7 @@ describe('buildPageInsights', () => {
 
     expect(byUrl.get('/slip')).toMatchObject({ trend: 'down', actionLevel: 'act' });
     expect(byUrl.get('/slip')?.action).toContain('Slipping');
-    expect(byUrl.get('/ctr')?.action).toContain('CTR');
+    expect(byUrl.get('/ctr')?.action).toContain('fewer people choose your result');
     expect(byUrl.get('/vis')).toMatchObject({ trend: 'down', actionLevel: 'watch' });
     expect(byUrl.get('/ok')).toMatchObject({ trend: 'stable', action: null, actionLevel: null });
   });
@@ -242,7 +242,7 @@ describe('buildPageInsights', () => {
     );
     const byUrl = new Map(out.map((i) => [i.url, i]));
 
-    expect(byUrl.get('/strike')?.action).toContain('Striking distance');
+    expect(byUrl.get('/strike')?.action).toContain('Close to page one');
     expect(byUrl.get('/strike')?.actionLevel).toBe('act');
     expect(byUrl.get('/long-tail')?.action).toBeNull();
   });

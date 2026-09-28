@@ -35,7 +35,7 @@ function cwvTone(status: string | null): Tone {
 const CWV_WORD: Record<string, string> = { good: 'Good', 'needs-improvement': 'Needs work', poor: 'Poor' };
 
 function formatMetric(value: number | null, unit: 'ms' | '' | 's'): string {
-  if (value === null) return '—';
+  if (value === null) return 'n/a';
   if (unit === 's') return `${value.toFixed(2)} s`;
   if (unit === 'ms') return value >= 1000 ? `${(value / 1000).toFixed(2)} s` : `${Math.round(value)} ms`;
   return String(Math.round(value * 100) / 100);
@@ -217,7 +217,7 @@ export function TechnicalTab({
           <TileHeader icon={Gauge} eyebrow="Site score" hint="A weighted score across the 8 checks below. 80+ is healthy, 50 to 79 needs work, under 50 is at risk." right={<StatusChip tone={tone}>{TONE_WORD[tone]}</StatusChip>} />
           <div className="flex flex-wrap items-center gap-6">
             <ScoreRing value={latest.score} tone={tone} size={148} stroke={12} label={`Site score ${latest.score ?? 'not available'} out of 100`}>
-              <span className={`text-5xl font-semibold ${TONE_TEXT[tone]}`}>{latest.score !== null ? <CountUp value={latest.score} /> : '—'}</span>
+              <span className={`text-5xl font-semibold ${TONE_TEXT[tone]}`}>{latest.score !== null ? <CountUp value={latest.score} /> : '?'}</span>
               <span className="text-xs text-muted-foreground">out of 100</span>
             </ScoreRing>
             <div className="flex flex-col gap-2">
@@ -263,7 +263,7 @@ export function TechnicalTab({
 
         <Tile index={1}>
           <TileHeader icon={FileSearch} eyebrow="Pages checked" />
-          <p className="text-4xl font-semibold">{crawled !== null ? <CountUp value={crawled} /> : '—'}</p>
+          <p className="text-4xl font-semibold">{crawled !== null ? <CountUp value={crawled} /> : '?'}</p>
           <p className="mt-1 text-sm text-muted-foreground">
             {num(inventory.discovered) !== null ? `of ${inventory.discovered} found in your sitemap` : 'across your sitemap'}
           </p>
@@ -273,7 +273,7 @@ export function TechnicalTab({
           <TileHeader icon={Bot} eyebrow="Agent readiness" hint="How easily AI assistants and agents can use your site: things like llms.txt, clear structure and machine-readable actions." />
           <div className="flex items-center gap-4">
             <ScoreRing value={agentScore} tone={scoreTone(agentScore)} size={72} stroke={7} index={2} label={`Agent readiness ${agentScore ?? 'not available'} out of 100`}>
-              <span className={`text-xl font-semibold ${TONE_TEXT[scoreTone(agentScore)]}`}>{agentScore ?? '—'}</span>
+              <span className={`text-xl font-semibold ${TONE_TEXT[scoreTone(agentScore)]}`}>{agentScore ?? 'n/a'}</span>
             </ScoreRing>
             <p className="text-sm text-muted-foreground">{str(agent.scoreLabel) ?? 'How easily AI assistants can use your site'}</p>
           </div>
@@ -283,7 +283,7 @@ export function TechnicalTab({
           <TileHeader icon={Code} eyebrow="Structured data" hint="Hidden JSON-LD that tells machines who you are and what a page is about. AI engines lean on it to describe you accurately." />
           <div className="flex items-center gap-4">
             <ScoreRing value={jsonLdPct} tone={scoreTone(jsonLdPct)} size={72} stroke={7} index={3} label={`${jsonLdPct ?? 'Unknown'} percent of pages have structured data`}>
-              <span className={`text-lg font-semibold ${TONE_TEXT[scoreTone(jsonLdPct)]}`}>{jsonLdPct !== null ? `${jsonLdPct}%` : '—'}</span>
+              <span className={`text-lg font-semibold ${TONE_TEXT[scoreTone(jsonLdPct)]}`}>{jsonLdPct !== null ? `${jsonLdPct}%` : 'n/a'}</span>
             </ScoreRing>
             <p className="text-sm text-muted-foreground">
               {withJsonLd !== null && crawled !== null ? `${withJsonLd} of ${crawled} pages describe themselves to machines` : 'Not measured in this audit'}
@@ -297,7 +297,7 @@ export function TechnicalTab({
           <div className="mt-3 flex flex-col gap-1.5">
             <div className="flex items-baseline justify-between text-sm">
               <span className="text-muted-foreground">Content hidden without JS</span>
-              <span className="g-num font-medium">{contentLoss !== null ? `${Math.round(contentLoss)}%` : '—'}</span>
+              <span className="g-num font-medium">{contentLoss !== null ? `${Math.round(contentLoss)}%` : 'n/a'}</span>
             </div>
             <Meter value={contentLoss} tone={contentLoss !== null && contentLoss > 20 ? 'watch' : 'good'} index={4} label="Content lost without JavaScript" />
           </div>
@@ -329,7 +329,7 @@ export function TechnicalTab({
               <div key={row.key} className="grid grid-cols-[7.5rem_1fr_2.25rem] items-center gap-3 text-sm">
                 <span className="text-muted-foreground">{row.label}</span>
                 <Meter value={row.value} tone={scoreTone(row.value)} index={i} label={`${row.label} ${row.value ?? 'not measured'}`} />
-                <span className="g-num text-right font-medium">{row.value ?? '—'}</span>
+                <span className="g-num text-right font-medium">{row.value ?? 'n/a'}</span>
               </div>
             ))}
           </div>
@@ -359,8 +359,8 @@ export function TechnicalTab({
                 <div key={label as string} className="flex flex-col gap-1.5 rounded-xl bg-muted/60 p-3">
                   <p className="text-xs text-muted-foreground">{label as string}</p>
                   <p className="g-num text-xl font-semibold">
-                    {b?.passing ?? '—'}
-                    <span className="text-sm font-normal text-muted-foreground">/{b?.total ?? '—'} passing</span>
+                    {b?.passing ?? '?'}
+                    <span className="text-sm font-normal text-muted-foreground">/{b?.total ?? '?'} passing</span>
                   </p>
                   {b?.total ? <Meter value={b.passing ?? 0} max={b.total} tone={scoreTone(((b.passing ?? 0) / b.total) * 100)} height={4} /> : null}
                 </div>
@@ -420,7 +420,7 @@ export function TechnicalTab({
                 <span className="flex items-center gap-2">
                   {count === 0 ? <CircleCheck className="size-4 text-success" /> : count === null ? <Minus className="size-4 text-muted-foreground" /> : null}
                   <span className={`g-num font-medium ${count ? 'text-warning' : ''}`}>
-                    {count ?? '—'}
+                    {count ?? 'n/a'}
                     {hint ? <span className="font-normal text-muted-foreground"> {hint}</span> : null}
                   </span>
                 </span>
@@ -438,7 +438,7 @@ export function TechnicalTab({
                   <span className="text-muted-foreground">{d.label}</span>
                   <span className="flex items-center gap-2">
                     <span className="g-num text-muted-foreground">
-                      {d.previous ?? '—'} → <span className="font-medium text-foreground">{d.current ?? '—'}</span>
+                      {d.previous ?? 'none'} → <span className="font-medium text-foreground">{d.current ?? 'none'}</span>
                     </span>
                     <DeltaChip change={d.change} higherIsBetter={d.higherIsBetter} />
                   </span>

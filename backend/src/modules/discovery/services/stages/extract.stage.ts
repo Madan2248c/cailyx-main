@@ -150,7 +150,7 @@ export class ExtractStage {
     while (cursor < retryable.length) {
       if (ctx.budget.charsLeft() <= 0) {
         await ctx.note(
-          `Extraction stopped at the character budget (${ctx.budget.limits.maxChars}) — ${retryable.length - cursor} selected page(s) still pending.`,
+          `Extraction stopped at the character budget (${ctx.budget.limits.maxChars}); ${retryable.length - cursor} selected page(s) still pending.`,
         );
         break;
       }
@@ -325,7 +325,7 @@ export class ExtractStage {
     let corpus = '';
     for (const page of batch) {
       const tag = ORG_ONLY_PAGE_TYPES.has(page.pageType)
-        ? ` [page type: ${page.pageType} — internal/organizational page, NOT a source for services/valueProps/businessModel/category/description]`
+        ? ` [page type: ${page.pageType}, internal/organizational page, NOT a source for services/valueProps/businessModel/category/description]`
         : '';
       corpus +=
         '\n\n--- ' +
@@ -341,37 +341,37 @@ export class ExtractStage {
         purpose: 'site context extraction (batch)',
         maxTokens: 1800,
         system:
-          'You read company web pages and extract factual assertions about the company itself — never about its ' +
+          'You read company web pages and extract factual assertions about the company itself. Never about its ' +
           'customers, partners or people it merely mentions. Rules:\n' +
           '- Use ONLY what the page text states. Never complete a missing detail from general/outside knowledge.\n' +
           '- Every fact MUST cite the exact page URL it came from (sourcePage, must be one of the URLs given) and a short verbatim excerpt (<=200 chars, copied text, not a paraphrase) that supports it.\n' +
           '- factType is one of: "explicit" (directly stated), "strong_inference" (clearly implied by multiple ' +
-          'signals on the page but not stated outright), "weak_inference" (plausible but thin support — prefer ' +
+          'signals on the page but not stated outright), "weak_inference" (plausible but thin support. Prefer ' +
           'omitting the fact instead of using this).\n' +
           '- Before writing a fact, check the sentence for negation ("we do NOT offer X", "unlike other providers ' +
-          'we don\'t...") — never emit a fact whose sentence is negated.\n' +
-          '- A page marked "[page type: ... — internal/organizational page, ...]" is about the company\'s own hiring, ' +
-          'investors or partners — e.g. a careers page\'s "paid internship" or "join our team" copy is written for ' +
+          'we don\'t..."). Never emit a fact whose sentence is negated.\n' +
+          '- A page marked "[page type: ..., internal/organizational page, ...]" is about the company\'s own hiring, ' +
+          'investors or partners. E.g. a careers page\'s "paid internship" or "join our team" copy is written for ' +
           'job applicants, not customers. Never extract services/valueProps/businessModel/category/description from ' +
           'such a page; it may still supply organizational facts (legalName, headquarters, foundedYear, leadership, contact).\n' +
           '- field is one of: services, icp, valueProps, painPoints, outcomes, markets, category, vertical, ' +
           'description, legalName, alternateName, foundedYear, headquarters, officeLocation, languages, ' +
           'pricingModel, differentiator, leadership, certification, award, partner, technology, businessModel, contact.\n' +
-          '- services: concrete offerings a buyer can pay for, 2-6 words, in the site\'s own words. Exclude pricing tiers, process steps, company values, people\'s names, and a storefront\'s own catalog/browse chrome ("Shop by Category", "Trending Brands", "New Arrivals", "Best Sellers") — those organize an existing catalog, they are not themselves a thing sold. ' +
+          '- services: concrete offerings a buyer can pay for, 2-6 words, in the site\'s own words. Exclude pricing tiers, process steps, company values, people\'s names, and a storefront\'s own catalog/browse chrome ("Shop by Category", "Trending Brands", "New Arrivals", "Best Sellers"). Those organize an existing catalog, they are not themselves a thing sold. ' +
           'Also exclude, even when they appear as headings, every marketing phrase that is not a thing sold: calls to action ("Integrate tonight", "Start free"), benefit and quality claims ("First-class developer experience", "Battle-tested infrastructure", "Beyond expectations"), slogans and rallying lines ("Reach humans, not spam folders", "Do more with your time"), and page section titles ("Everything in your control", "Full visibility"). ' +
-          'A section heading is a service only if you could put it on an invoice. Test each candidate: could a buyer purchase this as a named thing? If it describes how good the product is, or tells the reader to do something, it is not a service — omit it.\n' +
-          '- valueProps: a claim about what the product does for the buyer, in the site\'s own words. Only the COMPANY\'s own claim — a testimonial, case-study quote, analyst line or partner\'s copy is a third party speaking, so never extract one as a valueProp or differentiator.\n' +
-          '- icp: who buys — role, company type, or segment.\n' +
+          'A section heading is a service only if you could put it on an invoice. Test each candidate: could a buyer purchase this as a named thing? If it describes how good the product is, or tells the reader to do something, it is not a service. Omit it.\n' +
+          '- valueProps: a claim about what the product does for the buyer, in the site\'s own words. Only the COMPANY\'s own claim. A testimonial, case-study quote, analyst line or partner\'s copy is a third party speaking, so never extract one as a valueProp or differentiator.\n' +
+          '- icp: who buys. Role, company type, or segment.\n' +
           '- markets: geographic markets the company SERVES, as ISO-3166 alpha-2 country codes.\n' +
-          '- painPoints: a problem the BUYER has before working with this company — not a problem the company itself faces.\n' +
+          '- painPoints: a problem the BUYER has before working with this company. Not a problem the company itself faces.\n' +
           '- outcomes: a result the company promises the buyer, stated as an outcome, not a feature list restated.\n' +
           '- category: a short (2-5 word) descriptor of what kind of business this is (e.g. "b2b logistics software").\n' +
           '- vertical: the industry the company sells INTO, if the page names one (e.g. "healthcare", "construction").\n' +
-          '- pricingModel: how the company charges (e.g. "subscription", "per-project quote", "usage-based") — only if the page actually states or clearly shows a pricing structure.\n' +
-          '- differentiator: a stated reason to choose this company over alternatives — must be comparative or exclusivity language, not a plain feature, and must be the company saying it about itself.\n' +
+          '- pricingModel: how the company charges (e.g. "subscription", "per-project quote", "usage-based"). Only if the page actually states or clearly shows a pricing structure.\n' +
+          '- differentiator: a stated reason to choose this company over alternatives. Must be comparative or exclusivity language, not a plain feature, and must be the company saying it about itself.\n' +
           '- leadership: a named person with their role, only when the page states BOTH and presents them as this company\'s own founder, executive or team member. Never extract an investor, advisor, customer, or a partner/other company\'s executive who merely appears on the page (a quote from "X, CEO at Y" is Y\'s leadership, not this company\'s).\n' +
           '- businessModel: how the company sells (e.g. "self-serve SaaS", "field service with local technicians", "B2B agency retainer").\n' +
-          '- Return [] for a page/field with no support. An empty result is correct — do not force a value.\n' +
+          '- Return [] for a page/field with no support. An empty result is correct. Do not force a value.\n' +
           'Respond with ONLY JSON: {"facts":[{"field":string,"value":string,"sourcePage":string,"excerpt":string,"factType":string}]}',
         user: 'Pages (' + urls.join(', ') + ') follow.\n' + corpus,
       },

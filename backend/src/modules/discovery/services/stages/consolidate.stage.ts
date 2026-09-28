@@ -69,7 +69,7 @@ const FIELD_KINDS: Record<string, string> = {
   certification: 'a certification, standard or compliance regime the company holds',
   partner: 'a named partner or integration relationship',
   award: 'a named award or recognition',
-  icp: 'who buys — a role, company type or segment',
+  icp: 'who buys: a role, company type or segment',
   markets: 'a geographic market the company serves',
   contact: 'a contact detail',
   languages: 'a language the company operates in',
@@ -171,17 +171,17 @@ export class ConsolidateStage {
           maxTokens: 2200,
           system:
             'You consolidate already-extracted, already-cited facts about one company into a short per-category ' +
-            'summary. You do not have the source pages — only the facts below. Rules:\n' +
+            'summary. You do not have the source pages. Only the facts below. Rules:\n' +
             '- Never invent a fact not present in the input.\n' +
             '- A conflict is two facts in the same category that cannot both be true (not just two different ' +
             'offerings). List conflicts explicitly; do not silently pick one.\n' +
             "- missingFields: which of the category's expected fields (given per category below) have zero facts " +
             'after your clean-up.\n' +
             '- confidence: your assessment of how complete and mutually consistent this category is (0-1), based on ' +
-            "the input facts' own confidence and factType — not a guess independent of them.\n" +
+            "the input facts' own confidence and factType. Not a guess independent of them.\n" +
             '- Write the summary as the company would describe itself: what the business IS and DOES, in plain ' +
             'specific words. Never write about the evidence or the extraction itself ("A single description ' +
-            'positions...", "The site states...", "No X was found") — a summary that talks about its sources ' +
+            'positions...", "The site states...", "No X was found"). A summary that talks about its sources ' +
             'instead of the business is a failure.\n' +
             '- Do not restate the input values: a separate pass decides which of them survive. Your job is the ' +
             'summary, the conflicts and which expected fields are still empty.\n' +
@@ -226,7 +226,7 @@ export class ConsolidateStage {
       });
     } catch (err) {
       this.logger.warn(
-        `Category consolidation failed for run ${ctx.runId}: ${(err as Error).message} — falling back to deterministic per-category summaries.`,
+        `Category consolidation failed for run ${ctx.runId}: ${(err as Error).message}. Falling back to deterministic per-category summaries.`,
       );
       return categories.map((category) => this.emptySummary(category, (byCategory.get(category) ?? []).map((f) => f.value)));
     }
@@ -412,7 +412,7 @@ export class ConsolidateStage {
             'You judge values that were extracted from one company\'s website. You are not told anything about ' +
             'the company beyond the values themselves.\n' +
             'For EVERY value below, decide whether it is what its field says it is, and answer keep true or false.\n' +
-            'keep is false when the value is not that thing at all — most often marketing copy that happened to ' +
+            'keep is false when the value is not that thing at all. Most often marketing copy that happened to ' +
             'sit in a heading or a call-out:\n' +
             '  * a call to action, including an imperative that tells the reader to do something ("Integrate ' +
             'tonight", "Start free", "Start sending tonight", "Book a demo", "Try it today")\n' +
@@ -420,21 +420,21 @@ export class ConsolidateStage {
             'experience", "Battle-tested infrastructure", "Faster time to inbox")\n' +
             '  * a slogan, tagline or rallying line ("Reach humans, not spam folders", "Do more with your time", ' +
             '"Ready for every use case", "Everything you need in one place", "Build inboxes your way")\n' +
-            '  * a page section heading or navigation label — including a page title from a nav menu, an FAQ ' +
+            '  * a page section heading or navigation label. Including a page title from a nav menu, an FAQ ' +
             'heading, or a site-section name ("Everything in your control", "Full visibility", "Frequently asked ' +
             'questions", "Security & privacy", "Analyze and track performance")\n' +
             '  * a vague promise with no named thing in it ("Beyond expectations")\n' +
             '  * a content-free slogan that names no concrete outcome ("Marketing that runs itself", "Always ' +
-            'sounds human") — a claim counts only if a buyer could say what concretely happens differently\n' +
+            'sounds human"). A claim counts only if a buyer could say what concretely happens differently\n' +
             '  * feature microcopy: UI mechanics and how-to-use instructions ("One-tap Google Sign-In", "Tap a ' +
             'shared link to open the right screen") where the field asks for what the product does for the buyer, ' +
             'not how its interface works\n' +
-            '  * a price or plan line — for example "Domains - $20 / mo" or "Automations · $0.0015 / per run" — ' +
+            '  * a price or plan line, for example "Domains - $20 / mo" or "Automations · $0.0015 / per run", ' +
             'where the field asks for the thing itself: the offering is the thing, the price is a detail the ' +
             'site states elsewhere\n' +
             '  * a third party speaking (a customer testimonial, case-study quote or partner marketing) in a field ' +
             'that is about the company\'s own doing\n' +
-            '  * for leadership, someone who is not this company\'s own person — an investor, advisor, customer, or ' +
+            '  * for leadership, someone who is not this company\'s own person. An investor, advisor, customer, or ' +
             "another company's executive quoted on the page\n" +
             'Test for a thing-field: could a buyer point at this as something they purchased, or name it back to ' +
             'you as a feature of the product? If it only says how good the product is, or tells the reader to do ' +
@@ -443,14 +443,14 @@ export class ConsolidateStage {
             '"duplicateOf" to the kept value, copied verbatim.\n' +
             'Merge variants of the same capability aggressively: values naming the same thing at different detail ' +
             'levels, or differing only by channel list or scope qualifier ("AI follow-up across text, calls, and ' +
-            'email" vs "AI teammate for follow-up"), are the same claim — keep the fullest clear wording and mark ' +
+            'email" vs "AI teammate for follow-up"), are the same claim. Keep the fullest clear wording and mark ' +
             'the rest duplicateOf it.\n' +
             'A support channel, onboarding program, customer community, academy, or success/customer team is how ' +
-            'the product is delivered or supported, not a purchased offering — in a field asking for ' +
+            'the product is delivered or supported, not a purchased offering. In a field asking for ' +
             'offerings/services/products, keep is false for those.\n' +
-            'When in doubt about a named, purchasable thing, keep it — omitting a real offering is worse than ' +
+            'When in doubt about a named, purchasable thing, keep it. Omitting a real offering is worse than ' +
             'carrying a dull one.\n' +
-            'Respond with ONLY JSON: {"verdicts":[{"value":string,"keep":boolean,"duplicateOf":string|null}]} — ' +
+            'Respond with ONLY JSON: {"verdicts":[{"value":string,"keep":boolean,"duplicateOf":string|null}]}; ' +
             'one entry per value below, "value" copied VERBATIM.',
           user:
             `Category: ${category}\nField definitions:\n${kinds}\n\nValues to judge:\n` +
@@ -461,9 +461,9 @@ export class ConsolidateStage {
       return result.data;
     } catch (err) {
       this.logger.warn(
-        `Value judgement failed for ${category} on run ${ctx.runId}: ${(err as Error).message} — keeping that chunk's values unchanged.`,
+        `Value judgement failed for ${category} on run ${ctx.runId}: ${(err as Error).message}. Keeping that chunk's values unchanged.`,
       );
-      await ctx.note(`Value clean-up could not run for part of "${category}" — those extracted values are kept as-is this run.`);
+      await ctx.note(`Value clean-up could not run for part of "${category}". Those extracted values are kept as-is this run.`);
       return null;
     }
   }

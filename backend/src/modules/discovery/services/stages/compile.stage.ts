@@ -772,13 +772,13 @@ export class CompileStage {
     const identityConfidence = sections.identity.company_type?.confidence ?? 0;
     if (identityConfidence < IDENTITY_CONFIDENCE_FLOOR) {
       await ctx.note(
-        `Identity confidence ${identityConfidence.toFixed(2)} is below the ${IDENTITY_CONFIDENCE_FLOOR} floor — ` +
+        `Identity confidence ${identityConfidence.toFixed(2)} is below the ${IDENTITY_CONFIDENCE_FLOOR} floor; ` +
           `the company this profile describes needs a human check before later modules rely on it.`,
       );
     }
     if (pagesFetched > 0 && pagesAnalyzed / pagesFetched < REACHABLE_PAGES_FLOOR) {
       await ctx.note(
-        `Only ${pagesAnalyzed}/${pagesFetched} fetched pages were analyzed (below ${Math.round(REACHABLE_PAGES_FLOOR * 100)}%) — ` +
+        `Only ${pagesAnalyzed}/${pagesFetched} fetched pages were analyzed (below ${Math.round(REACHABLE_PAGES_FLOOR * 100)}%); ` +
           `the profile is based on a partial view of the site.`,
       );
     }

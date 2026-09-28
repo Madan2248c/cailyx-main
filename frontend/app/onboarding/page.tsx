@@ -139,7 +139,7 @@ export default function OnboardingPage() {
           <CardTitle className="text-xl">Your audit is still being prepared</CardTitle>
         </CardHeader>
         <p className="text-sm text-muted-foreground">
-          We&apos;re still researching {state.project.domain}. This usually takes a while —
+          We&apos;re still researching {state.project.domain}. This usually takes a while.
           grab a coffee and check back.
         </p>
         <Button variant="secondary" onClick={reload} className="mt-4">

@@ -138,7 +138,7 @@ export default function AdminOverviewPage() {
       <div>
         <h1 className="text-xl font-semibold">Overview</h1>
         <p className="text-sm text-muted-foreground">
-          Clients, projects, pipeline health, and scheduling coverage — live, never sample data.
+          Clients, projects, pipeline health and scheduling coverage. Live data, never samples.
         </p>
       </div>
 
@@ -168,7 +168,7 @@ export default function AdminOverviewPage() {
           </section>
           {!data.day1.available ? (
             <p className="text-xs text-muted-foreground">
-              No Day-1 pipeline statuses reported yet — pipeline tiles appear once projects report
+              No Day-1 pipeline statuses reported yet. Pipeline tiles appear once projects report
               one.
             </p>
           ) : null}
@@ -214,19 +214,19 @@ export default function AdminOverviewPage() {
             <Card>
               <CardContent className="flex flex-col gap-2 pt-6 text-sm">
                 <p>
-                  Technical audits — {data.scheduled.technical} scheduled ·{' '}
+                  Technical audits: {data.scheduled.technical} scheduled ·{' '}
                   {data.manual.technical} manual / never set
                 </p>
                 <p>
-                  Social activity — {data.scheduled.social} scheduled · {data.manual.social}{' '}
+                  Social activity: {data.scheduled.social} scheduled · {data.manual.social}{' '}
                   manual / never set
                 </p>
                 <p>
-                  DataForSEO — {data.scheduled.dataforseo} scheduled · {data.manual.dataforseo}{' '}
+                  DataForSEO: {data.scheduled.dataforseo} scheduled · {data.manual.dataforseo}{' '}
                   manual / never set
                 </p>
                 <p className="text-muted-foreground">
-                  Reporting and AEO have no schedule endpoints on the backend — both run on demand
+                  Reporting and AEO have no schedule endpoints on the backend. Both run on demand
                   (see Schedules for the gap notes).
                 </p>
                 <Button

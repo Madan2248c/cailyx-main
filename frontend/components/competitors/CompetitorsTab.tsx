@@ -57,7 +57,7 @@ function ordinal(n: number): string {
 }
 
 function formatRating(rating: ReviewRating | null): string {
-  if (!rating) return '–';
+  if (!rating) return 'None found';
   const count = rating.count !== null ? ` from ${rating.count.toLocaleString()} reviews` : '';
   return `${rating.rating.toFixed(1)}/5${count}`;
 }
@@ -450,7 +450,7 @@ function HeadToHeadRow({ row, isOwn = false }: { row: GapRow; isOwn?: boolean })
       </td>
       <td>
         {score === null ? (
-          <span className="text-muted-foreground">–</span>
+          <span className="text-muted-foreground">Not scored</span>
         ) : (
           <div className="flex min-w-32 items-center gap-2.5">
             <span className={`g-num w-7 font-semibold ${TONE_TEXT[scoreToneOf(score)]}`}>{score}</span>
@@ -476,7 +476,7 @@ function HeadToHeadRow({ row, isOwn = false }: { row: GapRow; isOwn?: boolean })
       <td className={rating ? 'g-num' : 'text-muted-foreground'}>{rating ? formatRating(rating) : 'None found'}</td>
       <td>
         {isOwn ? (
-          <span className="text-muted-foreground">–</span>
+          <span className="text-muted-foreground">Not scored</span>
         ) : standingTone === 'none' ? (
           <span className="text-muted-foreground">Not seen together</span>
         ) : (

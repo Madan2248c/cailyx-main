@@ -45,5 +45,5 @@ export function Num({ value, suffix }: { value: number | string | null | undefin
   if (typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
     return <CountUp value={value} suffix={suffix} />;
   }
-  return <>{value ?? '—'}{suffix && typeof value === 'number' ? suffix : ''}</>;
+  return <>{value ?? 'n/a'}{suffix && typeof value === 'number' ? suffix : ''}</>;
 }

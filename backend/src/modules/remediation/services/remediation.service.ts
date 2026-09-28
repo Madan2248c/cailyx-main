@@ -151,7 +151,7 @@ export class RemediationService {
 
   async setStatus(clientId: string, fixId: string, change: StatusChange, actorId: string) {
     const fix = await this.getFix(clientId, fixId);
-    if (change.status === 'VERIFIED') throw new BadRequestException('VERIFIED is set only by verification — use POST …/verify.');
+    if (change.status === 'VERIFIED') throw new BadRequestException('VERIFIED is set only by verification. Use POST …/verify.');
     if (!canMove(fix.status, change.status)) {
       throw new ConflictException(`Cannot move a fix from ${fix.status} to ${change.status}.`);
     }

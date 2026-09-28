@@ -25,7 +25,7 @@ function cadenceVariant(cadence: ScheduleCadence | null): 'default' | 'secondary
 
 function formatCollectResult(result: DataforseoCollectResult): string {
   const names = result.snapshots.map((s) => s.dataset).join(', ') || 'none';
-  const skipped = result.skipped.length > 0 ? ` — skipped: ${result.skipped.join(', ')}` : '';
+  const skipped = result.skipped.length > 0 ? `. Skipped: ${result.skipped.join(', ')}` : '';
   return `Collected ${result.snapshots.length} snapshot(s) (${names}); cost $${result.totalCostUsd.toFixed(2)}${skipped}.`;
 }
 
@@ -137,7 +137,7 @@ export function DataforseoScheduleCard({
                 </Badge>
                 {!schedule.spendOptIn ? (
                   <span className="text-xs text-muted-foreground">
-                    scheduled ticks skipped — no spend opt-in
+                    Scheduled ticks skipped (no spend opt-in)
                   </span>
                 ) : null}
               </>

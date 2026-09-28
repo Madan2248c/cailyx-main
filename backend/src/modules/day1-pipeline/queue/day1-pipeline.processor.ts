@@ -32,9 +32,9 @@ export class Day1PipelineProcessor extends WorkerHost {
     const giveUp = attempts >= max;
     const message = `Day-1 job ${job.id} (project ${job.data.projectId}) failed on attempt ${attempts}/${max}: ${error.message}`;
     if (giveUp) {
-      this.logger.error(`${message} — no attempts left.`);
+      this.logger.error(`${message}. No attempts left.`);
     } else {
-      this.logger.warn(`${message} — will retry.`);
+      this.logger.warn(`${message}. Will retry.`);
     }
   }
 

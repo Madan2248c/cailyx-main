@@ -29,7 +29,7 @@ function difficulty(value: number): { word: string; tone: Tone } {
 }
 
 function formatCpc(cpc: number): string {
-  return Number.isFinite(cpc) && cpc > 0 ? `$${cpc.toFixed(2)}` : '–';
+  return Number.isFinite(cpc) && cpc > 0 ? `$${cpc.toFixed(2)}` : 'n/a';
 }
 
 function isWinnable(row: KeywordOverviewRow): boolean {

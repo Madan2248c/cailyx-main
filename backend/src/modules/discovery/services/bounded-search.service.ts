@@ -85,7 +85,7 @@ export class BoundedSearchService {
       searchesUsed++;
       searchCostUsd += lookup.costUsd;
       if (lookup.skipped) {
-        await ctx.note(`${label}: search skipped — ${lookup.skipped}`);
+        await ctx.note(`${label}: search skipped; ${lookup.skipped}`);
         continue;
       }
       for (const link of lookup.links.slice(0, maxResultsPerSearch)) {
@@ -120,12 +120,12 @@ export class BoundedSearchService {
           purpose: label.toLowerCase(),
           maxTokens: 1200,
           system:
-            `You read pages found via web search about a company — NOT its own site — and extract only facts about "${brand}" ` +
+            `You read pages found via web search about a company, NOT its own site, and extract only facts about "${brand}" ` +
             'itself, never about a different company the page also mentions in passing. Only extract these fields, and ' +
             'only if clearly stated: ' + targetFields.join(', ') + '.\n' +
             '- Every fact MUST cite the exact page URL it came from (sourcePage, must be one of the URLs given) and a ' +
             'short verbatim excerpt (<=200 chars, copied text, not a paraphrase) that supports it.\n' +
-            '- Return [] for anything not clearly and directly stated — never infer or guess for an external source.\n' +
+            '- Return [] for anything not clearly and directly stated. Never infer or guess for an external source.\n' +
             'Respond with ONLY JSON: {"facts":[{"field":string,"value":string,"sourcePage":string,"excerpt":string}]}',
           user: `Pages found via web search, about "${brand}":` + corpusParts.join(''),
         },

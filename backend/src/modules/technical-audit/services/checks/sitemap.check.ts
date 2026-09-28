@@ -129,7 +129,7 @@ export class SitemapCheck {
       return {
         status: 'fail',
         severity: 'low',
-        recommendedFix: `The sitemap's newest <lastmod> is ${analysis.staleDays} days old (over the ${SITEMAP_STALE_DAYS}-day freshness bar) across ${analysis.urlCount} URLs. A sitemap that never updates tells crawlers the site is stale even when it isn't — regenerate it on publish, not once at launch.`,
+        recommendedFix: `The sitemap's newest <lastmod> is ${analysis.staleDays} days old (over the ${SITEMAP_STALE_DAYS}-day freshness bar) across ${analysis.urlCount} URLs. A sitemap that never updates tells crawlers the site is stale even when it isn't. Regenerate it on publish, not once at launch.`,
       };
     }
     return {

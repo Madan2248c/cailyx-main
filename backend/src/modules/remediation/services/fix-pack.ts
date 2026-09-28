@@ -89,7 +89,7 @@ const FENCE = '```';
 
 export function renderFixPackMarkdown(pack: FixPack): string {
   const lines: string[] = [
-    `# Fix Plan — ${pack.project.name} (${pack.project.domain})`,
+    `# Fix Plan: ${pack.project.name} (${pack.project.domain})`,
     '',
     `Generated ${pack.generatedAt}. ${pack.fixes.length} fix(es), most severe first.`,
     '',
@@ -98,13 +98,13 @@ export function renderFixPackMarkdown(pack: FixPack): string {
     lines.push(`## ${i + 1}. ${f.title}`, '');
     lines.push(`- **Where:** ${f.target}`);
     lines.push(`- **Severity / effort:** ${f.severity.toLowerCase()} / ${f.effort.toLowerCase()}`);
-    lines.push(`- **Status:** ${f.status.toLowerCase().replace(/_/g, ' ')}${f.awaitingClientDecision ? ' — needs the client\'s decision first' : ''}`);
+    lines.push(`- **Status:** ${f.status.toLowerCase().replace(/_/g, ' ')}${f.awaitingClientDecision ? ' (needs the client\'s decision first)' : ''}`);
     lines.push(`- **Done when:** ${describeAcceptance(f.acceptance)}`, '');
     lines.push('**Steps**', '');
     f.steps.forEach((s, n) => lines.push(`${n + 1}. ${s}`));
     lines.push('');
     if (f.artifact) {
-      lines.push(`**Ready-made fix**${f.artifact.path ? ` — \`${f.artifact.path}\`` : ''}${f.artifact.placement ? ` (${f.artifact.placement})` : ''}`, '');
+      lines.push(`**Ready-made fix**${f.artifact.path ? ` for \`${f.artifact.path}\`` : ''}${f.artifact.placement ? ` (${f.artifact.placement})` : ''}`, '');
       lines.push(`${FENCE}${f.artifact.language === 'text' ? '' : f.artifact.language}`, f.artifact.content.replace(/\n$/, ''), FENCE, '');
     } else if (f.artifactError) {
       lines.push(`> ${f.artifactError}`, '');

@@ -110,7 +110,7 @@ export function SocialsStep({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">
-        We found these profiles. Fix any wrong URLs — a corrected URL goes back to review.
+        We found these profiles. Fix any wrong addresses. A corrected address goes back for review.
       </p>
       {socials.map((social) => (
         <div key={social.id} className="flex flex-col gap-1.5">
@@ -168,7 +168,7 @@ export function CompetitorsStep({
         don&apos;t, fix names, and add any we missed.
       </p>
       {competitors.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No competitors on file yet — add the first one below.</p>
+        <p className="text-sm text-muted-foreground">No competitors yet. Add the first one below.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {competitors.map((competitor) => (
@@ -183,7 +183,7 @@ export function CompetitorsStep({
                   onChange={(e) => setTracked(competitor.id, e.target.checked)}
                 />
                 <Label htmlFor={`track-${competitor.id}`} className="min-h-11 flex-1">
-                  {getName(competitor.id) || competitor.name} —{' '}
+                  {getName(competitor.id) || competitor.name}:{' '}
                   {isTracked(competitor.id) ? 'Tracked' : 'Untracked'}
                 </Label>
                 <Badge variant="outline" className="ml-auto shrink-0 capitalize">

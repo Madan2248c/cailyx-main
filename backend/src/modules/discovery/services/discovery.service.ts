@@ -323,7 +323,7 @@ export class DiscoveryService {
       throw new NotFoundException('Discovery run not found: ' + discoveryRunId);
     }
     if (TERMINAL_STATUSES.has(run.status)) {
-      this.logger.debug(`Discovery run ${run.id} is already ${run.status} — nothing to do.`);
+      this.logger.debug(`Discovery run ${run.id} is already ${run.status}. Nothing to do.`);
       return;
     }
     if (run.project.deletedAt) {
@@ -416,7 +416,7 @@ export class DiscoveryService {
    */
   private async pause(runId: string, ctx: DiscoveryRunContextImpl, resumeStage: StageName): Promise<void> {
     await ctx.note(
-      `Paused at the elapsed-time budget (${Math.round(ctx.budget.elapsedMs() / 1000)}s spent over ${ctx.budget.limits.maxElapsedMs / 1000}s per job) — a continuation job will resume at stage "${resumeStage}".`,
+      `Paused at the elapsed-time budget (${Math.round(ctx.budget.elapsedMs() / 1000)}s spent over ${ctx.budget.limits.maxElapsedMs / 1000}s per job). A continuation job will resume at stage "${resumeStage}".`,
     );
     await this.prisma.discoveryRun.update({
       where: { id: runId },
@@ -453,7 +453,7 @@ export class DiscoveryService {
     let status: DiscoveryRunStatus = 'COMPLETE';
     if (profile === null) {
       status = 'MANUAL_REVIEW_REQUIRED';
-      await ctx.note('The compile stage produced no profile — the run finished without a company-context profile to store.');
+      await ctx.note('The compile stage produced no profile. The run finished without a company-context profile to store.');
     } else if (identityConfidence < IDENTITY_CONFIDENCE_FLOOR) {
       status = 'MANUAL_REVIEW_REQUIRED';
     } else if (fetched > 0 && analyzed / fetched < REACHABLE_PAGES_FLOOR) {

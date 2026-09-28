@@ -50,7 +50,7 @@ export class PageInventoryCheck {
         status: 'not-run',
         severity: 'low',
         confidence: 'confirmed',
-        recommendedFix: 'No sitemap entries to crawl — see the sitemap check for why.',
+        recommendedFix: 'No sitemap entries to crawl. See the sitemap check for why.',
         detail: {},
         pages: [],
       };

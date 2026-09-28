@@ -69,7 +69,7 @@ export class SelectStage {
       const reason = selected
         ? `Selected: ${purpose} page, coverage slot filled`
         : purpose === null
-          ? `Excluded: ${PRISMA_TO_PAGE_TYPE[page.pageType]} page — not a primary business-fact source`
+          ? `Excluded: ${PRISMA_TO_PAGE_TYPE[page.pageType]} page. Not a primary business-fact source`
           : `Excluded: coverage target for "${purpose}" pages already filled by a higher-ranked page`;
       await this.prisma.discoveredPage.update({
         where: { id: page.id },
@@ -84,7 +84,7 @@ export class SelectStage {
     const filledCategories = Object.values(coveragePlan).filter((c) => c.filled > 0).length;
     if (filledCategories <= 1) {
       await ctx.note(
-        `Coverage quality flag: only ${filledCategories} purpose categor${filledCategories === 1 ? 'y is' : 'ies are'} represented in the selected pages — this business's true offer surface may not be captured.`,
+        `Coverage quality flag: only ${filledCategories} purpose categor${filledCategories === 1 ? 'y is' : 'ies are'} represented in the selected pages. This business's true offer surface may not be captured.`,
       );
     }
 

@@ -161,7 +161,7 @@ export class DataForSeoSerpService {
       // call must not be re-reported as if it were spent again.
       const costUsd = res.cached ? 0 : typeof parsed.cost === 'number' ? parsed.cost : 0;
       if (!res.cached) {
-        this.logger.debug(`DataForSEO SERP "${query.slice(0, 60)}" — ${links.length} links, $${costUsd}`);
+        this.logger.debug(`DataForSEO SERP "${query.slice(0, 60)}"; ${links.length} links, $${costUsd}`);
       }
 
       return { links, costUsd, cached: res.cached === true, skipped: null };

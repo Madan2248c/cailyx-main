@@ -93,7 +93,7 @@ export class TeamService {
       // Silent creation: the Day-1 pipeline's final step sends the first
       // invite with "your audit is ready" context. Logged so a deferred
       // POC is visible (and resendable) before the pipeline finishes.
-      this.logger.log(`Invite deferred for POC ${poc.id} (client ${client.id}) — the Day-1 pipeline will send it.`);
+      this.logger.log(`Invite deferred for POC ${poc.id} (client ${client.id}). The Day-1 pipeline will send it.`);
     } else {
       await this.issueInvite(poc.id, adminId, email);
     }
@@ -301,7 +301,7 @@ export class TeamService {
     try {
       await this.emailService.send({
         to: poc.email,
-        subject: 'Your Day-1 audit is ready — set up your account',
+        subject: 'Your Day-1 audit is ready: set up your account',
         html:
           `<p>Your Day-1 audit is ready.</p>` +
           `<p><a href="${link}">Set up your account</a> to view it.</p>` +

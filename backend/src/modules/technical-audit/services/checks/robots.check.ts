@@ -119,13 +119,13 @@ export class RobotsCheck {
       return 'No robots.txt found. Create one with explicit Allow rules for AI crawlers to ensure they can access the site.';
     }
     if (blockedSearch.length > 0) {
-      return `Search/index crawlers are BLOCKED: ${blockedSearch.join(', ')}. These bots feed AI answer engines — blocking them removes the site from AI answers. Remove the Disallow rules for these bots in robots.txt.`;
+      return `Search/index crawlers are BLOCKED: ${blockedSearch.join(', ')}. These bots feed AI answer engines, so blocking them removes the site from AI answers. Remove the Disallow rules for these bots in robots.txt.`;
     }
     if (blockedLiveFetch.length > 0) {
       return `Live-fetch agents are blocked: ${blockedLiveFetch.join(', ')}. Users cannot ask AI assistants to "summarize this page". Consider allowing these bots.`;
     }
     if (blockedTraining.length > 0) {
-      return `Training crawlers are blocked: ${blockedTraining.join(', ')}. The site will not be included in model training data. This is a deliberate choice — verify it is intentional.`;
+      return `Training crawlers are blocked: ${blockedTraining.join(', ')}. The site will not be included in model training data. This is usually a deliberate choice, so confirm it is intentional.`;
     }
     return 'No AI bot blocks detected in robots.txt. All AI crawlers are allowed.';
   }

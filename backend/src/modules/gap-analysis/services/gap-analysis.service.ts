@@ -51,7 +51,7 @@ export class GapAnalysisService {
 
     const sources = [technicalAuditSource, socialActivitySource, aeoAuditSource].filter((s): s is CollectedSource => s !== null);
     if (sources.length === 0) {
-      throw new ConflictException('No completed run exists yet from Technical Audit, Social Activity, or AEO Audit — nothing to consolidate.');
+      throw new ConflictException('No completed run exists yet from Technical Audit, Social Activity, or AEO Audit. Nothing to consolidate.');
     }
 
     const allFindings: SourceFinding[] = sources.flatMap((s) => s.findings);
@@ -77,7 +77,7 @@ export class GapAnalysisService {
           data: { status: 'FAILED', error: countNotes.map((n) => n.detail).join(' '), completedAt: new Date() },
         });
         throw new ConflictException(
-          `Consolidation rejected: ${countNotes.map((n) => n.detail).join(' ')} Try again — consolidation is non-deterministic. ${groundingNotes.length} recommendation(s) were dropped for ungrounded citations or fabricated numbers.`,
+          `Consolidation rejected: ${countNotes.map((n) => n.detail).join(' ')} Try again. Consolidation is non-deterministic. ${groundingNotes.length} recommendation(s) were dropped for ungrounded citations or fabricated numbers.`,
         );
       }
 

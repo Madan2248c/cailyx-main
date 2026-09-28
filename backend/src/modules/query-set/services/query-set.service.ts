@@ -161,7 +161,7 @@ export class QuerySetService {
     });
     if (!profile) {
       throw new ConflictException(
-        'No CompanyContextProfile exists for this project yet — run Discovery before generating a query set.',
+        'No CompanyContextProfile exists for this project yet. Run Discovery before generating a query set.',
       );
     }
 
@@ -177,7 +177,7 @@ export class QuerySetService {
     const bucketCountNotes = checkBucketCount(grounded.buckets);
     if (bucketCountNotes.length > 0) {
       throw new ConflictException(
-        `Bucket proposal rejected: ${bucketCountNotes.map((n) => n.detail).join(' ')} Try again — bucket invention is non-deterministic.`,
+        `Bucket proposal rejected: ${bucketCountNotes.map((n) => n.detail).join(' ')} Try again. Bucket invention is non-deterministic.`,
       );
     }
 
@@ -185,7 +185,7 @@ export class QuerySetService {
     const unbrandedNotes = checkUnbrandedFloor(guarded.buckets);
     if (unbrandedNotes.length > 0) {
       throw new ConflictException(
-        `Bucket proposal rejected: ${unbrandedNotes.map((n) => n.detail).join(' ')} Try again — bucket invention is non-deterministic.`,
+        `Bucket proposal rejected: ${unbrandedNotes.map((n) => n.detail).join(' ')} Try again. Bucket invention is non-deterministic.`,
       );
     }
 

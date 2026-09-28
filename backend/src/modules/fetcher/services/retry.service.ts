@@ -38,7 +38,7 @@ export class RetryService {
   ): Promise<T> {
     // Check circuit breaker
     if (domain && this.isCircuitOpen(domain)) {
-      throw new Error(`Circuit breaker open for domain ${domain} — too many consecutive failures`);
+      throw new Error(`Circuit breaker open for domain ${domain}. Too many consecutive failures`);
     }
 
     let lastError: Error | null = null;
@@ -57,7 +57,7 @@ export class RetryService {
         if (attempt <= retries) {
           const waitMs = backoffMs * Math.pow(2, attempt - 1);
           this.logger.debug(
-            `Retry ${attempt}/${retries} after ${waitMs}ms — ${(err as Error).message}`,
+            `Retry ${attempt}/${retries} after ${waitMs}ms; ${(err as Error).message}`,
           );
           await this.sleep(waitMs);
         }
@@ -116,7 +116,7 @@ export class RetryService {
       breaker.isOpen = true;
       breaker.openedAt = Date.now();
       this.logger.warn(
-        `Circuit breaker OPEN for domain ${domain} after ${breaker.failures} consecutive failures — pausing for ${this.openDurationMs / 1000}s`,
+        `Circuit breaker OPEN for domain ${domain} after ${breaker.failures} consecutive failures. Pausing for ${this.openDurationMs / 1000}s`,
       );
     }
   }

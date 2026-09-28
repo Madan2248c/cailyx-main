@@ -6,7 +6,7 @@ import { AreaChart, DeltaArrow } from './OrganicChart';
 import { Num } from '@/components/portal/motion';
 
 function pct(ratio: number | null): string {
-  if (ratio === null) return '—';
+  if (ratio === null) return 'n/a';
   return `${(ratio * 100).toFixed(1)}%`;
 }
 
@@ -45,7 +45,7 @@ export function GscKpis({ overview }: { overview: GscOverview }) {
         <CardContent className="flex flex-col gap-1 pt-5">
           <p className="text-xs font-medium text-muted-foreground">Avg position</p>
           <p className="text-3xl font-semibold">
-            {totals.position !== null ? totals.position.toFixed(1) : '—'}
+            {totals.position !== null ? totals.position.toFixed(1) : 'n/a'}
           </p>
           <div className="text-xs">
             <DeltaArrow current={totals.position} previous={previousTotals.position} invert />

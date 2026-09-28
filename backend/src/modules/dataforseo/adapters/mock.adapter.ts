@@ -44,7 +44,7 @@ export class MockDataforseoAdapter implements DataforseoAdapter {
   private assertEnabled(): void {
     if (this.config.get<string>('DATAFORSEO_ALLOW_MOCK') !== '1') {
       throw new ServiceUnavailableException(
-        'The DataForSEO mock adapter is disabled — set DATAFORSEO_ALLOW_MOCK=1 to enable it (test-only; live DataForSEO is not wired in this build).',
+        'The DataForSEO mock adapter is disabled. Set DATAFORSEO_ALLOW_MOCK=1 to enable it (test-only; live DataForSEO is not wired in this build).',
       );
     }
   }
@@ -181,10 +181,10 @@ export class MockDataforseoAdapter implements DataforseoAdapter {
             dataset: 'serp-snapshot',
             keyword: `best ${clean} alternative`,
             results: [
-              { position: 1, url: 'https://rival.example.com/', title: 'Rival — the popular alternative', features: ['featured_snippet'] },
+              { position: 1, url: 'https://rival.example.com/', title: 'Rival. The popular alternative', features: ['featured_snippet'] },
               { position: 2, url: 'https://reviews.example.com/widget-showdown', title: 'Widget showdown: 8 tools compared', features: ['review_stars'] },
               { position: 3, url: 'https://blog.example.org/best-tools-roundup', title: 'Best tools roundup 2026', features: [] },
-              { position: 4, url: `https://${clean}/pricing`, title: `${clean} — pricing`, features: ['sitelinks'] },
+              { position: 4, url: `https://${clean}/pricing`, title: `${clean}. Pricing`, features: ['sitelinks'] },
               { position: 5, url: 'https://news.example.net/startup-directory', title: 'Startup directory: top picks', features: [] },
               { position: 6, url: 'https://forum.example.io/t/recommended-stacks', title: 'Recommended stacks thread', features: ['discussions'] },
               { position: 7, url: 'https://agency.example.co/case-studies', title: 'Case studies: switching stacks', features: [] },

@@ -50,7 +50,7 @@ function isRate(metric: string): boolean {
 }
 
 function formatDeltaValue(metric: string, value: number | string | null): string {
-  if (value === null) return '—';
+  if (value === null) return 'n/a';
   if (typeof value === 'string') return value;
   if (isRate(metric)) return `${Math.round(value * 100)}%`;
   return String(Math.round(value * 100) / 100);
@@ -366,7 +366,7 @@ function CompetitorsSection({ section }: { section: CompetitorsSection }) {
               ) : null}
             </div>
             <p className="shrink-0 font-medium">
-              {row.seoScore !== null ? `${row.seoScore}/100` : '—'}
+              {row.seoScore !== null ? `${row.seoScore}/100` : 'Not scored'}
             </p>
           </div>
         ))}

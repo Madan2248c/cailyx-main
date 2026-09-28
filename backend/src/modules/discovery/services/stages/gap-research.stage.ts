@@ -49,7 +49,7 @@ export class GapResearchStage {
     }
     const targetFields = [...gapFields].slice(0, GAP_RESEARCH_MAX_FIELDS);
     if (targetFields.length === 0) {
-      await ctx.note('Gap research: no missing fields to research — consolidation found no gaps.');
+      await ctx.note('Gap research: no missing fields to research. Consolidation found no gaps.');
       return;
     }
 

@@ -33,7 +33,7 @@ export class SerpDiscoveryService {
   async discover(projectId: string, ownDomain: string): Promise<SerpDiscoveryResult> {
     const profile = await this.prisma.companyContextProfile.findFirst({ where: { projectId }, orderBy: { version: 'desc' } });
     if (!profile) {
-      return { domains: [], queriesRun: 0, costUsd: 0, skipped: 'No CompanyContextProfile exists yet for this project — run Discovery first.' };
+      return { domains: [], queriesRun: 0, costUsd: 0, skipped: 'No CompanyContextProfile exists yet for this project. Run Discovery first.' };
     }
 
     const queries = buildQueries(profile.profileJson as unknown as CompanyContextProfileJson);

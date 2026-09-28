@@ -12,14 +12,15 @@ import { NARRATIVE_MAX_TOKENS } from '../reporting.constants.js';
 import type { CollectedSections } from './report-content.js';
 import type { ReportDelta } from '../reporting.types.js';
 
-const SYSTEM = `You write the executive summary for a client audit report — 3-5 sentences, direct and evidence-led, no hedging.
+const SYSTEM = `You write the executive summary for a client audit report; 3-5 sentences, direct and evidence-led, no hedging.
 
 Rules:
 - Never state a number, percentage, or count that isn't already given to you below.
-- Cite the most important 2-3 findings across every section you're given — never invent a finding.
+- Cite the most important 2-3 findings across every section you're given. Never invent a finding.
 - If deltas are given, lead with the most significant movement ("X went from A to B").
 - Plain prose, no headers, no bullet points.
 
+- Never use em dashes or en dashes; use commas, colons or full stops instead.
 Respond with ONLY JSON: {"summary": string}`;
 
 @Injectable()

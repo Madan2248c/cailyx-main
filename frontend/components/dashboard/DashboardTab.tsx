@@ -414,7 +414,7 @@ export function DashboardTab({
               <div className="flex items-center gap-4">
                 <ScoreRing value={techScore} tone={techTone} size={72} stroke={7} index={1} label={`Technical score ${techScore ?? 'not available'} out of 100`}>
                   <span className={`text-xl font-semibold ${TONE_TEXT[techTone]}`}>
-                    {techScore !== null ? <CountUp value={techScore} /> : '—'}
+                    {techScore !== null ? <CountUp value={techScore} /> : '?'}
                   </span>
                 </ScoreRing>
                 <div className="flex flex-col gap-1">

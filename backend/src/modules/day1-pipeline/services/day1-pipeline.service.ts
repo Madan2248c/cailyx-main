@@ -106,7 +106,7 @@ export class Day1PipelineService {
       );
     } catch (err) {
       this.logger.error(
-        `Day-1 pipeline ${row.id} created but could not be enqueued: ${(err as Error).message} — re-enqueue via the retry endpoint.`,
+        `Day-1 pipeline ${row.id} created but could not be enqueued: ${(err as Error).message}. Re-enqueue via the retry endpoint.`,
       );
     }
     return row;
@@ -160,7 +160,7 @@ export class Day1PipelineService {
   async executePipeline(pipelineRunId: string, onProgress?: (stage: Day1Stage) => void) {
     const row = await this.prisma.day1PipelineRun.findUnique({ where: { id: pipelineRunId } });
     if (!row) {
-      this.logger.error(`Day-1 pipeline ${pipelineRunId} not found — nothing to execute.`);
+      this.logger.error(`Day-1 pipeline ${pipelineRunId} not found. Nothing to execute.`);
       return null;
     }
     if (row.status === 'COMPLETE') return row;
@@ -377,7 +377,7 @@ export class Day1PipelineService {
 
   private aeoResult(auditId: string, status: string): Day1StageRecord {
     if (status === 'completed') return { status: 'completed', runId: auditId };
-    throw new Error(`AEO audit ${auditId} finished with status ${status} — no surface completed.`);
+    throw new Error(`AEO audit ${auditId} finished with status ${status}. No surface completed.`);
   }
 
   private async runCompetitors(clientId: string, projectId: string): Promise<Day1StageRecord> {

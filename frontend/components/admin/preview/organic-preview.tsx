@@ -45,7 +45,7 @@ function SitePicker({
   return (
     <PropertyPicker
       title="Choose a Search Console property"
-      description="This account has no property matching the project domain — pick one to view its data."
+      description="We couldn't find a Search Console property for this website. Pick the right one to see its data."
       items={(sites ?? []).map((s) => ({ key: s, label: s }))}
       onPick={onPick}
       isLoading={sites === null}
@@ -173,7 +173,7 @@ export function OrganicPreview({
         <Card>
           <CardContent className="flex flex-col gap-2 pt-6">
             <p className="text-sm">
-              Search Console access was revoked or never fully granted — Google is refusing with
+              Search Console access was removed or not fully granted, so Google is refusing with
               insufficient scope.
             </p>
             <p className="text-sm text-muted-foreground">

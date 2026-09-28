@@ -112,21 +112,21 @@ export class SocialDiscoveryStage {
     if (prefilted.length > 0) {
       await ctx.note(
         `Social discovery: ${prefilted.length} search candidate(s) scored below the name-similarity floor ` +
-          `(${prefilted.map((c) => PLATFORM_LABELS[c.platform] ?? c.platform).join(', ')}) — not verified, and ` +
+          `(${prefilted.map((c) => PLATFORM_LABELS[c.platform] ?? c.platform).join(', ')}). Not verified, and ` +
           `not stored. Not finding an account is the honest outcome here.`,
       );
     }
     const rejected = scored.filter((s) => s.rejection !== null);
     if (rejected.length > 0) {
       await ctx.note(
-        `Social discovery: rejected ${rejected.length} candidate(s) — ` +
+        `Social discovery: rejected ${rejected.length} candidate(s); ` +
           rejected.map((r) => `${r.profile.url} (${r.rejection})`).join('; '),
       );
     }
     if (personalSkipped > 0) {
       await ctx.note(
         `Social discovery: ${personalSkipped} candidate(s) looked like a person's own profile rather than the ` +
-          `company's — recorded as personal, not stored as company presence.`,
+          `company's. Recorded as personal, not stored as company presence.`,
       );
     }
 
@@ -141,7 +141,7 @@ export class SocialDiscoveryStage {
 
   private async serpFallback(ctx: DiscoveryRunContext, missing: PresencePlatform[]): Promise<SocialCandidate[]> {
     if (missing.length === 0) {
-      await ctx.note('Social discovery: every expected platform already has a same-site profile — nothing to search for.');
+      await ctx.note('Social discovery: every expected platform already has a same-site profile. Nothing to search for.');
       return [];
     }
 
@@ -149,7 +149,7 @@ export class SocialDiscoveryStage {
     const spent = ctx.state.search?.queriesRun ?? 0;
     if (spent >= cap) {
       await ctx.note(
-        `Social discovery: SERP fallback skipped — the run has already spent its ${cap}-query ceiling ` +
+        `Social discovery: SERP fallback skipped. The run has already spent its ${cap}-query ceiling ` +
           `(${missing.length} platform(s) left unchecked: ${missing.map(label).join(', ')}).`,
       );
       return [];
@@ -178,12 +178,12 @@ export class SocialDiscoveryStage {
 
     if (sweep.skipped) {
       await ctx.note(
-        `Social discovery: SERP fallback did not run for ${toSweep.map(label).join(', ')} — ${sweep.skipped}. ` +
+        `Social discovery: SERP fallback did not run for ${toSweep.map(label).join(', ')}; ${sweep.skipped}. ` +
           `These platforms stay unknown rather than assumed absent.`,
       );
     } else {
       await ctx.note(
-        `Social discovery: SERP fallback searched ${toSweep.map(label).join(', ')} — ` +
+        `Social discovery: SERP fallback searched ${toSweep.map(label).join(', ')}; ` +
           `${sweep.queriesSpent} search(es), $${sweep.costUsd.toFixed(4)}, ` +
           `${sweep.candidates.length} candidate(s) found. Candidates are verified below, never trusted as-is.`,
       );

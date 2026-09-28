@@ -97,7 +97,7 @@ export class PsiService {
   async fetchPsi(url: string): Promise<PsiResult> {
     const apiKey = this.config.get<string>('PSI_API_KEY');
     if (!apiKey) {
-      throw new Error('PSI_API_KEY not configured — cannot fetch Core Web Vitals');
+      throw new Error('PSI_API_KEY not configured. Cannot fetch Core Web Vitals');
     }
 
     // Repeated `category` keys — axios serialises an array to

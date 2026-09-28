@@ -71,6 +71,7 @@ const RULES = [
   'Use ONLY facts present in the provided context. Do not invent statistics, prices, years, customer names, awards or claims.',
   'Do not include any number that is not already in the context.',
   'Plain, specific, non-hype language. No superlatives like "best" or "leading" unless the context says so.',
+  'Never use em dashes or en dashes; use commas, colons or full stops instead.',
   'Return ONLY a JSON object of the exact shape requested.',
 ].join('\n');
 
@@ -90,7 +91,7 @@ export class RemediationDraftService {
     });
     if (!fix) throw new NotFoundException('Fix not found.');
     const kind = draftKindFor(fix.problemKey);
-    if (!kind) throw new BadRequestException('This fix has no copy to draft — it is fixed with code, config or off-site work.');
+    if (!kind) throw new BadRequestException('This fix has no copy to draft. It is fixed with code, config or off-site work.');
     if (!this.llm.isAvailable()) throw new ServiceUnavailableException('No LLM provider is configured.');
 
     const cap = Number(this.config.get<string>('REMEDIATION_MAX_DRAFTS_PER_DAY', String(DEFAULT_MAX_DRAFTS_PER_DAY)));
@@ -109,7 +110,7 @@ export class RemediationDraftService {
 
     const problems = checkDraft(kind, result.data, grounding);
     if (problems.length > 0) {
-      throw new UnprocessableEntityException(`Draft rejected by guardrails: ${problems.join(' ')} Try again — drafting is not deterministic.`);
+      throw new UnprocessableEntityException(`Draft rejected by guardrails: ${problems.join(' ')} Try again. Drafting is not deterministic.`);
     }
 
     const llmDraft = { kind, content: result.data, model: result.model, costUsd: result.costUsd, createdAt: new Date().toISOString() };

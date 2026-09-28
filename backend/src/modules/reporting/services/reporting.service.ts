@@ -123,7 +123,7 @@ export class ReportingService {
           kind,
           slug,
           status: isDay1 ? 'RELEASED' : 'DRAFT',
-          title: `${project.name} — ${kind === 'DAY1' ? 'Day 1' : 'Monthly'} Report`,
+          title: `${project.name}: ${kind === 'DAY1' ? 'Day 1' : 'Monthly'} Report`,
           executiveSummary: summary,
           previousReportId,
           sourceTechnicalAuditRunId: sections.technicalAudit?.runId ?? null,
@@ -173,8 +173,8 @@ export class ReportingService {
   /** Snapshots the current content and locks it for review. 409 on a DAY1 report — nothing to review, it's already released. */
   async review(clientId: string, reportId: string) {
     const report = await this.getOwned(clientId, reportId);
-    if (report.kind === 'DAY1') throw new ConflictException('DAY1 reports bypass the editorial gate — there is nothing to review.');
-    if (report.status !== 'DRAFT') throw new ConflictException(`Report is ${report.status} — only a draft can be sent for review.`);
+    if (report.kind === 'DAY1') throw new ConflictException('DAY1 reports bypass the editorial gate. There is nothing to review.');
+    if (report.status !== 'DRAFT') throw new ConflictException(`Report is ${report.status}. Only a draft can be sent for review.`);
 
     // Re-collect + re-render fresh content at review time — never trust a stale draft.
     const latest = await this.regenerateContent(clientId, report.projectId, report.kind as ReportKind, report.previousReportId);
@@ -197,8 +197,8 @@ export class ReportingService {
    */
   async approve(clientId: string, reportId: string, input: { approved: boolean; changesRequested?: string }) {
     const report = await this.getOwned(clientId, reportId);
-    if (report.kind === 'DAY1') throw new ConflictException('DAY1 reports bypass the editorial gate — there is nothing to approve.');
-    if (report.status !== 'IN_REVIEW') throw new ConflictException(`Report is ${report.status} — only an in-review report can be approved or sent back.`);
+    if (report.kind === 'DAY1') throw new ConflictException('DAY1 reports bypass the editorial gate. There is nothing to approve.');
+    if (report.status !== 'IN_REVIEW') throw new ConflictException(`Report is ${report.status}. Only an in-review report can be approved or sent back.`);
 
     if (!input.approved) {
       this.logger.log(`Report ${report.id} sent back to draft. Changes requested: ${input.changesRequested ?? '(none given)'}`);
@@ -219,7 +219,7 @@ export class ReportingService {
   /** Pulls a released report from client visibility. Reasonable completion of the state machine — the analysis doc's status enum includes WITHDRAWN but names no explicit endpoint for it. */
   async withdraw(clientId: string, reportId: string) {
     const report = await this.getOwned(clientId, reportId);
-    if (report.status !== 'RELEASED') throw new ConflictException(`Report is ${report.status} — only a released report can be withdrawn.`);
+    if (report.status !== 'RELEASED') throw new ConflictException(`Report is ${report.status}. Only a released report can be withdrawn.`);
     await this.prisma.report.update({ where: { id: report.id }, data: { status: 'WITHDRAWN' } });
     return this.getOne(clientId, reportId);
   }

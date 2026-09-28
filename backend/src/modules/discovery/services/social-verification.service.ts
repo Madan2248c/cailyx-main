@@ -235,10 +235,10 @@ export class SocialVerificationService {
       } else if (!gone) {
         // Walled-in-practice, blocked or unreachable: no fetch-derived signal is
         // available, so fall back to the handle exactly as we would for a wall.
-        signals.push('profile could not be read — only the handle was checkable');
+        signals.push('profile could not be read. Only the handle was checkable');
       }
     } else if (!walled) {
-      signals.push('no request budget left to read the profile — only the handle was checkable');
+      signals.push('no request budget left to read the profile. Only the handle was checkable');
     }
 
     // Slug-level name match applies whether or not we could fetch, and is
@@ -459,7 +459,7 @@ function bandFor(score: number): SocialStatus {
 function rejectionReason(candidate: SocialCandidate, walled: boolean, sawProfile: boolean, gone: boolean): string {
   if (gone) return 'the profile the site links to no longer exists';
   if (walled && candidate.discoveryMethod !== 'serp') {
-    return 'the site links to it but the platform cannot be read — not enough evidence to call it the company account';
+    return 'the site links to it but the platform cannot be read. Not enough evidence to call it the company account';
   }
   if (sawProfile) return 'the profile page did not carry enough identity evidence';
   if (candidate.discoveryMethod === 'serp') return 'only found by search, and nothing on it could be verified';

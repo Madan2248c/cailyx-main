@@ -33,7 +33,7 @@ describe('fix pack', () => {
 
   it('Markdown renders steps, the ready-made file and the done-when line', () => {
     const md = renderFixPackMarkdown(toFixPackJson(project, [base, { ...base, id: 'fix-2', title: 'Decide', artifact: null, artifactError: 'no input', needsClientDecision: true }]));
-    expect(md).toContain('# Fix Plan — Acme (acme.test)');
+    expect(md).toContain('# Fix Plan: Acme (acme.test)');
     expect(md).toContain('1. Save it.');
     expect(md).toContain('```\nUser-agent: *\nAllow: /\n```');
     expect(md).toContain('**Done when:** /robots.txt loads with HTTP 200.');

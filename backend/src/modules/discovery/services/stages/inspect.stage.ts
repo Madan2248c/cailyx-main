@@ -170,7 +170,7 @@ export class InspectStage {
       // §9.3: metadata unknown is not automatic exclusion — the select stage
       // still considers these pages, just without title/description/heading signal.
       await ctx.note(
-        `${unknown} discovered page(s) had no metadata to inspect (fetch failed or repair budget exhausted) — treated as unknown metadata, not excluded.`,
+        `${unknown} discovered page(s) had no metadata to inspect (fetch failed or repair budget exhausted). Treated as unknown metadata, not excluded.`,
       );
     }
 

@@ -106,7 +106,7 @@ export function buildPageInsights(current: GscRow[], previous: GscRow[]): PageIn
         prevPosition: null,
         onPageOne,
         trend: active ? 'new' : 'stable',
-        action: active ? 'New in this period — watch whether it holds its rank.' : null,
+        action: active ? 'New in this period. Watch whether it holds its position.' : null,
         actionLevel: active ? 'win' : null,
       } as PageInsight;
     }
@@ -121,26 +121,26 @@ export function buildPageInsights(current: GscRow[], previous: GscRow[]): PageIn
 
     if (posMove <= -3) {
       trend = 'down';
-      action = `Slipping ${Math.abs(Math.round(posMove))} spots — refresh the content and check it still matches search intent.`;
+      action = `Slipping ${Math.abs(Math.round(posMove))} places. Refresh the content and check it still answers what people are searching for.`;
       actionLevel = 'act';
     } else if (clickDrop <= -0.2 && posMove >= -1) {
       trend = 'down';
-      action = 'Clicks falling while rank holds — likely a CTR problem: rework the title and meta description.';
+      action = 'Clicks are falling while the position holds, so fewer people choose your result. Rework the page title and description.';
       actionLevel = 'act';
     } else if (imprDrop <= -0.3) {
       trend = 'down';
-      action = 'Losing visibility — impressions are fading even where it ranks.';
+      action = 'Showing up less often, even where it still ranks.';
       actionLevel = 'watch';
     } else if (posMove >= 2) {
       trend = 'up';
       if (onPageOne && prev.position > 10) {
-        action = 'Reached page 1 — hold it: keep the content fresh and watch for slips.';
+        action = 'Reached page one. Keep the content fresh to hold it.';
       } else {
-        action = `Climbed ${Math.round(posMove)} spots — on the right track.`;
+        action = `Climbed ${Math.round(posMove)} places. On the right track.`;
       }
       actionLevel = 'win';
     } else if (row.position > 10 && row.position <= 20 && row.impressions >= medianImpressions && medianImpressions > 0) {
-      action = 'Striking distance — a title and content tune-up could break it onto page 1.';
+      action = 'Close to page one. A title and content tune-up could get it there.';
       actionLevel = 'act';
     }
 
@@ -210,7 +210,7 @@ export class GoogleService {
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
     const clientSecret = this.config.get<string>('GOOGLE_CLIENT_SECRET');
     if (!clientId || !clientSecret) {
-      throw new ServiceUnavailableException('google-unconfigured: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET is not set — nothing was attempted');
+      throw new ServiceUnavailableException('google-unconfigured: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET is not set. Nothing was attempted');
     }
     const redirectUri = this.config.get<string>('GOOGLE_REDIRECT_URI', DEFAULT_REDIRECT_URI) ?? DEFAULT_REDIRECT_URI;
     return { clientId, clientSecret, redirectUri };
@@ -249,10 +249,10 @@ export class GoogleService {
     try {
       payload = await this.jwt.verifyAsync(state);
     } catch {
-      throw new BadRequestException('This Google sign-in link is invalid or has expired — start over from the connect button.');
+      throw new BadRequestException('This Google sign-in link is invalid or has expired. Start over from the connect button.');
     }
     if (payload.purpose !== 'google-oauth' || !payload.clientId || (payload.provider !== 'gsc' && payload.provider !== 'ga')) {
-      throw new BadRequestException('This Google sign-in link is invalid or has expired — start over from the connect button.');
+      throw new BadRequestException('This Google sign-in link is invalid or has expired. Start over from the connect button.');
     }
 
     const oauth = this.oauthClient();
@@ -266,7 +266,7 @@ export class GoogleService {
       throw new ServiceUnavailableException(`google-fetch-failed: Google rejected the authorization code (${(err as Error).message})`);
     }
     if (!refreshToken) {
-      throw new BadRequestException('Google did not return a refresh token — remove the Cailyx grant at myaccount.google.com/permissions and reconnect.');
+      throw new BadRequestException('Google did not return a refresh token. Remove the Cailyx grant at myaccount.google.com/permissions and reconnect.');
     }
 
     // Store what Google actually granted, not what was requested — the
@@ -291,7 +291,7 @@ export class GoogleService {
   private googleError(operation: string, err: unknown): never {
     if (isInsufficientScope(err)) {
       throw new ForbiddenException(
-        'google-scope-missing: this Google account has not granted the needed access — reconnect and check every box on the consent screen.',
+        'google-scope-missing: this Google account has not granted the needed access. Reconnect and check every box on the consent screen.',
       );
     }
     throw new ServiceUnavailableException(`google-fetch-failed: ${operation} (${(err as Error).message})`);
@@ -314,7 +314,7 @@ export class GoogleService {
     try {
       await new OAuth2Client().revokeToken(this.decrypt(row.refreshTokenEncrypted));
     } catch (err) {
-      this.logger.warn(`Google revoke failed for client ${clientId}: ${(err as Error).message} — deleting the local row anyway.`);
+      this.logger.warn(`Google revoke failed for client ${clientId}: ${(err as Error).message}. Deleting the local row anyway.`);
     }
     await this.prisma.googleConnection.delete({ where: { clientId } });
     return { success: true };
@@ -578,7 +578,7 @@ export class GoogleService {
     const hex = this.config.get<string>('GOOGLE_TOKEN_ENCRYPTION_KEY');
     const key = hex ? Buffer.from(hex, 'hex') : Buffer.alloc(0);
     if (key.length !== 32) {
-      throw new ServiceUnavailableException('google-misconfigured: GOOGLE_TOKEN_ENCRYPTION_KEY must be 32 random bytes as hex — nothing was attempted');
+      throw new ServiceUnavailableException('google-misconfigured: GOOGLE_TOKEN_ENCRYPTION_KEY must be 32 random bytes as hex. Nothing was attempted');
     }
     return key;
   }
@@ -598,7 +598,7 @@ export class GoogleService {
       decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
       return Buffer.concat([decipher.update(Buffer.from(dataHex, 'hex')), decipher.final()]).toString('utf8');
     } catch {
-      throw new ServiceUnavailableException('google-token-invalid: the stored Google credential is corrupt — reconnect the account');
+      throw new ServiceUnavailableException('google-token-invalid: the stored Google credential is corrupt. Reconnect the account');
     }
   }
 
@@ -611,7 +611,7 @@ export class GoogleService {
   private async authorizedClientFor(clientId: string, scope: string): Promise<OAuth2Client> {
     const row = await this.prisma.googleConnection.findUnique({ where: { clientId } });
     if (!row || !row.scopes.includes(scope)) {
-      throw new NotFoundException('google-not-connected: this Google account is not connected — connect it first.');
+      throw new NotFoundException('google-not-connected: this Google account is not connected. Connect it first.');
     }
     return this.authorizedClient(row.refreshTokenEncrypted);
   }

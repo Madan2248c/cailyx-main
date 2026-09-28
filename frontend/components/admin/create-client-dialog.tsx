@@ -58,7 +58,7 @@ export function CreateClientDialog({
         <DialogHeader>
           <DialogTitle>Create a new client</DialogTitle>
           <DialogDescription>
-            Their POC will get an invite link to set up their password and onboard — now,
+            Their POC will get an invite link to set up their password and onboard, either now
             or with the Day-1 audit if held below.
           </DialogDescription>
         </DialogHeader>
@@ -108,7 +108,7 @@ export function CreateClientDialog({
               onChange={(e) => setDeferInvite(e.target.checked)}
             />
             <span>
-              Hold the invite until the Day-1 audit is ready — the POC gets one email
+              Hold the invite until the Day-1 audit is ready. The POC gets one email
               with the report, instead of an invite now and a report later.
             </span>
           </label>

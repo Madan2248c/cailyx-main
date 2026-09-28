@@ -68,7 +68,7 @@ export class ValidateStage {
 
     if (dropped > 0) {
       await ctx.note(
-        `Validation dropped ${dropped} unsupported assertion(s) — they will not appear in the candidate profile.`,
+        `Validation dropped ${dropped} unsupported assertion(s). They will not appear in the candidate profile.`,
       );
     }
   }

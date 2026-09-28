@@ -50,9 +50,10 @@ Rules:
 - Be quantitative. Cite the real numbers you were given. Never invent a number that isn't in the input.
 - Total output under 350 words.
 - No preamble, no restating these instructions, no sign-off.
-- If a previous narrative is included below, it is that PRIOR run's own generated commentary — unverified prose, not fact. Re-check every claim in it against the current data. If the current data contradicts something it said, correct it explicitly rather than silently repeating it.
+- If a previous narrative is included below, it is that PRIOR run's own generated commentary. Unverified prose, not fact. Re-check every claim in it against the current data. If the current data contradicts something it said, correct it explicitly rather than silently repeating it.
 
-Respond with ONLY JSON: {"narrative": string} — the four-section Markdown above, as the value of that one field.`;
+- Never use em dashes or en dashes; use commas, colons or full stops instead.
+Respond with ONLY JSON: {"narrative": string}. The four-section Markdown above, as the value of that one field.`;
 
 interface NarrativeResponse {
   narrative?: unknown;
@@ -90,7 +91,7 @@ export class NarrativeService {
     parts.push(
       input.previousRun
         ? `Previous run: ${input.previousRun.at}, score ${input.previousRun.score ?? 'n/a'}.`
-        : 'Previous run: none — this is the first audit for this project.',
+        : 'Previous run: none. This is the first audit for this project.',
     );
 
     parts.push('\nWhat moved:');
@@ -120,7 +121,7 @@ export class NarrativeService {
     );
 
     if (input.previousNarrative) {
-      parts.push('\nPrevious run\'s narrative (unverified — re-check against the current data above):');
+      parts.push('\nPrevious run\'s narrative (unverified. Re-check against the current data above):');
       parts.push(input.previousNarrative);
     }
 
