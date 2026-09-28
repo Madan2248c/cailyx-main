@@ -13,6 +13,7 @@ import type {
   GapRow,
   ReviewRating,
 } from '@/types/competitor';
+import { AutoHeight } from '@/components/animate-ui/primitives/effects/auto-height';
 import { InlineEmpty, NextSteps, Section, Stat, StatRow, type NextStep } from '@/components/portal/blocks';
 import { Meter } from '@/components/portal/charts';
 import { MetaDot, PageHeader, PortalPage, StatusChip, Tile } from '@/components/portal/layout';
@@ -374,6 +375,7 @@ export function CompetitorsTab({
         eyebrow="Rivals you track"
         description={canEdit ? 'Tick the ones that matter. Untick any that aren’t real rivals.' : undefined}
       >
+        <AutoHeight deps={[rivals]}>
         {rivals.length === 0 ? (
           canEdit ? null : <InlineEmpty>No rivals yet. Your company&apos;s main contact can add them.</InlineEmpty>
         ) : (
@@ -405,6 +407,7 @@ export function CompetitorsTab({
             })}
           </ul>
         )}
+        </AutoHeight>
         {canEdit ? (
           <form
             className="mt-4 flex flex-col gap-2 border-t border-border pt-4"

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CircleCheck, Download, ListChecks, Scale, TriangleAlert } from 'lucide-react';
+import { CircleCheck, ListChecks, Scale, TriangleAlert } from 'lucide-react';
+import { Download } from '@/components/animate-ui/icons/download';
+import { MagneticAction } from '@/components/portal/magnetic-action';
 import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { ScoreRing, StackedBar, type Segment } from '@/components/portal/charts';
@@ -146,10 +148,12 @@ export function FixPlanTab({
           </>
         }
         actions={
-          <Button variant="outline" size="sm" onClick={download} disabled={downloading}>
-            <Download className="size-4" aria-hidden />
-            {downloading ? 'Preparing…' : 'Download for your developer'}
-          </Button>
+          <MagneticAction>
+            <Button variant="outline" size="sm" onClick={download} disabled={downloading}>
+              <Download className="size-4" aria-hidden />
+              {downloading ? 'Preparing…' : 'Download for your developer'}
+            </Button>
+          </MagneticAction>
         }
       />
 

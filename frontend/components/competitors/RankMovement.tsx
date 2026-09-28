@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { ChartLine } from '@/components/animate-ui/icons/chart-line';
 import { Section } from '@/components/portal/blocks';
 import { StatusChip } from '@/components/portal/layout';
 import { getSnapshot, listSnapshots, type DataforseoSnapshot, type SerpRankRow } from '@/lib/dataforseo-api';
@@ -173,7 +173,7 @@ export function RankMovement({
   const visible = ordered.slice(0, 8);
 
   return (
-    <Section icon={TrendingUp} eyebrow="Your Google positions" description={summary}>
+    <Section icon={ChartLine} eyebrow="Your Google positions" description={summary}>
       {visible.length > 0 ? (
         <ul className="flex flex-col gap-1.5">
           {visible.map((mover) => (

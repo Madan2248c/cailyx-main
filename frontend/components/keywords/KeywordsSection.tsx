@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Target } from 'lucide-react';
+import { ChartColumnIncreasing } from '@/components/animate-ui/icons/chart-column-increasing';
 import {
   coerceKeywordRow,
   getLatestSnapshot,
@@ -171,7 +171,7 @@ export function KeywordsSection({
       <NextSteps index={4} items={steps} allClear="Nothing stands out yet. Check back after the next update." />
 
       {winnable.length > 0 ? (
-        <Section index={5} icon={Target} eyebrow="Easy wins" description="Low difficulty and real demand. Go after these first.">
+        <Section index={5} icon={ChartColumnIncreasing} eyebrow="Easy wins" description="Low difficulty and real demand. Go after these first.">
           <ul className="flex flex-col gap-2">
             {winnable.map((row) => (
               <li key={row.keyword} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg bg-muted/50 px-3 py-2.5 text-sm">

@@ -1,6 +1,8 @@
 'use client';
 
-import { Gauge, Globe, Sparkles } from 'lucide-react';
+import { Gauge } from '@/components/animate-ui/icons/gauge';
+import { Search } from '@/components/animate-ui/icons/search';
+import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Tile, TileHeader } from '@/components/portal/layout';
 
 /** Onward links to the deeper Technical / Organic / AI pages. */
@@ -15,7 +17,7 @@ export function ExploreLinks({ projectId, index = 0 }: { projectId: string; inde
     },
     {
       href: `${base}/performance/visibility/organic`,
-      icon: Globe,
+      icon: Search,
       label: 'Google search',
       note: 'Clicks, searches and pages from your own Google Search Console.',
     },

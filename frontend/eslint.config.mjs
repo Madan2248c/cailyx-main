@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
       "components/animate-ui/**",
       // Hooks the Animate UI registry installs next to ours (listed by name so
       // our own hooks stay under the full rule set).
+      "hooks/use-auto-height.tsx",
       "hooks/use-controlled-state.tsx",
       "hooks/use-is-in-view.tsx",
       "hooks/use-motion-value-state.tsx",

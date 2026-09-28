@@ -1,6 +1,7 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Search } from '@/components/animate-ui/icons/search';
+import { AutoHeight } from '@/components/animate-ui/primitives/effects/auto-height';
 import { InlineEmpty, Section } from '@/components/portal/blocks';
 
 export interface SerpOption {
@@ -73,6 +74,7 @@ export function SerpSnapshotViewer({
       }
       flush
     >
+      <AutoHeight deps={[selectedId, results]}>
       {results === null ? (
         <div className="px-5 pb-5">
           <p className="text-sm text-muted-foreground">Loading…</p>
@@ -98,6 +100,7 @@ export function SerpSnapshotViewer({
           ))}
         </ol>
       )}
+      </AutoHeight>
     </Section>
   );
 }

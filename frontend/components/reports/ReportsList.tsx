@@ -1,6 +1,8 @@
 'use client';
 
-import { ArrowRight, FileText } from 'lucide-react';
+import { FileText } from 'lucide-react';
+import { ArrowRight } from '@/components/animate-ui/icons/arrow-right';
+import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { PageHeader, MetaDot, PortalPage, StatusChip, Tile } from '@/components/portal/layout';
 import { formatDate, plural, relativeDate, type Tone } from '@/components/portal/tone';
 import type { ReportKind, ReportListItem, ReportStatus } from '@/types/report';
@@ -81,6 +83,7 @@ function ReportCard({
   const when = report.releasedAt ?? report.createdAt;
   return (
     <Tile index={index} className="p-0">
+      <AnimateIcon animateOnHover asChild>
       <button
         type="button"
         onClick={() => onOpen(report.id)}
@@ -103,6 +106,7 @@ function ReportCard({
           Read the report <ArrowRight className="g-row-arrow size-4" aria-hidden />
         </span>
       </button>
+      </AnimateIcon>
     </Tile>
   );
 }

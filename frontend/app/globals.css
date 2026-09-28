@@ -245,7 +245,7 @@
      size — like browser zoom, but through the variables every spacing, text
      and width utility reads, so full-height layouts stay full height. Change
      this one number to tune it (1 = Tailwind default). */
-  --g-scale: 0.9;
+  --g-scale: 0.84;
   --spacing: calc(0.25rem * var(--g-scale));
   --text-xs: calc(0.75rem * var(--g-scale));
   --text-sm: calc(0.875rem * var(--g-scale));
@@ -255,6 +255,8 @@
   --text-2xl: calc(1.5rem * var(--g-scale));
   --text-3xl: calc(1.875rem * var(--g-scale));
   --text-4xl: calc(2.25rem * var(--g-scale));
+  --text-5xl: calc(3rem * var(--g-scale));
+  --text-6xl: calc(3.75rem * var(--g-scale));
   --container-sm: calc(24rem * var(--g-scale));
   --container-md: calc(28rem * var(--g-scale));
   --container-lg: calc(32rem * var(--g-scale));

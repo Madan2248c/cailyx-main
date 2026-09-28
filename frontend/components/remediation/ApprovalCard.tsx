@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { decideFix } from '@/lib/remediation-api';
 import type { FixSpec } from '@/types/remediation';
 import { targetLabel } from './fix-meta';
+import { CircleCheckBig } from '@/components/animate-ui/icons/circle-check-big';
+import { MagneticAction } from '@/components/portal/magnetic-action';
 
 /**
  * A fix that needs the client's say (design plan §3.3 "Approval card"): the
@@ -74,9 +76,12 @@ export function ApprovalCard({
             aria-label={`Note about: ${fix.title}`}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => decide('APPROVED')} disabled={pending !== null}>
-              {pending === 'APPROVED' ? 'Saving…' : 'Approve'}
-            </Button>
+            <MagneticAction>
+              <Button size="sm" onClick={() => decide('APPROVED')} disabled={pending !== null}>
+                <CircleCheckBig className="size-4" aria-hidden />
+                {pending === 'APPROVED' ? 'Saving…' : 'Approve'}
+              </Button>
+            </MagneticAction>
             <Button size="sm" variant="outline" onClick={() => decide('DECLINED')} disabled={pending !== null}>
               {pending === 'DECLINED' ? 'Saving…' : 'Decline'}
             </Button>

@@ -15,6 +15,8 @@ import { getFix, markFixApplied, verifyFix } from '@/lib/remediation-api';
 import type { FixEvent, FixSpec } from '@/types/remediation';
 import { describeAcceptance, groupLabel, STATUS_WORD } from '@/types/remediation';
 import { ApprovalCard } from './ApprovalCard';
+import { BadgeCheck } from '@/components/animate-ui/icons/badge-check';
+import { MagneticAction } from '@/components/portal/magnetic-action';
 import {
   canCheckNow,
   canMarkApplied,
@@ -298,9 +300,12 @@ function AppliedForm({ fix, accessToken, clientId, onDone }: { fix: FixSpec; acc
           <span className="text-muted-foreground">Link to the change (optional)</span>
           <Input value={prUrl} onChange={(e) => setPrUrl(e.target.value)} placeholder="https://github.com/…/pull/42" type="url" />
         </label>
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : "We've applied this"}
-        </Button>
+        <MagneticAction>
+          <Button type="submit" disabled={saving}>
+            <BadgeCheck className="size-4" aria-hidden />
+            {saving ? 'Saving…' : "We've applied this"}
+          </Button>
+        </MagneticAction>
       </form>
       {saving ? (
         <div className="mt-3">

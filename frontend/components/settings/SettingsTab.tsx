@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FolderOpen, Link2, ListChecks, Users } from 'lucide-react';
+import { ClipboardList } from '@/components/animate-ui/icons/clipboard-list';
+import { Layers } from '@/components/animate-ui/icons/layers';
+import { Link2 } from '@/components/animate-ui/icons/link-2';
+import { UsersRound } from '@/components/animate-ui/icons/users-round';
 import { getGoogleStatus } from '@/lib/google-api';
 import { getDay1Status, type Day1Status } from '@/lib/settings-api';
 import { listMembers } from '@/lib/team-api';
@@ -137,7 +140,7 @@ export function SettingsTab({
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Section index={1} icon={FolderOpen} eyebrow="Project">
+        <Section index={1} icon={Layers} eyebrow="Project">
           <Rows
             rows={[
               ['Name', project.name],
@@ -148,7 +151,7 @@ export function SettingsTab({
         </Section>
 
         {team ? (
-          <Section index={2} icon={Users} eyebrow="Your team">
+          <Section index={2} icon={UsersRound} eyebrow="Your team">
             <Rows
               rows={[
                 ['Seats used', `${team.seatsUsed} of ${team.seatLimit}`],
@@ -175,7 +178,7 @@ export function SettingsTab({
         {day1 ? (
           <Section
             index={4}
-            icon={ListChecks}
+            icon={ClipboardList}
             eyebrow="First-day setup"
             right={<StatusChip tone={day1.status === 'COMPLETE' ? 'good' : day1.status === 'FAILED' ? 'bad' : 'watch'}>{pipelineWord}</StatusChip>}
             flush

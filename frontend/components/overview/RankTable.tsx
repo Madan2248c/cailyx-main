@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowDownRight, ArrowUpRight, ListOrdered } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
+import { ChartLine } from '@/components/animate-ui/icons/chart-line';
 import { InlineEmpty, Section } from '@/components/portal/blocks';
 import { formatDate, plural } from '@/components/portal/tone';
 import type { SerpRankRow } from '@/lib/dataforseo-api';
@@ -46,7 +47,7 @@ export function RankTable({
 }) {
   if (rows.length === 0) {
     return (
-      <Section index={index} icon={ListOrdered} eyebrow="Your Google positions">
+      <Section index={index} icon={ChartLine} eyebrow="Your Google positions">
         <InlineEmpty>Your positions show up here after the first search check.</InlineEmpty>
       </Section>
     );
@@ -66,7 +67,7 @@ export function RankTable({
   return (
     <Section
       index={index}
-      icon={ListOrdered}
+      icon={ChartLine}
       eyebrow="Your Google positions"
       description={
         <>

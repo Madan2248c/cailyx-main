@@ -5,6 +5,7 @@ import { ArrowUpRight } from 'lucide-react';
 import { cn } from 'cn';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { Shine } from '@/components/animate-ui/primitives/effects/shine';
+import { Tilt, TiltContent } from '@/components/animate-ui/primitives/effects/tilt';
 import { Hint } from './hint';
 import { Reveal } from './reveal';
 import { TONE_COLOR, TONE_SOFT, TONE_TEXT, type Tone } from './tone';
@@ -71,7 +72,13 @@ export function Tile({
   children: React.ReactNode;
   ariaLabel?: string;
 }) {
-  const classes = cn('g-tile p-5', ink && 'g-tile-ink', className);
+  // Hero (ink) tiles lean gently toward the pointer (Animate UI Tilt). The
+  // tilt wrapper becomes the grid item, so grid placement classes move to it.
+  const tokens = (className ?? '').split(/\s+/).filter(Boolean);
+  const isPlacement = (t: string) => /(^|:)(col|row)-(span|start|end)-/.test(t);
+  const place = ink ? tokens.filter(isPlacement).join(' ') : '';
+  const own = ink ? tokens.filter((t) => !isPlacement(t)).join(' ') : className;
+  const classes = cn('g-tile p-5', ink && 'g-tile-ink h-full', own);
   const style = { '--i': index } as React.CSSProperties;
   const sweep = shine ? (
     <Shine
@@ -84,28 +91,31 @@ export function Tile({
       className="pointer-events-none absolute inset-0 rounded-[inherit]"
     />
   ) : null;
-  if (href) {
+  const body = href ? (
+    <AnimateIcon animateOnHover asChild>
+      <Link href={href} className={classes} style={style} aria-label={ariaLabel}>
+        {children}
+        {sweep}
+      </Link>
+    </AnimateIcon>
+  ) : (
+    <AnimateIcon animateOnHover asChild>
+      <section className={classes} style={style} aria-label={ariaLabel}>
+        {children}
+        {sweep}
+      </section>
+    </AnimateIcon>
+  );
+  if (ink) {
     return (
       <Reveal index={index}>
-        <AnimateIcon animateOnHover asChild>
-          <Link href={href} className={classes} style={style} aria-label={ariaLabel}>
-            {children}
-            {sweep}
-          </Link>
-        </AnimateIcon>
+        <Tilt maxTilt={2.5} perspective={1400} className={cn('flex flex-col', place)}>
+          <TiltContent className="flex flex-1 flex-col">{body}</TiltContent>
+        </Tilt>
       </Reveal>
     );
   }
-  return (
-    <Reveal index={index}>
-      <AnimateIcon animateOnHover asChild>
-        <section className={classes} style={style} aria-label={ariaLabel}>
-          {children}
-          {sweep}
-        </section>
-      </AnimateIcon>
-    </Reveal>
-  );
+  return <Reveal index={index}>{body}</Reveal>;
 }
 
 export function TileHeader({

@@ -3,6 +3,7 @@
 import { Check, Clock } from 'lucide-react';
 import { PageHeader, PortalPage, Tile, TileHeader } from '@/components/portal/layout';
 import { OrbitArt } from '@/components/portal/states';
+import { RotatingText, RotatingTextContainer } from '@/components/animate-ui/primitives/texts/rotating';
 
 export interface FirstRunStep {
   label: string;
@@ -38,7 +39,17 @@ export function FirstRun({
       <div className="grid gap-4 md:grid-cols-5">
         <Tile ink index={1} className="justify-between gap-6 p-6 md:col-span-2">
           <TileHeader eyebrow="Getting started" />
-          <OrbitArt className="h-28 w-40 self-center text-white" />
+          <div className="flex flex-col items-center gap-3">
+            <OrbitArt className="h-28 w-40 text-white" />
+            <RotatingTextContainer
+              text={steps.filter((s) => !s.done).map((s) => `Checking ${s.label.toLowerCase()}…`)}
+              duration={2600}
+              className="h-6 overflow-hidden py-0.5 text-sm leading-5 text-white/75"
+              aria-live="off"
+            >
+              <RotatingText />
+            </RotatingTextContainer>
+          </div>
           <div className="flex flex-col gap-1">
             <p className="g-num text-4xl font-semibold text-white">
               {done}
