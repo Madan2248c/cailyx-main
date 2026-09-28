@@ -141,6 +141,8 @@ export default function AdminPreviewProjectPage() {
               </Button>
             ))}
           </div>
+          {/* Same theme scope as the client portal, so the preview matches what the client sees. */}
+          <div className="theme-graphite flex flex-col overflow-hidden rounded-xl border border-border bg-canvas">
           <SectionErrorBoundary key={activeTab} label={TABS.find((t) => t.key === activeTab)?.label ?? activeTab}>
             {activeTab === 'dashboard' ? (
               <DashboardTab
@@ -202,6 +204,7 @@ export default function AdminPreviewProjectPage() {
               />
             ) : null}
           </SectionErrorBoundary>
+          </div>
         </>
       )}
     </div>

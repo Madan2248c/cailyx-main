@@ -7,19 +7,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CompetitorsTab } from '@/components/competitors/CompetitorsTab';
 import { useClientProject } from '@/components/client/use-client-project';
 import { useAuth } from '@/contexts/auth-context';
+import { PortalLoading } from '@/components/portal/states';
 
 export default function CompetitorsPage() {
   const params = useParams<{ id: string }>();
   const { user, accessToken } = useAuth();
   const project = useClientProject(accessToken, user?.clientId ?? '', params.id);
 
-  if (project === undefined) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
+  if (project === undefined) return <PortalLoading />;
 
   if (project === null || !user || !accessToken || !user.clientId) {
     return (

@@ -11,8 +11,8 @@ function formatDate(iso: string | null): string {
 function Delta({ delta, isNew }: { delta: number | null; isNew: boolean }) {
   if (isNew) return <span className="font-medium text-muted-foreground">new</span>;
   if (delta === null || delta === 0) return <span className="text-muted-foreground">—</span>;
-  if (delta > 0) return <span className="font-medium text-green-600">▲{delta}</span>;
-  return <span className="font-medium text-red-600">▼{Math.abs(delta)}</span>;
+  if (delta > 0) return <span className="font-medium text-success">▲{delta}</span>;
+  return <span className="font-medium text-danger">▼{Math.abs(delta)}</span>;
 }
 
 /**

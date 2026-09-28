@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/card';
+import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import { getSnapshot, listSnapshots, type DataforseoSnapshot, type SerpRankRow } from '@/lib/dataforseo-api';
 
 interface TopMover {
@@ -128,20 +128,31 @@ export function RankHistory({
   const climbers = movers.filter((m) => m.kind === 'climber').length;
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-1 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm">
-          <span className="font-medium">Rank history:</span> {movers.length} keyword{movers.length === 1 ? '' : 's'} moved
-          since {formatDate(since)}
-          {climbers > 0 ? ` — ${climbers} climbing` : ''} · {top.map(shortLabel).join(' · ')}
-        </p>
-        <Link
-          href={`/client/projects/${projectId}/competitors`}
-          className="shrink-0 text-sm font-medium text-primary hover:underline"
-        >
-          See rank movement →
-        </Link>
-      </CardContent>
-    </Card>
+    <Link href={`/client/projects/${projectId}/competitors`} className="g-tile g-rise flex flex-col gap-3 p-5" style={{ '--i': 8 } as React.CSSProperties}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="size-3.5 opacity-70" />
+            <p className="g-eyebrow">Google search movement</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {movers.length} keyword{movers.length === 1 ? '' : 's'} moved since {formatDate(since)}
+            {climbers > 0 ? `, ${climbers} climbing` : ''}
+          </p>
+        </div>
+        <ArrowUpRight className="g-row-arrow size-4 shrink-0 opacity-50" />
+      </div>
+      <ul className="grid gap-2 sm:grid-cols-3">
+        {top.map((m) => {
+          const up = m.kind === 'climber' || m.kind === 'new';
+          return (
+            <li key={m.keyword} className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
+              <span className={`size-1.5 shrink-0 rounded-full ${up ? 'bg-success' : 'bg-danger'}`} aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{shortLabel(m)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </Link>
   );
 }

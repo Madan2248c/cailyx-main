@@ -2,9 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { listTechnicalAuditRuns } from '@/lib/technical-api';
+import {
+  ArrowRight,
+  CircleCheck,
+  FileText,
+  Gauge,
+  Lightbulb,
+  Share2,
+  Sparkles,
+  Swords,
+  TriangleAlert,
+  Trophy,
+} from 'lucide-react';
 import { RankHistory } from '@/components/dashboard/RankHistory';
+import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
+import { PageHeader, MetaDot, PortalPage, StatusChip, Tile, TileHeader, DeltaChip } from '@/components/portal/layout';
+import { CountUp } from '@/components/portal/motion';
+import { ErrorState, PortalLoading } from '@/components/portal/states';
+import { pct, plural, rateTone, relativeDate, scoreTone, TONE_TEXT, type Tone } from '@/components/portal/tone';
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import {
   getCompetitorGap,
@@ -13,19 +28,23 @@ import {
   listReports,
   listSocialActivityRuns,
 } from '@/lib/dashboard-api';
-import type { TechnicalAuditRun } from '@/types/technical';
-import { CHECK_LABEL } from '@/types/technical';
+import { getTechnicalAuditTrend, listTechnicalAuditRuns } from '@/lib/technical-api';
 import type { AeoVerdict } from '@/types/aeo';
+import { SURFACE_LABEL } from '@/types/aeo';
 import type {
+  ActivityPattern,
   CompetitorGap,
   GapAnalysisRun,
   ProjectReport,
   SocialActivityRun,
 } from '@/types/dashboard';
 import { socialRunPlatforms } from '@/types/dashboard';
+import type { TechnicalAuditRun, TrendPoint } from '@/types/technical';
+import { CHECK_LABEL } from '@/types/technical';
 
 interface DashboardSnapshot {
   tech: TechnicalAuditRun | null;
+  trend: TrendPoint[];
   social: SocialActivityRun | null;
   aeo: { verdict: AeoVerdict; date: string | null } | null;
   gap: CompetitorGap | null;
@@ -35,24 +54,10 @@ interface DashboardSnapshot {
 
 interface AttentionItem {
   source: string;
+  icon: React.ComponentType<{ className?: string }>;
   href: string;
   text: string;
-}
-
-function pct(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
-}
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString();
-}
-
-function scoreTone(score: number | null): string {
-  if (score === null) return 'text-muted-foreground';
-  if (score >= 80) return 'text-green-600';
-  if (score >= 50) return 'text-amber-600';
-  return 'text-red-600';
+  tone: Tone;
 }
 
 function truncate(text: string, max: number): string {
@@ -67,6 +72,36 @@ function latestComplete<T extends { status: string; completedAt: string | null; 
   if (done.length === 0) return null;
   return done.sort((a, b) => (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt))[0];
 }
+
+const PATTERN_TONE: Record<ActivityPattern, Tone> = {
+  daily: 'good',
+  'every-2-3-days': 'good',
+  weekly: 'good',
+  sporadic: 'watch',
+  dormant: 'bad',
+};
+
+const PLATFORM_LABEL: Record<string, string> = {
+  linkedin: 'LinkedIn',
+  x: 'X',
+  twitter: 'X',
+  instagram: 'Instagram',
+  facebook: 'Facebook',
+  youtube: 'YouTube',
+  tiktok: 'TikTok',
+};
+
+function platformName(platform: string): string {
+  return PLATFORM_LABEL[platform.toLowerCase()] ?? platform;
+}
+
+const PATTERN_WORD: Record<ActivityPattern, string> = {
+  daily: 'Daily',
+  'every-2-3-days': 'Every 2–3 days',
+  weekly: 'Weekly',
+  sporadic: 'Sporadic',
+  dormant: 'Quiet',
+};
 
 export function DashboardTab({
   accessToken,
@@ -92,6 +127,8 @@ export function DashboardTab({
     const tech = listTechnicalAuditRuns(accessToken, clientId, projectId)
       .then((runs) => latestComplete(runs, 'COMPLETE'))
       .catch(() => null);
+
+    const trend = getTechnicalAuditTrend(accessToken, clientId, projectId).catch(() => [] as TrendPoint[]);
 
     const social = listSocialActivityRuns(accessToken, clientId, projectId)
       .then((runs) => latestComplete(runs, 'COMPLETE'))
@@ -129,11 +166,12 @@ export function DashboardTab({
       })
       .catch(() => null);
 
-    Promise.all([tech, social, aeo, gap, gapRun, report])
-      .then(([techRun, socialRun, aeoResult, competitorGap, gapAnalysisRun, latestReport]) => {
+    Promise.all([tech, trend, social, aeo, gap, gapRun, report])
+      .then(([techRun, trendPoints, socialRun, aeoResult, competitorGap, gapAnalysisRun, latestReport]) => {
         if (!cancelled) {
           setSnapshot({
             tech: techRun,
+            trend: trendPoints,
             social: socialRun,
             aeo: aeoResult,
             gap: competitorGap,
@@ -151,279 +189,370 @@ export function DashboardTab({
     };
   }, [accessToken, clientId, projectId]);
 
-  if (error) {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
+  if (error) return <ErrorState message={error} />;
+  if (!snapshot) return <PortalLoading label="Loading dashboard" />;
 
-  if (!snapshot) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading dashboard…</p>
-      </div>
-    );
-  }
-
-  // ─── Headline derivations (insights first) ──────────────────────────
+  // ─── Derivations ────────────────────────────────────────────────────
   const techScore = snapshot.tech?.score ?? null;
+  const techFindings = snapshot.tech?.findings ?? [];
+  const failing = techFindings.filter((f) => f.status === 'fail' || f.status === 'error');
+  const passing = techFindings.filter((f) => f.status === 'pass');
+  const scoredTrend = snapshot.trend.filter((p) => p.score !== null).map((p) => p.score as number);
+  const techChange = scoredTrend.length >= 2 ? scoredTrend[scoredTrend.length - 1] - scoredTrend[scoredTrend.length - 2] : null;
 
   const platforms = snapshot.social ? socialRunPlatforms(snapshot.social) : [];
   const quietPlatforms = platforms.filter((p) => p.pattern === 'dormant' || p.pattern === 'sporadic');
-  const socialSummary =
-    platforms.length === 0
-      ? null
-      : quietPlatforms.length > 0
-        ? `${quietPlatforms.length} of ${platforms.length} channels quiet`
-        : `Active on all ${platforms.length} channels`;
+  const activePlatforms = platforms.length - quietPlatforms.length;
 
-  const mentionRate = snapshot.aeo ? snapshot.aeo.verdict.counted.overall.mentionRate : null;
+  const verdict = snapshot.aeo?.verdict ?? null;
+  const mentionRate = verdict ? verdict.counted.overall.mentionRate : null;
+  const winning = verdict?.judged?.winningPrompts ?? [];
+  const losing = verdict?.judged?.losingPrompts ?? [];
+  const firstPicks = verdict?.judged?.stanceCounts.recommended_primary ?? 0;
+  const surfaces = [...(verdict?.counted.bySurface ?? [])].sort((a, b) => b.mentionRate - a.mentionRate);
 
   const openRecs = (snapshot.gapRun?.recommendations ?? [])
     .filter((r) => r.status === 'OPEN')
     .sort((a, b) => a.priorityRank - b.priorityRank);
+  const doneRecs = (snapshot.gapRun?.recommendations ?? []).filter((r) => r.status === 'DONE');
 
-  // ─── Needs attention: worst tech failure, worst gap rec, losing prompt ─
+  const ownSeo = snapshot.gap?.own.profile?.seoScore ?? null;
+  const rivals = (snapshot.gap?.competitors ?? []).filter((c) => typeof c.profile?.seoScore === 'number');
+  const bestRival = [...rivals].sort((a, b) => (b.profile?.seoScore ?? 0) - (a.profile?.seoScore ?? 0))[0] ?? null;
+  const rivalsBeaten = rivals.filter((r) => ownSeo !== null && (r.profile?.seoScore ?? 0) < ownSeo).length;
+
+  // ─── Needs attention: the worst thing from each source ─────────────
   const attention: AttentionItem[] = [];
-  const worstTech = (snapshot.tech?.findings ?? [])
-    .filter((f) => f.status === 'fail' || f.status === 'error')
-    .sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))[0];
-  if (worstTech && snapshot.tech) {
+  const worstTech = [...failing].sort((a, b) => (a.severity === 'high' ? 0 : 1) - (b.severity === 'high' ? 0 : 1))[0];
+  if (worstTech) {
     attention.push({
-      source: 'Technical audit',
+      source: 'Technical',
+      icon: Gauge,
       href: `${base}/performance/technical`,
-      text: `${CHECK_LABEL[worstTech.type] ?? worstTech.type}: ${truncate(worstTech.recommendedFix, 110)}`,
+      text: `${CHECK_LABEL[worstTech.type] ?? worstTech.type}: ${truncate(worstTech.recommendedFix, 120)}`,
+      tone: worstTech.severity === 'high' ? 'bad' : 'watch',
+    });
+  }
+  if (losing[0]) {
+    attention.push({
+      source: 'AI answers',
+      icon: Sparkles,
+      href: `${base}/performance/visibility/ai`,
+      text: `AI recommends ${losing[0].losesTo.join(', ') || 'a rival'} for “${truncate(losing[0].prompt, 80)}”`,
+      tone: 'bad',
     });
   }
   if (openRecs[0]) {
     attention.push({
-      source: 'Gap analysis',
+      source: 'Priorities',
+      icon: Lightbulb,
       href: `${base}/reports`,
-      text: `#${openRecs[0].priorityRank} priority: ${truncate(openRecs[0].title, 110)}`,
+      text: `Priority ${openRecs[0].priorityRank}: ${truncate(openRecs[0].title, 110)}`,
+      tone: 'watch',
     });
   }
-  const losingPrompt = snapshot.aeo?.verdict.judged?.losingPrompts[0];
-  if (losingPrompt) {
+  const quietest = platforms.find((p) => p.pattern === 'dormant') ?? quietPlatforms[0];
+  if (quietest) {
     attention.push({
-      source: 'AI visibility',
-      href: `${base}/performance/visibility/ai`,
-      text: `Losing to ${losingPrompt.losesTo.join(', ') || 'rivals'} on “${truncate(losingPrompt.prompt, 90)}”`,
+      source: 'Social',
+      icon: Share2,
+      href: `${base}/performance/social`,
+      text: `${platformName(quietest.platform)} has gone ${quietest.pattern === 'dormant' ? 'quiet' : 'sporadic'}${quietest.daysSinceLastPost !== null ? `, last post ${Math.round(quietest.daysSinceLastPost)} days ago` : ''}`,
+      tone: quietest.pattern === 'dormant' ? 'bad' : 'watch',
     });
   }
-  const topAttention = attention.slice(0, 3);
 
-  // ─── Competitor gap derivation ──────────────────────────────────────
-  const ownScore = snapshot.gap?.own.profile?.seoScore ?? null;
-  const bestRival = (snapshot.gap?.competitors ?? [])
-    .filter((c) => c.profile?.seoScore !== null && c.profile?.seoScore !== undefined)
-    .sort((a, b) => (b.profile?.seoScore ?? 0) - (a.profile?.seoScore ?? 0))[0];
-  const gapVsRival =
-    ownScore !== null && bestRival?.profile?.seoScore !== null && bestRival?.profile?.seoScore !== undefined
-      ? (bestRival.profile.seoScore as number) - ownScore
-      : null;
+  // ─── What's working: evidence of progress, shown next to the asks ──
+  const wins: string[] = [];
+  if (firstPicks > 0) wins.push(`Recommended first in ${plural(firstPicks, 'AI answer')}`);
+  if (winning.length > 0) wins.push(`Winning ${plural(winning.length, 'buyer question')}`);
+  if (techScore !== null && techScore >= 80) wins.push(`Technical health is strong at ${techScore}/100`);
+  if (techChange !== null && techChange > 0) wins.push(`Technical score up ${techChange} points since the last audit`);
+  if (passing.length > 0 && snapshot.tech) wins.push(`${passing.length} of ${techFindings.length} technical checks pass`);
+  if (rivalsBeaten > 0) wins.push(`Ahead of ${plural(rivalsBeaten, 'tracked rival')} on homepage SEO`);
+  if (activePlatforms > 0) wins.push(`Active on ${plural(activePlatforms, 'social channel')}`);
+  if (doneRecs.length > 0) wins.push(`${plural(doneRecs.length, 'priority', 'priorities')} completed`);
 
-  const tiles = [
-    {
-      label: 'Technical',
-      href: `${base}/performance/technical`,
-      value: techScore !== null ? `${techScore}/100` : null,
-      valueClass: scoreTone(techScore),
-      note:
-        snapshot.tech == null
-          ? 'Not yet audited — one runs automatically in your Day-1 pipeline.'
-          : worstTech
-            ? `${(snapshot.tech.findings ?? []).filter((f) => f.status === 'fail' || f.status === 'error').length} failing checks need fixes.`
-            : 'All checks passing.',
-    },
-    {
-      label: 'Social',
-      href: `${base}/performance`,
-      value: socialSummary,
-      valueClass: 'text-foreground',
-      note:
-        snapshot.social == null
-          ? 'Not yet audited — no social pull has completed for this project.'
-          : quietPlatforms.length > 0
-            ? `Quiet: ${quietPlatforms.map((p) => p.platform).join(', ')}.`
-            : 'Cadence looks healthy everywhere we pull.',
-    },
-    {
-      label: 'AI visibility',
-      href: `${base}/performance/visibility/ai`,
-      value: mentionRate !== null ? pct(mentionRate) : null,
-      valueClass: 'text-foreground',
-      note:
-        snapshot.aeo == null
-          ? 'Not yet audited — one runs automatically in your Day-1 pipeline.'
-          : snapshot.aeo.verdict.judged && snapshot.aeo.verdict.judged.losingPrompts.length > 0
-            ? `Losing ${snapshot.aeo.verdict.judged.losingPrompts.length} prompt${snapshot.aeo.verdict.judged.losingPrompts.length === 1 ? '' : 's'} to rivals.`
-            : 'Holding your own across tested prompts.',
-    },
-    {
-      label: 'Competitors',
-      href: `${base}/competitors`,
-      value:
-        snapshot.gap == null
-          ? null
-          : `${snapshot.gap.competitors.length} rival${snapshot.gap.competitors.length === 1 ? '' : 's'} tracked`,
-      valueClass: 'text-foreground',
-      note:
-        snapshot.gap == null
-          ? 'No competitor comparison yet.'
-          : gapVsRival !== null && bestRival
-            ? gapVsRival > 0
-              ? `Trailing ${bestRival.name} by ${gapVsRival} SEO points.`
-              : `Leading ${bestRival.name} on homepage SEO.`
-            : 'Comparison available — see the breakdown.',
-    },
-    {
-      label: 'Open gaps',
-      href: `${base}/reports`,
-      value: snapshot.gapRun ? `${openRecs.length} open` : null,
-      valueClass: openRecs.length > 0 ? 'text-amber-600' : 'text-green-600',
-      note:
-        snapshot.gapRun == null
-          ? 'No gap analysis yet — recommendations appear after your source audits complete.'
-          : openRecs.length > 0
-            ? `Top: ${truncate(openRecs[0].title, 80)}`
-            : 'Every recommendation is done or dismissed.',
-    },
-    {
-      label: 'Reports',
-      href: `${base}/reports`,
-      value: snapshot.report ? snapshot.report.kind : null,
-      valueClass: 'text-foreground',
-      note: snapshot.report
-        ? `Latest released ${formatDate(snapshot.report.releasedAt ?? snapshot.report.createdAt)}.`
-        : 'No released report yet.',
-    },
-  ];
+  // ─── The one-sentence answer ────────────────────────────────────────
+  const newest = [snapshot.tech?.completedAt, snapshot.aeo?.date, snapshot.social?.completedAt]
+    .filter((d): d is string => !!d)
+    .sort()
+    .at(-1);
+  const summaryParts: string[] = [];
+  if (mentionRate !== null) summaryParts.push(`AI engines name ${projectName} in ${pct(mentionRate)} of the answers we tested.`);
+  else summaryParts.push(`Your AI visibility baseline is still being measured.`);
+  if (attention.length > 0 || wins.length > 0) {
+    summaryParts.push(
+      `${attention.length === 0 ? 'Nothing needs attention right now' : `${plural(attention.length, 'thing')} ${attention.length === 1 ? 'needs' : 'need'} attention`}${wins.length > 0 ? `, and ${plural(wins.length, 'thing')} ${wins.length === 1 ? 'is' : 'are'} working` : ''}.`,
+    );
+  }
+
+  const aeoTone = rateTone(mentionRate);
+  const techTone = scoreTone(techScore);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{projectName}</h1>
-        <p className="text-sm text-muted-foreground">{projectDomain}</p>
-      </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Project overview"
+        title={projectName}
+        meta={
+          <>
+            <span>{projectDomain}</span>
+            {newest ? (
+              <>
+                <MetaDot />
+                <span>Updated {relativeDate(newest)}</span>
+              </>
+            ) : null}
+          </>
+        }
+        summary={summaryParts.join(' ')}
+      />
 
-      {/* 1) Headline row — project health at a glance */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Tech score</p>
-            <p className={`text-3xl font-semibold ${scoreTone(techScore)}`}>
-              {techScore ?? '—'}
-              {techScore !== null ? <span className="text-base font-normal text-muted-foreground">/100</span> : null}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {snapshot.tech ? `audited ${formatDate(snapshot.tech.completedAt ?? snapshot.tech.createdAt)}` : 'not yet audited'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Social cadence</p>
-            <p className="text-3xl font-semibold">
-              {snapshot.social ? `${platforms.length - quietPlatforms.length}/${platforms.length}` : '—'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {socialSummary ?? 'not yet audited'} · channels active
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">AI mention rate</p>
-            <p className="text-3xl font-semibold">{mentionRate !== null ? pct(mentionRate) : '—'}</p>
-            <p className="text-xs text-muted-foreground">
-              {snapshot.aeo ? `across ${snapshot.aeo.verdict.counted.overall.observations} answers` : 'not yet audited'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Open gaps</p>
-            <p className={`text-3xl font-semibold ${snapshot.gapRun ? (openRecs.length > 0 ? 'text-amber-600' : 'text-green-600') : ''}`}>
-              {snapshot.gapRun ? openRecs.length : '—'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {snapshot.gapRun ? 'recommendations still open' : 'no gap analysis yet'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 2) Rank-history strip — omits itself when there is no rank history */}
-      <RankHistory accessToken={accessToken} clientId={clientId} projectId={projectId} />
-
-      {/* 3) Needs attention — top 3 cross-module actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Needs attention</CardTitle>
-          <CardDescription>
-            {topAttention.length === 0
-              ? 'Nothing urgent — every module is either healthy or still waiting on its first run.'
-              : 'The single most important action from each module, worst first.'}
-          </CardDescription>
-        </CardHeader>
-        {topAttention.length > 0 ? (
-          <CardContent className="flex flex-col p-0">
-            {topAttention.map((item, i) => (
-              <Link
-                key={`${item.source}-${i}`}
-                href={item.href}
-                className={`flex items-baseline justify-between gap-3 px-6 py-2.5 text-sm hover:bg-muted/50 ${i > 0 ? 'border-t border-border' : ''}`}
-              >
-                <p className="min-w-0 flex-1 truncate">{item.text}</p>
-                <p className="shrink-0 text-xs text-muted-foreground">{item.source} →</p>
-              </Link>
-            ))}
-          </CardContent>
-        ) : null}
-      </Card>
-
-      {/* 4) Latest report card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Latest report</CardTitle>
-          <CardDescription>
-            {snapshot.report
-              ? `${snapshot.report.title} · released ${formatDate(snapshot.report.releasedAt ?? snapshot.report.createdAt)}`
-              : 'No released report yet.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {snapshot.report ? (
-            <p className="text-sm text-muted-foreground">{truncate(snapshot.report.executiveSummary, 280)}</p>
+      {/* ─── Bento: the answer first ─────────────────────────────────── */}
+      <div className="grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Hero: AI visibility, the product's reason to exist */}
+        <Tile ink href={`${base}/performance/visibility/ai`} index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6" ariaLabel="AI visibility details">
+          <TileHeader icon={Sparkles} eyebrow="AI visibility" linkHint />
+          {verdict ? (
+            <>
+              <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+                <ScoreRing
+                  value={Math.round(verdict.counted.overall.mentionRate * 100)}
+                  tone={aeoTone === 'neutral' ? 'neutral' : aeoTone}
+                  onInk
+                  size={148}
+                  stroke={12}
+                  label={`Mentioned in ${pct(verdict.counted.overall.mentionRate)} of AI answers`}
+                >
+                  <span className="text-4xl font-semibold text-white">
+                    <CountUp value={Math.round(verdict.counted.overall.mentionRate * 100)} format={(n) => `${Math.round(n)}%`} />
+                  </span>
+                  <span className="text-xs text-white/60">mention rate</span>
+                </ScoreRing>
+                <div className="flex min-w-0 flex-col gap-2">
+                  <p className="text-xl font-semibold leading-snug text-white">
+                    Named in {pct(verdict.counted.overall.mentionRate)} of AI answers
+                  </p>
+                  <p className="text-sm text-white/65">
+                    Across {verdict.counted.overall.observations.toLocaleString()} answers from{' '}
+                    {plural(verdict.counted.bySurface.length, 'engine')}. Cited as a source in {pct(verdict.counted.overall.citationRate)}.
+                  </p>
+                  <div className="mt-1 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-white/85">
+                      <span className="text-[#86d4a8]">▲</span> {plural(winning.length, 'question')} won
+                    </span>
+                    <span className="rounded-full bg-white/10 px-2.5 py-1 text-white/85">
+                      <span className="text-[#f2a19a]">▼</span> {plural(losing.length, 'question')} lost to rivals
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {surfaces.length > 0 ? (
+                <div className="mt-auto flex flex-col gap-2.5 border-t border-white/10 pt-4">
+                  {surfaces.slice(0, 4).map((s, i) => (
+                    <div key={s.surface} className="grid grid-cols-[6.5rem_1fr_2.75rem] items-center gap-3 text-sm">
+                      <span className="truncate text-white/70">{SURFACE_LABEL[s.surface] ?? s.surface}</span>
+                      <Meter value={s.mentionRate * 100} onInk tone="neutral" index={i + 2} label={`${SURFACE_LABEL[s.surface] ?? s.surface}: ${pct(s.mentionRate)}`} />
+                      <span className="g-num text-right font-medium text-white">{pct(s.mentionRate)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              Your first report appears here once the Day-1 pipeline finishes and releases it.
-            </p>
+            <div className="flex flex-1 flex-col justify-center gap-2">
+              <p className="text-xl font-semibold text-white">Not measured yet</p>
+              <p className="max-w-sm text-sm text-white/65">
+                Your first answer-engine audit runs in the Day-1 pipeline. We ask ChatGPT, Perplexity and Gemini the questions your buyers ask, and show how often you come up.
+              </p>
+            </div>
           )}
-          <Link href={`${base}/reports`} className="text-sm font-medium text-primary hover:underline">
-            View all reports →
-          </Link>
-        </CardContent>
-      </Card>
+        </Tile>
 
-      {/* 5) KPI tiles per module */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {tiles.map((tile) => (
-          <Link key={tile.label} href={tile.href} className="block">
-            <Card className="h-full transition-colors hover:bg-muted/30">
-              <CardContent className="flex flex-col gap-1 pt-5">
-                <p className="text-xs font-medium text-muted-foreground">{tile.label}</p>
-                <p className={`text-xl font-semibold ${tile.valueClass ?? ''}`}>
-                  {tile.value ?? 'Not yet audited'}
-                </p>
-                <p className="text-xs text-muted-foreground">{tile.note}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+        {/* Technical health */}
+        <Tile href={`${base}/performance/technical`} index={1} ariaLabel="Technical health details">
+          <TileHeader icon={Gauge} eyebrow="Technical health" linkHint />
+          {snapshot.tech ? (
+            <div className="flex flex-1 flex-col justify-between gap-3">
+              <div className="flex items-center gap-4">
+                <ScoreRing value={techScore} tone={techTone} size={72} stroke={7} index={1} label={`Technical score ${techScore ?? 'not available'} out of 100`}>
+                  <span className={`text-xl font-semibold ${TONE_TEXT[techTone]}`}>
+                    {techScore !== null ? <CountUp value={techScore} /> : '—'}
+                  </span>
+                </ScoreRing>
+                <div className="flex flex-col gap-1">
+                  <StatusChip tone={techTone}>{techScore === null ? 'No score' : techTone === 'good' ? 'Healthy' : techTone === 'watch' ? 'Needs work' : 'At risk'}</StatusChip>
+                  <p className="text-xs text-muted-foreground">{failing.length === 0 ? 'All checks pass' : `${plural(failing.length, 'check')} failing`}</p>
+                </div>
+              </div>
+              <div className="flex items-end justify-between gap-2">
+                <span title="Change since the last audit"><DeltaChip change={techChange} /></span>
+                <Sparkline points={scoredTrend} tone={techTone} width={96} height={32} label={`Technical score trend over ${scoredTrend.length} audits`} />
+              </div>
+            </div>
+          ) : (
+            <NotYet text="Runs automatically in your Day-1 pipeline." />
+          )}
+        </Tile>
+
+        {/* Open priorities */}
+        <Tile href={`${base}/reports`} index={2} ariaLabel="Priorities">
+          <TileHeader icon={Lightbulb} eyebrow="Open priorities" linkHint />
+          {snapshot.gapRun ? (
+            <div className="flex flex-1 flex-col gap-2">
+              <p className={`text-4xl font-semibold ${openRecs.length > 0 ? 'text-warning' : 'text-success'}`}>
+                <CountUp value={openRecs.length} />
+              </p>
+              <p className="line-clamp-2 text-sm text-muted-foreground">
+                {openRecs.length > 0 ? `Next: ${openRecs[0].title}` : 'Every priority is done or dismissed.'}
+              </p>
+              {doneRecs.length > 0 ? <p className="mt-auto text-xs text-success">{plural(doneRecs.length, 'priority', 'priorities')} completed</p> : null}
+            </div>
+          ) : (
+            <NotYet text="Priorities appear once your first audits finish." />
+          )}
+        </Tile>
+
+        {/* Social cadence */}
+        <Tile href={`${base}/performance/social`} index={3} ariaLabel="Social activity details">
+          <TileHeader icon={Share2} eyebrow="Social cadence" linkHint />
+          {snapshot.social && platforms.length > 0 ? (
+            <div className="flex flex-1 flex-col gap-3">
+              <p className="text-sm">
+                <span className="g-num text-2xl font-semibold">{activePlatforms}</span>
+                <span className="text-muted-foreground"> of {platforms.length} channels active</span>
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {platforms.slice(0, 4).map((p) => (
+                  <li key={p.platform} className="flex items-center justify-between gap-2 text-sm">
+                    <span>{platformName(p.platform)}</span>
+                    <StatusChip tone={PATTERN_TONE[p.pattern]}>{PATTERN_WORD[p.pattern]}</StatusChip>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <NotYet text="No social pull has completed yet." />
+          )}
+        </Tile>
+
+        {/* Competitors */}
+        <Tile href={`${base}/competitors`} index={4} ariaLabel="Competitor comparison">
+          <TileHeader icon={Swords} eyebrow="Versus rivals" linkHint />
+          {ownSeo !== null && bestRival ? (
+            <div className="flex flex-1 flex-col justify-center gap-3">
+              <CompareRow name="You" value={ownSeo} strong index={1} />
+              <CompareRow name={bestRival.name} value={bestRival.profile?.seoScore ?? 0} index={2} />
+              <p className="text-xs text-muted-foreground">
+                {ownSeo >= (bestRival.profile?.seoScore ?? 0)
+                  ? `Leading your strongest rival on homepage SEO.`
+                  : `${(bestRival.profile?.seoScore ?? 0) - ownSeo} points behind your strongest rival.`}
+              </p>
+            </div>
+          ) : (
+            <NotYet text={snapshot.gap ? 'Comparison appears once rival profiles are fetched.' : 'No rivals tracked yet.'} />
+          )}
+        </Tile>
+
+        {/* Needs attention */}
+        <Tile index={5} className="md:col-span-3 p-0">
+          <div className="px-5 pt-5">
+            <TileHeader
+              icon={TriangleAlert}
+              eyebrow="Needs attention"
+              right={attention.length > 0 ? <span className="text-xs text-muted-foreground">Worst first</span> : null}
+            />
+          </div>
+          {attention.length === 0 ? (
+            <div className="flex items-center gap-3 px-5 pb-5 text-sm text-muted-foreground">
+              <CircleCheck className="size-5 text-success" />
+              Nothing urgent. Every source is healthy or still waiting on its first run.
+            </div>
+          ) : (
+            <ul className="flex flex-col pb-2">
+              {attention.map((item) => (
+                <li key={item.source}>
+                  <Link href={item.href} className="g-row-link flex items-center gap-3 px-5 py-3">
+                    <span
+                      className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+                      style={{ background: item.tone === 'bad' ? 'var(--danger-soft)' : 'var(--warning-soft)' }}
+                    >
+                      <item.icon className={`size-4 ${TONE_TEXT[item.tone]}`} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-muted-foreground">{item.source}</span>
+                      <span className="block truncate text-sm">{item.text}</span>
+                    </span>
+                    <ArrowRight className="g-row-arrow size-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* What's working */}
+        <Tile index={6} className="md:row-span-2">
+          <TileHeader icon={Trophy} eyebrow="What's working" />
+          {wins.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Wins show up here as your audits complete.</p>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {wins.slice(0, 6).map((w) => (
+                <li key={w} className="flex items-start gap-2.5 text-sm">
+                  <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" />
+                  <span>{w}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Latest report */}
+        <Tile href={`${base}/reports`} index={7} className="md:col-span-3" ariaLabel="Reports">
+          <TileHeader
+            icon={FileText}
+            eyebrow="Latest report"
+            linkHint
+            title={snapshot.report ? snapshot.report.title : undefined}
+          />
+          {snapshot.report ? (
+            <div className="flex flex-col gap-2">
+              <p className="line-clamp-3 text-sm text-muted-foreground">{snapshot.report.executiveSummary}</p>
+              <p className="text-xs text-muted-foreground">
+                {snapshot.report.kind === 'DAY1' ? 'Day-1 baseline' : 'Monthly report'} · released {relativeDate(snapshot.report.releasedAt ?? snapshot.report.createdAt)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Your first report appears here once the Day-1 pipeline finishes and your lead releases it.</p>
+          )}
+        </Tile>
       </div>
+
+      {/* Search ranking movement: omits itself when there is nothing to show */}
+      <RankHistory accessToken={accessToken} clientId={clientId} projectId={projectId} />
+    </PortalPage>
+  );
+}
+
+function NotYet({ text }: { text: string }) {
+  return (
+    <div className="flex flex-1 flex-col justify-center gap-1">
+      <p className="text-base font-semibold text-muted-foreground">Not measured yet</p>
+      <p className="text-xs text-muted-foreground">{text}</p>
+    </div>
+  );
+}
+
+function CompareRow({ name, value, strong = false, index = 0 }: { name: string; value: number; strong?: boolean; index?: number }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-baseline justify-between gap-2 text-sm">
+        <span className={strong ? 'font-semibold' : 'truncate text-muted-foreground'}>{name}</span>
+        <span className="g-num font-medium">{value}</span>
+      </div>
+      <Meter value={value} color={strong ? 'var(--g-ink)' : 'var(--g-ink-muted)'} index={index} height={5} label={`${name}: ${value} of 100`} />
     </div>
   );
 }

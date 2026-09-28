@@ -8,6 +8,7 @@ import { listMembers } from '@/lib/team-api';
 import type { GoogleStatus } from '@/types/google';
 import type { Project } from '@/types/project';
 import type { TeamMembers } from '@/types/team';
+import { PortalLoading } from '@/components/portal/states';
 
 /** Day-1 stages in execution order (mirrors the backend pipeline). */
 const DAY1_STAGE_ORDER = [
@@ -27,15 +28,15 @@ function stageLabel(stage: string): string {
 }
 
 function stageDot(status: string): string {
-  if (status === 'completed') return 'bg-green-500';
-  if (status === 'failed') return 'bg-red-500';
+  if (status === 'completed') return 'bg-success';
+  if (status === 'failed') return 'bg-danger';
   if (status === 'skipped') return 'bg-muted-foreground/40';
-  if (status === 'running') return 'bg-amber-500';
+  if (status === 'running') return 'bg-warning';
   return 'bg-muted-foreground/20';
 }
 
 function connectionDot(connected: boolean): string {
-  return connected ? 'bg-green-500' : 'bg-muted-foreground/40';
+  return connected ? 'bg-success' : 'bg-muted-foreground/40';
 }
 
 function formatDate(raw: string | null): string {
@@ -100,11 +101,7 @@ export function SettingsTab({
   }, [accessToken, clientId, project.id]);
 
   if (!google && !googleError) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading settings…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading settings" />;
   }
 
   return (

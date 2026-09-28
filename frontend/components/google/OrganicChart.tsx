@@ -59,7 +59,7 @@ export function DeltaArrow({
   const pct = Math.abs((raw / previous) * 100);
   const label = `${raw > 0 ? '+' : ''}${pct >= 100 ? Math.round(pct) : Math.round(pct * 10) / 10}%`;
   return (
-    <span className={improved ? 'font-medium text-green-600' : regressed ? 'font-medium text-red-600' : 'text-muted-foreground'}>
+    <span className={improved ? 'font-medium text-success' : regressed ? 'font-medium text-danger' : 'text-muted-foreground'}>
       {improved ? '▲' : regressed ? '▼' : '●'} {label}
     </span>
   );

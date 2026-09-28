@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
 import { useClientProject } from '@/components/client/use-client-project';
 import { ComingSoon } from '@/components/client/ComingSoon';
+import { PortalLoading } from '@/components/portal/states';
 
 /** A project tab that isn't built yet: resolves the project, then a placeholder. */
 export function ProjectTabPage({
@@ -20,13 +21,7 @@ export function ProjectTabPage({
   const { user, accessToken } = useAuth();
   const project = useClientProject(accessToken, user?.clientId ?? '', projectId);
 
-  if (project === undefined) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
+  if (project === undefined) return <PortalLoading />;
 
   if (project === null) {
     return (

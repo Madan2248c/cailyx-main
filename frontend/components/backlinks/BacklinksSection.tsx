@@ -13,6 +13,7 @@ import {
   type ReferringDomainRow,
   type TopPageRow,
 } from '@/lib/dataforseo-api';
+import { PortalLoading } from '@/components/portal/states';
 
 const TOXIC_SPAM_SCORE = 60;
 const ROW_LIMIT = 20;
@@ -37,9 +38,9 @@ function shortUrl(url: string): string {
 
 function spamTone(score: number): string {
   if (!Number.isFinite(score)) return 'text-muted-foreground';
-  if (score >= TOXIC_SPAM_SCORE) return 'text-red-600';
-  if (score >= 30) return 'text-amber-600';
-  return 'text-green-600';
+  if (score >= TOXIC_SPAM_SCORE) return 'text-danger';
+  if (score >= 30) return 'text-warning';
+  return 'text-success';
 }
 
 interface Loaded {
@@ -96,11 +97,7 @@ export function BacklinksSection({
   }, [accessToken, clientId, projectId]);
 
   if (state === 'loading') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading backlinks…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading backlinks" />;
   }
 
   if (state === 'error') {
@@ -203,21 +200,21 @@ export function BacklinksSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">New backlinks</p>
-            <p className="text-4xl font-semibold text-green-600">{newBacklinks}</p>
+            <p className="text-4xl font-semibold text-success">{newBacklinks}</p>
             <p className="text-xs text-muted-foreground">gained since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Lost backlinks</p>
-            <p className="text-4xl font-semibold text-red-600">{lostBacklinks}</p>
+            <p className="text-4xl font-semibold text-danger">{lostBacklinks}</p>
             <p className="text-xs text-muted-foreground">gone since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Broken</p>
-            <p className="text-4xl font-semibold text-amber-600">{broken}</p>
+            <p className="text-4xl font-semibold text-warning">{broken}</p>
             <p className="text-xs text-muted-foreground">flagged links to reclaim</p>
           </CardContent>
         </Card>

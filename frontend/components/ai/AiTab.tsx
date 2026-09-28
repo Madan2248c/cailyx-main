@@ -1,15 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { CircleCheck, Layers, MessageSquareQuote, Radar, Sparkles, Swords, Target, TriangleAlert } from 'lucide-react';
+import { HeadToHead, Meter, ScoreRing, StackedBar, type Segment } from '@/components/portal/charts';
+import { MetaDot, PageHeader, PortalPage, Tile, TileHeader } from '@/components/portal/layout';
+import { CountUp } from '@/components/portal/motion';
+import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
+import { formatDate, pct, plural, rateTone, TONE_TEXT } from '@/components/portal/tone';
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import type { AeoVerdict, Stance } from '@/types/aeo';
 import { STANCE_LABEL, SURFACE_LABEL } from '@/types/aeo';
-
-function pct(rate: number): string {
-  return `${Math.round(rate * 100)}%`;
-}
 
 const STANCE_ORDER: Stance[] = [
   'recommended_primary',
@@ -18,6 +18,29 @@ const STANCE_ORDER: Stance[] = [
   'mentioned_negative',
   'absent',
 ];
+
+/** Best to worst, dark-to-light within each meaning, so the bar reads left to right. */
+const STANCE_COLOR: Record<Stance, string> = {
+  recommended_primary: 'var(--success)',
+  recommended_alternative: 'color-mix(in oklab, var(--success) 55%, white)',
+  mentioned_neutral: 'var(--g-ink-muted)',
+  mentioned_negative: 'var(--danger)',
+  absent: 'var(--g-line-strong)',
+};
+
+const FUNNEL_LABEL: Record<string, string> = {
+  awareness: 'Awareness',
+  consideration: 'Consideration',
+  decision: 'Decision',
+  retention: 'Retention',
+  tofu: 'Top of funnel',
+  mofu: 'Middle of funnel',
+  bofu: 'Bottom of funnel',
+};
+
+function engineName(surface: string): string {
+  return SURFACE_LABEL[surface] ?? surface;
+}
 
 export function AiTab({
   accessToken,
@@ -68,209 +91,267 @@ export function AiTab({
     };
   }, [accessToken, clientId, projectId]);
 
-  if (state === 'loading') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading AI visibility…</p>
-      </div>
-    );
-  }
-
-  if (state === 'error') {
-    return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-8">
-        <p className="text-sm text-destructive">{error}</p>
-      </div>
-    );
-  }
+  if (state === 'loading') return <PortalLoading label="Loading AI visibility" />;
+  if (state === 'error') return <ErrorState message={error ?? 'Failed to load the audit'} />;
 
   if (state === 'empty' || !verdict) {
     return (
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6">
-        <h1 className="text-2xl font-semibold">AI visibility</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{projectName}</p>
-        <Card className="mt-4">
-          <CardContent className="pt-6">
-            <p className="text-sm text-muted-foreground">
-              No completed answer-engine audit yet. One runs automatically as part of your Day-1 pipeline.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <PortalPage>
+        <PageHeader eyebrow="Performance" title="AI visibility" meta={<span>{projectName}</span>} />
+        <Tile index={1}>
+          <EmptyState
+            title="Not measured yet"
+            body="Your first answer-engine audit runs in the Day-1 pipeline. We ask ChatGPT, Perplexity and Gemini the questions your buyers ask, then show how often they name you."
+          />
+        </Tile>
+      </PortalPage>
     );
   }
 
   const overall = verdict.counted.overall;
-  const judgedTotal = verdict.judged
-    ? Object.values(verdict.judged.stanceCounts).reduce((n, c) => n + c, 0)
-    : 0;
+  const judged = verdict.judged;
+  const judgedTotal = judged ? Object.values(judged.stanceCounts).reduce((n, c) => n + c, 0) : 0;
+  const firstPicks = judged?.stanceCounts.recommended_primary ?? 0;
+  const engines = [...verdict.counted.bySurface].sort((a, b) => b.mentionRate - a.mentionRate);
+  const bestEngine = engines[0] ?? null;
+  const rivals = verdict.counted.competitorStanding.slice(0, 8);
+  const h2hScale = Math.max(1, ...rivals.map((r) => Math.max(r.timesAhead, r.timesBehind)));
+  const funnel = verdict.counted.byFunnelStage;
+
+  const segments: Segment[] = STANCE_ORDER.map((stance) => ({
+    key: stance,
+    label: STANCE_LABEL[stance],
+    value: judged?.stanceCounts[stance] ?? 0,
+    color: STANCE_COLOR[stance],
+  }));
+
+  const summary =
+    `AI engines name ${projectName} in ${pct(overall.mentionRate)} of the answers we tested` +
+    (firstPicks > 0 ? `, and recommend you first ${plural(firstPicks, 'time')}.` : '.') +
+    (bestEngine && engines.length > 1 ? ` ${engineName(bestEngine.surface)} knows you best.` : '');
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
-      <div>
-        <h1 className="text-2xl font-semibold">AI visibility</h1>
-        <p className="text-sm text-muted-foreground">
-          {projectName}
-          {auditDate ? ` · audited ${new Date(auditDate).toLocaleDateString()}` : ''}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Mention rate</p>
-            <p className="text-4xl font-semibold">{pct(overall.mentionRate)}</p>
-            <p className="text-xs text-muted-foreground">named in answers</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Citation rate</p>
-            <p className="text-4xl font-semibold">{pct(overall.citationRate)}</p>
-            <p className="text-xs text-muted-foreground">linked as a source</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Answers judged</p>
-            <p className="text-4xl font-semibold">{overall.observations.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">across {verdict.counted.bySurface.length} engines</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-5">
-            <p className="text-xs font-medium text-muted-foreground">Recommended first</p>
-            <p className="text-4xl font-semibold">
-              {verdict.judged ? (verdict.judged.stanceCounts.recommended_primary ?? 0) : '—'}
-            </p>
-            <p className="text-xs text-muted-foreground">times as the top pick</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {verdict.headlines.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Headlines</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1.5">
-            {verdict.headlines.map((headline) => (
-              <p key={headline.slice(0, 48)} className="text-sm">
-                {headline}
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">By answer engine</CardTitle>
-            <CardDescription>Mention and citation rates per surface</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {verdict.counted.bySurface.map((slice) => (
-              <div key={slice.surface} className="flex flex-col gap-1">
-                <div className="flex items-baseline justify-between text-sm">
-                  <p className="font-medium">{SURFACE_LABEL[slice.surface] ?? slice.surface}</p>
-                  <p className="text-muted-foreground">
-                    {pct(slice.mentionRate)} mentioned · {pct(slice.citationRate)} cited
-                  </p>
-                </div>
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round(slice.mentionRate * 100)}%` }} />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">How engines position you</CardTitle>
-            <CardDescription>Stance of every judged answer</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2">
-            {!verdict.judged || judgedTotal === 0 ? (
-              <p className="text-sm text-muted-foreground">No stance judgments in this audit.</p>
-            ) : (
-              STANCE_ORDER.map((stance) => {
-                const count = verdict.judged?.stanceCounts[stance] ?? 0;
-                return (
-                  <div key={stance} className="flex items-center gap-2 text-sm">
-                    <p className="w-44 shrink-0 text-muted-foreground">{STANCE_LABEL[stance]}</p>
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary"
-                        style={{ width: `${Math.round((count / judgedTotal) * 100)}%` }}
-                      />
-                    </div>
-                    <p className="w-8 shrink-0 text-right font-medium">{count}</p>
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Against rivals</CardTitle>
-            <CardDescription>Head-to-head across judged answers</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col p-0">
-            {verdict.counted.competitorStanding.length === 0 ? (
-              <p className="px-6 py-4 text-sm text-muted-foreground">No rival co-mentions in this audit.</p>
-            ) : (
-              verdict.counted.competitorStanding.slice(0, 8).map((row, i) => (
-                <div
-                  key={row.name}
-                  className={`flex items-center gap-3 px-6 py-2.5 text-sm ${i > 0 ? 'border-t border-border' : ''}`}
-                >
-                  <p className="min-w-0 flex-1 truncate font-medium">{row.name}</p>
-                  <p className="shrink-0 text-muted-foreground">
-                    <span className="font-medium text-green-600">{row.timesAhead}</span> ahead ·{' '}
-                    <span className="font-medium text-red-600">{row.timesBehind}</span> behind
-                    {row.coMentions > 0 ? <span> · {row.coMentions} tied</span> : null}
-                  </p>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Where you lose</CardTitle>
-            <CardDescription>Prompts that recommend a rival instead</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-2.5">
-            {!verdict.judged || verdict.judged.losingPrompts.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No losing prompts in this audit.</p>
-            ) : (
-              verdict.judged.losingPrompts.slice(0, 5).map((row) => (
-                <div key={row.observationId} className="flex flex-col gap-0.5 text-sm">
-                  <p className="truncate font-medium" title={row.prompt}>
-                    {row.prompt}
-                  </p>
-                  <p className="text-muted-foreground">
-                    Loses to {row.losesTo.join(', ')}
-                    {row.losesTo.length === 0 ? 'an unnamed rival' : ''}
-                  </p>
-                </div>
-              ))
-            )}
-            {verdict.judged && verdict.judged.winningPrompts.length > 0 ? (
-              <div className="flex items-center gap-2 border-t border-border pt-2.5 text-sm">
-                <Badge variant="secondary">{verdict.judged.winningPrompts.length} wins</Badge>
-                <p className="truncate text-muted-foreground">{verdict.judged.winningPrompts[0].prompt}</p>
-              </div>
+    <PortalPage>
+      <PageHeader
+        eyebrow="Performance"
+        title="AI visibility"
+        meta={
+          <>
+            <span>{projectName}</span>
+            {auditDate ? (
+              <>
+                <MetaDot />
+                <span>Measured {formatDate(auditDate)}</span>
+              </>
             ) : null}
-          </CardContent>
-        </Card>
+            <MetaDot />
+            <span>
+              {overall.observations.toLocaleString()} answers from {plural(verdict.counted.bySurface.length, 'engine')}
+            </span>
+          </>
+        }
+        summary={summary}
+      />
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        {/* Hero: the two rates that define visibility */}
+        <Tile ink index={0} className="md:col-span-2 gap-5 p-6">
+          <TileHeader icon={Sparkles} eyebrow="How often AI names you" />
+          <div className="grid grid-cols-2 gap-6">
+            <RateRing label="Mentioned" hint="named in the answer" rate={overall.mentionRate} index={0} />
+            <RateRing label="Cited" hint="linked as a source" rate={overall.citationRate} index={1} />
+          </div>
+          <p className="mt-auto border-t border-white/10 pt-4 text-sm text-white/65">
+            Rates, not positions: AI answers change from run to run, so we measure how often you appear across many answers rather than a single ranking.
+          </p>
+        </Tile>
+
+        <Tile index={1}>
+          <TileHeader icon={Target} eyebrow="Recommended first" />
+          <p className="text-4xl font-semibold text-success">
+            <CountUp value={firstPicks} />
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {judgedTotal > 0 ? `of ${judgedTotal.toLocaleString()} judged answers put you first` : 'No stance judgments in this audit'}
+          </p>
+          {judgedTotal > 0 ? (
+            <div className="mt-auto pt-3">
+              <Meter value={firstPicks} max={judgedTotal} tone="good" index={2} label={`${firstPicks} of ${judgedTotal} answers`} />
+            </div>
+          ) : null}
+        </Tile>
+
+        <Tile index={2}>
+          <TileHeader icon={Radar} eyebrow="Unprompted" />
+          {verdict.counted.unbranded ? (
+            <>
+              <p className={`text-4xl font-semibold ${TONE_TEXT[rateTone(verdict.counted.unbranded.mentionRate)]}`}>
+                <CountUp value={Math.round(verdict.counted.unbranded.mentionRate * 100)} format={(n) => `${Math.round(n)}%`} />
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                of questions that don&apos;t name you still bring you up
+                {verdict.counted.branded ? `, versus ${pct(verdict.counted.branded.mentionRate)} when buyers ask by name` : ''}.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">This audit didn&apos;t split branded and unbranded questions.</p>
+          )}
+        </Tile>
+
+        {/* Engines */}
+        <Tile index={3} className="md:col-span-2">
+          <TileHeader icon={Layers} eyebrow="By answer engine" />
+          <ul className="flex flex-col gap-3.5">
+            {engines.map((slice, i) => (
+              <li key={slice.surface} className="flex flex-col gap-1.5">
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="font-medium">{engineName(slice.surface)}</span>
+                  <span className="g-num text-muted-foreground">
+                    <span className="font-medium text-foreground">{pct(slice.mentionRate)}</span> mentioned · {pct(slice.citationRate)} cited
+                  </span>
+                </div>
+                <Meter value={slice.mentionRate * 100} tone={rateTone(slice.mentionRate)} index={i} label={`${engineName(slice.surface)} mention rate ${pct(slice.mentionRate)}`} />
+              </li>
+            ))}
+          </ul>
+        </Tile>
+
+        {/* Stance */}
+        <Tile index={4} className="md:col-span-2">
+          <TileHeader icon={MessageSquareQuote} eyebrow="How AI talks about you" />
+          {judged && judgedTotal > 0 ? (
+            <StackedBar segments={segments} label={`Stance across ${judgedTotal} judged answers`} />
+          ) : (
+            <p className="text-sm text-muted-foreground">No stance judgments in this audit.</p>
+          )}
+        </Tile>
+
+        {/* Rivals */}
+        <Tile index={5} className="md:col-span-2">
+          <TileHeader
+            icon={Swords}
+            eyebrow="Head to head"
+            right={
+              rivals.length > 0 ? (
+                <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-danger" />They win</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-full bg-success" />You win</span>
+                </span>
+              ) : null
+            }
+          />
+          {rivals.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No rivals appeared next to you in this audit.</p>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {rivals.map((row, i) => (
+                <li key={row.name} className="grid grid-cols-[minmax(0,7rem)_2rem_1fr_2rem] items-center gap-2 text-sm">
+                  <span className="truncate font-medium" title={row.name}>{row.name}</span>
+                  <span className="g-num text-right text-danger">{row.timesBehind}</span>
+                  <HeadToHead
+                    ahead={row.timesAhead}
+                    behind={row.timesBehind}
+                    scale={h2hScale}
+                    index={i}
+                    label={`Versus ${row.name}: you win ${row.timesAhead}, they win ${row.timesBehind}`}
+                  />
+                  <span className="g-num text-success">{row.timesAhead}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Funnel */}
+        <Tile index={6} className="md:col-span-2">
+          <TileHeader icon={Target} eyebrow="Across the buyer journey" />
+          {funnel.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No funnel-stage breakdown in this audit.</p>
+          ) : (
+            <ul className="flex flex-col gap-3.5">
+              {funnel.map((stage, i) => (
+                <li key={stage.funnelStage} className="flex flex-col gap-1.5">
+                  <div className="flex items-baseline justify-between text-sm">
+                    <span className="font-medium">{FUNNEL_LABEL[stage.funnelStage.toLowerCase()] ?? stage.funnelStage}</span>
+                    <span className="g-num text-muted-foreground">
+                      <span className="font-medium text-foreground">{pct(stage.mentionRate)}</span> of {stage.observations}
+                    </span>
+                  </div>
+                  <Meter value={stage.mentionRate * 100} tone={rateTone(stage.mentionRate)} index={i} label={`${stage.funnelStage}: ${pct(stage.mentionRate)}`} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {/* Where you lose / win */}
+        <Tile index={7} className="md:col-span-2 p-0">
+          <div className="px-5 pt-5">
+            <TileHeader icon={TriangleAlert} eyebrow="Questions you lose" right={<span className="text-xs text-muted-foreground">{judged?.losingPrompts.length ?? 0} total</span>} />
+          </div>
+          {!judged || judged.losingPrompts.length === 0 ? (
+            <p className="px-5 pb-5 text-sm text-muted-foreground">No questions lost to a rival in this audit.</p>
+          ) : (
+            <ul className="flex flex-col pb-2">
+              {judged.losingPrompts.slice(0, 6).map((row) => (
+                <li key={row.observationId} className="flex flex-col gap-0.5 border-t border-border px-5 py-2.5 first:border-t-0">
+                  <p className="truncate text-sm font-medium" title={row.prompt}>“{row.prompt}”</p>
+                  <p className="text-xs text-muted-foreground">
+                    AI recommends <span className="text-danger">{row.losesTo.length > 0 ? row.losesTo.join(', ') : 'a rival'}</span> instead
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        <Tile index={8} className="md:col-span-2 p-0">
+          <div className="px-5 pt-5">
+            <TileHeader icon={CircleCheck} eyebrow="Questions you win" right={<span className="text-xs text-muted-foreground">{judged?.winningPrompts.length ?? 0} total</span>} />
+          </div>
+          {!judged || judged.winningPrompts.length === 0 ? (
+            <p className="px-5 pb-5 text-sm text-muted-foreground">No first-place recommendations yet. This is where progress shows up first.</p>
+          ) : (
+            <ul className="flex flex-col pb-2">
+              {judged.winningPrompts.slice(0, 6).map((row) => (
+                <li key={row.observationId} className="flex items-center gap-2.5 border-t border-border px-5 py-2.5 text-sm first:border-t-0">
+                  <CircleCheck className="size-4 shrink-0 text-success" />
+                  <span className="truncate" title={row.prompt}>“{row.prompt}”</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Tile>
+
+        {verdict.headlines.length > 0 ? (
+          <Tile index={9} className="md:col-span-4">
+            <TileHeader icon={Sparkles} eyebrow="In short" />
+            <ul className="grid gap-3 md:grid-cols-2">
+              {verdict.headlines.map((headline) => (
+                <li key={headline.slice(0, 48)} className="flex gap-3 text-sm">
+                  <span className="mt-2 h-px w-4 shrink-0 bg-foreground/40" />
+                  <span>{headline}</span>
+                </li>
+              ))}
+            </ul>
+          </Tile>
+        ) : null}
+      </div>
+    </PortalPage>
+  );
+}
+
+function RateRing({ label, hint, rate, index }: { label: string; hint: string; rate: number; index: number }) {
+  return (
+    <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:text-left">
+      <ScoreRing value={Math.round(rate * 100)} tone="neutral" onInk size={104} stroke={9} index={index} label={`${label} in ${pct(rate)} of answers`}>
+        <span className="text-3xl font-semibold text-white">
+          <CountUp value={Math.round(rate * 100)} format={(n) => `${Math.round(n)}%`} />
+        </span>
+      </ScoreRing>
+      <div className="flex flex-col">
+        <span className="text-base font-semibold text-white">{label}</span>
+        <span className="text-sm text-white/60">{hint}</span>
       </div>
     </div>
   );

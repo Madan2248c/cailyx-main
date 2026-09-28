@@ -15,6 +15,7 @@ import type {
   GapRow,
   ReviewRating,
 } from '@/types/competitor';
+import { PortalLoading } from '@/components/portal/states';
 
 function asStringArray(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -39,9 +40,9 @@ function seoScoreOf(row: GapRow): number | null {
 
 function scoreTone(score: number | null): { text: string; bar: string } {
   if (score === null) return { text: 'text-muted-foreground', bar: 'bg-muted-foreground' };
-  if (score >= 80) return { text: 'text-green-600', bar: 'bg-green-500' };
-  if (score >= 50) return { text: 'text-amber-600', bar: 'bg-amber-500' };
-  return { text: 'text-red-600', bar: 'bg-red-500' };
+  if (score >= 80) return { text: 'text-success', bar: 'bg-success' };
+  if (score >= 50) return { text: 'text-warning', bar: 'bg-warning' };
+  return { text: 'text-danger', bar: 'bg-danger' };
 }
 
 function formatRating(rating: ReviewRating | null): string {
@@ -164,11 +165,7 @@ export function CompetitorsTab({
   }
 
   if (state === 'loading') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading competitors…</p>
-      </div>
-    );
+    return <PortalLoading label="Loading competitors" />;
   }
 
   if (state === 'error') {
@@ -299,9 +296,9 @@ export function CompetitorsTab({
                 <p className="text-4xl font-semibold">
                   {hasAeoSignal ? (
                     <>
-                      <span className="text-green-600">{rivalsYouBeat.length}</span>
+                      <span className="text-success">{rivalsYouBeat.length}</span>
                       <span className="text-base font-normal text-muted-foreground"> ahead · </span>
-                      <span className="text-red-600">{rivalsBeatingYou.length}</span>
+                      <span className="text-danger">{rivalsBeatingYou.length}</span>
                       <span className="text-base font-normal text-muted-foreground"> behind</span>
                     </>
                   ) : (
@@ -483,7 +480,7 @@ function HeadToHeadRow({ row, isOwn = false }: { row: GapRow; isOwn?: boolean })
           <p className="text-muted-foreground">{isOwn ? '—' : 'No AEO data'}</p>
         ) : (
           <p>
-            <span className={standingTone === 'behind' ? 'font-medium text-red-600' : 'font-medium text-green-600'}>
+            <span className={standingTone === 'behind' ? 'font-medium text-danger' : 'font-medium text-success'}>
               {standingTone === 'behind' ? 'Behind' : standingTone === 'ahead' ? 'Ahead' : 'Tied'}
             </span>{' '}
             <span className="text-muted-foreground">
