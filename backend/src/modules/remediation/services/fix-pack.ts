@@ -88,10 +88,12 @@ export function toFixPackJson(project: FixPackProject, fixes: FixPackFixInput[])
 const FENCE = '```';
 
 export function renderFixPackMarkdown(pack: FixPack): string {
+  // No generation timestamp: this file is shared with the client's team, and
+  // the plan is a living list (the JSON form keeps generatedAt for agents).
   const lines: string[] = [
     `# Fix Plan: ${pack.project.name} (${pack.project.domain})`,
     '',
-    `Generated ${pack.generatedAt}. ${pack.fixes.length} fix(es), most severe first.`,
+    `${pack.fixes.length} ${pack.fixes.length === 1 ? 'fix' : 'fixes'}, most severe first.`,
     '',
   ];
   pack.fixes.forEach((f, i) => {
@@ -122,7 +124,9 @@ export function describeAcceptance(check: AcceptanceCheck): string {
     case 'robots-declares-sitemap':
       return 'robots.txt has a "Sitemap:" line.';
     case 'json-ld-has':
-      return `${check.url} has Organization JSON-LD with ${check.fields.join(', ')}.`;
+      return check.fields.length > 0
+        ? `${check.url} has Organization JSON-LD with ${check.fields.join(', ')}.`
+        : `${check.url} has Organization JSON-LD.`;
     case 'page-issue-absent':
       return `${check.url} no longer shows: ${check.issues.join(', ')}.`;
     case 'finding-absent':

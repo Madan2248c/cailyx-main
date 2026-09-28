@@ -181,6 +181,15 @@ export const sitemapHandler: RemediationHandler = {
   },
 };
 
+/** What the client has to supply for an Organization field we couldn't confirm. */
+const ORG_FIELD_HINT: Record<string, string> = {
+  sameAs: 'a list of links to your official profiles (LinkedIn, X, Instagram, YouTube, Crunchbase)',
+  logo: 'the full URL of your logo image',
+  description: 'one plain sentence saying what the company does',
+  name: 'your company name exactly as you use it publicly',
+  url: 'your homepage address',
+};
+
 export const schemaHandler: RemediationHandler = {
   id: 'schema',
   detect(snapshot) {
@@ -228,28 +237,40 @@ export const schemaHandler: RemediationHandler = {
       ];
     }
 
+    // Split what we can generate from confirmed facts from what only the
+    // client knows (e.g. their social profile URLs for sameAs). A block that
+    // adds none of the missing fields is not a fix, so it isn't offered.
+    const fillable = missing.filter((m) => canFill.includes(m as never));
+    const unfillable = missing.filter((m) => !fillable.includes(m));
+    const steps = [`The existing Organization block is missing: ${missing.join(', ')}.`];
+    if (fillable.length > 0) {
+      steps.push(`Copy ${fillable.join(', ')} from the generated block into the existing one (keep one Organization block, not two).`);
+    }
+    for (const field of unfillable) {
+      steps.push(`Add ${field} to the existing block yourself: ${ORG_FIELD_HINT[field] ?? 'we could not confirm this value, so it has to come from you'}.`);
+    }
+    steps.push('Deploy, then use "Check my site now" to confirm.');
+
     return [
       {
         problemKey: 'schema.organization-incomplete',
         target: site,
         fixClass: 'CODE',
-        method: 'GENERATED',
+        method: fillable.length > 0 ? 'GENERATED' : 'INSTRUCTIONS',
         groupKey: 'schema',
         severity: 'LOW',
         effort: 'LOW',
         title: `Complete the Organization structured data (${missing.join(', ')})`,
         evidence: { missingFields: missing, schemaTypes: d['schemaTypes'] },
         sources: [technicalRef(snapshot, 'schema')],
-        artifact: generated.snippet
-          ? { kind: 'json-ld', language: 'html', placement: 'Merge these properties into the existing Organization block', content: generated.snippet }
-          : undefined,
-        artifactError,
-        steps: [
-          `The existing Organization block is missing: ${missing.join(', ')}.`,
-          'Copy those properties from the generated block into the existing one (keep one Organization block, not two).',
-          'Deploy, then use "Check my site now" to confirm.',
-        ],
-        acceptance: { kind: 'json-ld-has', url: site, type: 'Organization', fields: missing.filter((m) => canFill.includes(m as never)) },
+        artifact:
+          generated.snippet && fillable.length > 0
+            ? { kind: 'json-ld', language: 'html', placement: 'Merge these properties into the existing Organization block', content: generated.snippet }
+            : undefined,
+        artifactError: fillable.length > 0 ? artifactError : undefined,
+        steps,
+        // Verify what we could generate; when that's nothing, verify the fields the client adds.
+        acceptance: { kind: 'json-ld-has', url: site, type: 'Organization', fields: fillable.length > 0 ? fillable : missing },
       },
     ];
   },

@@ -72,9 +72,21 @@ export async function syncFixPlan(accessToken: string, clientId: string, project
 }
 
 /** The fix pack as a Markdown file download, for the client's developer. */
-export async function downloadFixPack(accessToken: string, clientId: string, projectId: string, filename: string): Promise<void> {
-  const response = await fetch(`${projectBase(clientId, projectId)}/export?format=md`, { headers: headers(accessToken) });
+/**
+ * Downloads the fix plan for the client's developers: `md` is the full fix
+ * list, `pdf` the one-page overview that goes with it. The file name comes
+ * from the server (named after the site), with `fallbackName` as a backstop.
+ */
+export async function downloadFixPack(
+  accessToken: string,
+  clientId: string,
+  projectId: string,
+  format: 'md' | 'pdf',
+  fallbackName: string,
+): Promise<void> {
+  const response = await fetch(`${projectBase(clientId, projectId)}/export?format=${format}`, { headers: headers(accessToken) });
   if (!response.ok) throw new Error('Could not prepare the download. Please try again.');
+  const filename = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
   const blob = await response.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

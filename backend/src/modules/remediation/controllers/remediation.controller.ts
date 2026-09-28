@@ -9,6 +9,7 @@ import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { FixClass, FixStatus, Role } from '../../../generated/prisma/enums.js';
+import { BrowserClientService } from '../../fetcher/clients/browser-client.service.js';
 import { ClientAppliedDto, DraftSharedDto, FixDecisionDto, SetFixStatusDto } from '../dto/remediation.dto.js';
 import { RemediationDraftService } from '../services/remediation-draft.service.js';
 import { RemediationSyncService } from '../services/remediation-sync.service.js';
@@ -28,6 +29,7 @@ export class RemediationController {
   constructor(
     private readonly remediation: RemediationService,
     private readonly syncer: RemediationSyncService,
+    private readonly browser: BrowserClientService,
   ) {}
 
   /** POST …/sync — turn the latest audit findings into fix specs. Deterministic, no LLM, no paid call. 409 when no audit has completed. */
@@ -65,7 +67,11 @@ export class RemediationController {
     return this.remediation.summary(clientId, projectId);
   }
 
-  /** GET …/export?format=md|json — the fix pack for a developer, agency or agent. */
+  /**
+   * GET …/export?format=md|json|pdf|html. The fix pack for a developer,
+   * agency or agent (md/json), or its one-page overview (pdf, or the html it
+   * is printed from).
+   */
   @Get('export')
   @RequirePermission('view_projects')
   async export(
@@ -75,6 +81,19 @@ export class RemediationController {
     @CurrentUser() user: AccessTokenPayload,
     @Res() res: Response,
   ) {
+    if (format === 'pdf' || format === 'html') {
+      const brief = await this.remediation.exportFixBriefHtml(clientId, projectId, user);
+      if (format === 'html') {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(brief.html);
+        return;
+      }
+      const pdf = await this.browser.printPdf(brief.html);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${brief.fileName}"`);
+      res.send(pdf);
+      return;
+    }
     const fmt = format === 'json' ? 'json' : 'md';
     const pack = await this.remediation.exportFixPack(clientId, projectId, fmt, user);
     if (fmt === 'json') {
@@ -82,7 +101,7 @@ export class RemediationController {
       return;
     }
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="fix-plan-${projectId}.md"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${await this.remediation.fixPackFileName(clientId, projectId)}"`);
     res.send(pack);
   }
 }

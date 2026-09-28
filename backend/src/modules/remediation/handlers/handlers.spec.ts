@@ -76,6 +76,16 @@ describe('schema handler', () => {
     expect(d.acceptance).toMatchObject({ fields: ['sameAs'] });
   });
 
+  it('when nothing missing can be generated, no block is offered and the client is told what to add', () => {
+    const s = snapshot();
+    s.technicalAudit!.findings[1] = finding('schema', 'pass', { schemasFound: true, hasOrganization: true, missingFields: ['logo'] });
+    const [d] = schemaHandler.detect(s);
+    expect(d.artifact).toBeUndefined();
+    expect(d.method).toBe('INSTRUCTIONS');
+    expect(d.steps.join(' ')).toContain('Add logo to the existing block yourself: the full URL of your logo image');
+    expect(d.acceptance).toMatchObject({ fields: ['logo'] });
+  });
+
   it('no company profile → no invented name; falls back to the project name only for the block', () => {
     const [d] = schemaHandler.detect(snapshot({ company: null }));
     expect(d.artifact!.content).toContain('"name": "Acme"');

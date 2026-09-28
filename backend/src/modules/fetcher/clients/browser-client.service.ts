@@ -115,6 +115,26 @@ export class BrowserClientService implements OnModuleDestroy {
   }
 
   /**
+   * Print a self-contained HTML document to an A4 PDF (the page's own
+   * `@page` rules win). Web fonts get a short window to load; if they don't,
+   * the page's fallback fonts are used rather than failing the export.
+   */
+  async printPdf(html: string, timeoutMs = 15_000): Promise<Buffer> {
+    const browser = await this.ensureBrowser();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      await page.setContent(html, { waitUntil: 'load', timeout: timeoutMs });
+      await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => undefined);
+      await page.evaluate(() => document.fonts.ready).catch(() => undefined);
+      return await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } });
+    } finally {
+      await page.close().catch(() => {});
+      await context.close().catch(() => {});
+    }
+  }
+
+  /**
    * Clean up the browser instance on module destroy.
    */
   async onModuleDestroy(): Promise<void> {

@@ -101,7 +101,8 @@ is ADMIN only. See `docs/Readme.md` for request/response shapes.
 | GET | `…/remediation/runs` | Sync history |
 | GET | `…/remediation/fixes?status=&fixClass=&groupKey=&severity=` | Fix list, most severe first |
 | GET | `…/remediation/summary` | Counts by status/class, open high-severity |
-| GET | `…/remediation/export?format=md\|json` | Fix pack |
+| GET | `…/remediation/export?format=md\|json` | Fix pack (Markdown for developers, JSON for agents) |
+| GET | `…/remediation/export?format=pdf\|html` | One-page overview sent with the pack (`services/fix-brief.ts`; the PDF is printed by the fetcher's Chromium) |
 | GET | `/team/clients/:clientId/remediation/runs/:id` | One run |
 | GET | `/team/clients/:clientId/remediation/fixes/:id` | One fix with sources and history |
 | PATCH | `…/fixes/:id/status` | `{status, reason?, prUrl?, note?}`. VERIFIED is refused. |

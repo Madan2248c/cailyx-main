@@ -17,6 +17,7 @@ import { PrismaService } from '../../../prisma/prisma.service.js';
 import { siteOrigin } from '../collectors/source-snapshot.collector.js';
 import type { AcceptanceCheck } from '../remediation.types.js';
 import { isLiveCheckable, LiveVerifier } from '../verifiers/live.verifier.js';
+import { briefFileName, buildFixBrief, packFileName, renderFixBriefHtml } from './fix-brief.js';
 import { renderFixPackMarkdown, toFixPackJson } from './fix-pack.js';
 import { afterFailedVerify, canMove, reopenTarget, VERIFIABLE } from './fix-status.js';
 
@@ -316,11 +317,28 @@ export class RemediationService {
 
   /** Every non-dismissed fix, as Markdown for a developer/agency or JSON for an agent. */
   async exportFixPack(clientId: string, projectId: string, format: 'md' | 'json', viewer?: Viewer) {
+    const pack = await this.buildFixPack(clientId, projectId, viewer);
+    return format === 'json' ? pack : renderFixPackMarkdown(pack);
+  }
+
+  /** The one-page overview that goes out with the Markdown pack, as print-ready HTML. */
+  async exportFixBriefHtml(clientId: string, projectId: string, viewer?: Viewer): Promise<{ html: string; fileName: string }> {
+    const pack = await this.buildFixPack(clientId, projectId, viewer);
+    return { html: renderFixBriefHtml(buildFixBrief(pack)), fileName: briefFileName(pack.project.domain) };
+  }
+
+  /** Download name for the Markdown pack, e.g. fix-plan-faydo.in.md. */
+  async fixPackFileName(clientId: string, projectId: string): Promise<string> {
+    const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null }, select: { domain: true } });
+    if (!project) throw new NotFoundException('Project not found.');
+    return packFileName(project.domain);
+  }
+
+  private async buildFixPack(clientId: string, projectId: string, viewer?: Viewer) {
     const project = await this.prisma.project.findFirst({ where: { id: projectId, clientId, deletedAt: null } });
     if (!project) throw new NotFoundException('Project not found.');
     const fixes = (await this.listFixes(clientId, projectId, {}, viewer)).filter((f) => f.status !== 'DISMISSED');
-    const pack = toFixPackJson(project, fixes);
-    return format === 'json' ? pack : renderFixPackMarkdown(pack);
+    return toFixPackJson(project, fixes);
   }
 
   private async assertProjectInClient(projectId: string, clientId: string) {

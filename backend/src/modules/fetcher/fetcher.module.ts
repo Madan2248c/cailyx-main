@@ -37,7 +37,8 @@ import { RobotsService } from './services/robots.service.js';
   ],
   // RobotsService is exported alongside FetcherService (not folded into it)
   // so a crawler can consult "is this URL allowed" independently of making
-  // the fetch.
-  exports: [FetcherService, RobotsService],
+  // the fetch. BrowserClientService is exported for printing documents
+  // (the Fix Plan overview PDF) on the same shared Chromium instance.
+  exports: [FetcherService, RobotsService, BrowserClientService],
 })
 export class FetcherModule {}

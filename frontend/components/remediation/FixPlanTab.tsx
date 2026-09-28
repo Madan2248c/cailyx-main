@@ -56,7 +56,8 @@ export function FixPlanTab({
   const [fixes, setFixes] = useState<FixSpec[] | null>(null);
   const [summary, setSummary] = useState<FixSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState(false);
+  const [downloading, setDownloading] = useState<'md' | 'pdf' | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,12 +97,21 @@ export function FixPlanTab({
     getFixSummary(accessToken, clientId, projectId).then(setSummary).catch(() => {});
   }
 
-  async function download() {
-    setDownloading(true);
+  async function download(format: 'md' | 'pdf') {
+    setDownloading(format);
+    setDownloadError(null);
     try {
-      await downloadFixPack(accessToken, clientId, projectId, `fix-plan-${projectDomain}.md`);
+      await downloadFixPack(
+        accessToken,
+        clientId,
+        projectId,
+        format,
+        format === 'pdf' ? `fix-plan-${projectDomain}-overview.pdf` : `fix-plan-${projectDomain}.md`,
+      );
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Could not prepare the download. Please try again.');
     } finally {
-      setDownloading(false);
+      setDownloading(null);
     }
   }
 
@@ -148,12 +158,36 @@ export function FixPlanTab({
           </>
         }
         actions={
-          <MagneticAction>
-            <Button variant="outline" size="sm" onClick={download} disabled={downloading}>
-              <Download className="size-4" aria-hidden />
-              {downloading ? 'Preparing…' : 'Download for your developer'}
-            </Button>
-          </MagneticAction>
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => download('md')}
+                disabled={downloading !== null}
+                title="Every fix with its steps, as a Markdown file your developers can work through"
+              >
+                {downloading === 'md' ? 'Preparing…' : 'Full fix list (.md)'}
+              </Button>
+              <MagneticAction>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => download('pdf')}
+                  disabled={downloading !== null}
+                  title="A one-page overview to send with the fix list: why, where to start, and what happens next"
+                >
+                  <Download className="size-4" aria-hidden />
+                  {downloading === 'pdf' ? 'Preparing…' : 'Overview for your developer (PDF)'}
+                </Button>
+              </MagneticAction>
+            </div>
+            {downloadError ? (
+              <p role="alert" className="text-xs text-destructive">
+                {downloadError}
+              </p>
+            ) : null}
+          </div>
         }
       />
 
