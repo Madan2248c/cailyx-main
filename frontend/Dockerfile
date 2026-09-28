@@ -17,7 +17,8 @@ FROM base AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+# "::" listens on IPv4 and IPv6 (Railway's networking can be IPv6-only).
+ENV HOSTNAME=::
 COPY --from=build /app/public ./public
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

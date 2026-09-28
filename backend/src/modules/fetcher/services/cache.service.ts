@@ -24,6 +24,8 @@ export class CacheService {
     const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
     try {
       this.redis = new Redis(redisUrl, {
+        // Dual-stack DNS: Railway's private network (redis.railway.internal) can be IPv6-only.
+        family: 0,
         maxRetriesPerRequest: 1,
         enableReadyCheck: true,
         retryStrategy: (times: number) => Math.min(times * 500, 2000),

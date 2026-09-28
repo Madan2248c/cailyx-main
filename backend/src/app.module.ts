@@ -43,7 +43,8 @@ export const observeEnabled = Boolean(process.env.OBSERVE_APP_KEY && process.env
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        connection: { url: config.get<string>('REDIS_URL') },
+        // family 0 = dual-stack lookup; Railway's private network can be IPv6-only.
+        connection: { url: config.get<string>('REDIS_URL'), family: 0 },
       }),
     }),
     PrismaModule,

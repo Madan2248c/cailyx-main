@@ -22,9 +22,12 @@ browser ──https──> frontend (Next.js)  ──server-side only──> bac
 
 | Service | Build | Runs |
 | --- | --- | --- |
-| API | `docker build --target runtime -t cailyx-api backend/` | `node dist/main` on `PORT` (3001), healthcheck built in |
-| Migrations | `docker build --target migrate -t cailyx-migrate backend/` | `prisma migrate deploy`, then exits |
+| API | `docker build -t cailyx-api backend/` | `node dist/main` on `PORT` (3001), healthcheck built in |
+| Migrations | same image | `npm run db:migrate` (`prisma migrate deploy`), then exits |
 | Portal | `docker build -t cailyx-portal frontend/` | `node server.js` on 3000 |
+
+**On Railway:** follow [`railway.md`](./railway.md). Each app ships a
+`railway.json`; migrations run as the API's pre-deploy command.
 
 The portal can also go on Vercel as-is (`output: "standalone"` is ignored
 there). The API can't: it needs long-running workers, Redis and Chromium.
@@ -64,9 +67,9 @@ telemetry (off without both).
 
 ## Release order
 
-1. Run the migration job against the production database. It applies every
-   pending migration in `backend/prisma/migrations`, in order, and is safe to
-   re-run.
+1. Run the migrations against the production database (`npm run db:migrate`
+   in the API image; automatic on Railway). It applies every pending
+   migration in `backend/prisma/migrations`, in order, and is safe to re-run.
 2. Deploy the API. Wait for `GET /health` to return `200` (`503` means the
    database is unreachable).
 3. Deploy the portal.
