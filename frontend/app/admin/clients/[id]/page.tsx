@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { CreateProjectDialog } from '@/components/admin/create-project-dialog';
+import { ClientSchedulesSection } from '@/components/admin/client-schedules/client-schedules-section';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/auth-context';
@@ -124,6 +125,10 @@ export default function ClientProjectsPage() {
           ))}
         </div>
       )}
+
+      {accessToken ? (
+        <ClientSchedulesSection accessToken={accessToken} clientId={clientId} projects={projects} />
+      ) : null}
     </div>
   );
 }
