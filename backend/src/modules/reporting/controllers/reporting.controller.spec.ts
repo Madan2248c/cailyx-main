@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard.js';
 import { PermissionsGuard } from '../../../common/guards/permissions.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
+import { BrowserClientService } from '../../fetcher/clients/browser-client.service.js';
 import { ReportingService } from '../services/reporting.service.js';
 import { ClientPortalReportController, ReportController, ReportsController } from './reporting.controller.js';
 
@@ -11,15 +12,20 @@ function fakeRes() {
 }
 
 describe('ReportsController / ReportController', () => {
-  let reporting: { generate: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn>; getOne: ReturnType<typeof vi.fn>; review: ReturnType<typeof vi.fn>; approve: ReturnType<typeof vi.fn>; withdraw: ReturnType<typeof vi.fn> };
+  let reporting: { generate: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn>; getOne: ReturnType<typeof vi.fn>; review: ReturnType<typeof vi.fn>; approve: ReturnType<typeof vi.fn>; withdraw: ReturnType<typeof vi.fn>; printDocument: ReturnType<typeof vi.fn> };
+  let browser: { printPdf: ReturnType<typeof vi.fn> };
   let reportsController: ReportsController;
   let reportController: ReportController;
 
   beforeEach(async () => {
-    reporting = { generate: vi.fn(), list: vi.fn(), getOne: vi.fn(), review: vi.fn(), approve: vi.fn(), withdraw: vi.fn() };
+    reporting = {
+      generate: vi.fn(), list: vi.fn(), getOne: vi.fn(), review: vi.fn(), approve: vi.fn(), withdraw: vi.fn(),
+      printDocument: vi.fn().mockResolvedValue({ html: '<html>print</html>', fileName: 'acme-day1-report-2026-09-22.pdf' }),
+    };
+    browser = { printPdf: vi.fn().mockResolvedValue(Buffer.from('%PDF-1.4')) };
     const moduleRef = await Test.createTestingModule({
       controllers: [ReportsController, ReportController],
-      providers: [{ provide: ReportingService, useValue: reporting }],
+      providers: [{ provide: ReportingService, useValue: reporting }, { provide: BrowserClientService, useValue: browser }],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
@@ -46,6 +52,22 @@ describe('ReportsController / ReportController', () => {
     expect(reporting.approve).toHaveBeenCalledWith('client-1', 'report-1', { approved: true });
     await reportController.withdraw('client-1', 'report-1');
     expect(reporting.withdraw).toHaveBeenCalledWith('client-1', 'report-1');
+  });
+
+  it('pdf prints the scoped print document and sends it as an attachment', async () => {
+    const res = fakeRes();
+    await reportController.pdf('client-1', 'report-1', undefined, res as never);
+    expect(reporting.printDocument).toHaveBeenCalledWith('client-1', 'report-1');
+    expect(browser.printPdf).toHaveBeenCalledWith('<html>print</html>');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+    expect(res.setHeader).toHaveBeenCalledWith('Content-Disposition', 'attachment; filename="acme-day1-report-2026-09-22.pdf"');
+  });
+
+  it('pdf?format=html returns the print HTML without launching the printer', async () => {
+    const res = fakeRes();
+    await reportController.pdf('client-1', 'report-1', 'html', res as never);
+    expect(browser.printPdf).not.toHaveBeenCalled();
+    expect(res.send).toHaveBeenCalledWith('<html>print</html>');
   });
 });
 

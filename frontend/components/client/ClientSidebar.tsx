@@ -73,7 +73,7 @@ function projectNav(projectId: string, fixBadge = 0): NavSection[] {
       label: 'System',
       items: [
         { label: 'Settings', href: `${base}/settings`, icon: Settings },
-        { label: 'Team management', href: '/team', icon: Users },
+        { label: 'Team management', href: `${base}/team`, icon: Users },
       ],
     },
   ];

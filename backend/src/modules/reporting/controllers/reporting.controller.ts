@@ -10,6 +10,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { Role } from '../../../generated/prisma/enums.js';
 import { ApproveReportDto, GenerateReportDto } from '../dto/reporting.dto.js';
+import { BrowserClientService } from '../../fetcher/clients/browser-client.service.js';
 import { ReportingService } from '../services/reporting.service.js';
 
 /**
@@ -40,12 +41,36 @@ export class ReportsController {
 @Controller('team/clients/:clientId/reports/:id')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ClientScopeGuard)
 export class ReportController {
-  constructor(private readonly reporting: ReportingService) {}
+  constructor(
+    private readonly reporting: ReportingService,
+    private readonly browser: BrowserClientService,
+  ) {}
 
   @Get()
   @RequirePermission('view_projects')
   getOne(@Param('clientId') clientId: string, @Param('id') id: string) {
     return this.reporting.getOne(clientId, id);
+  }
+
+  /**
+   * GET …/pdf — "Download report". The same content and access rule as
+   * `GET` above, printed as the Day-1 diagnostic PDF (dark cover, numbered
+   * sections) by the shared Playwright printer the Fix Plan PDF uses.
+   * `?format=html` returns the print HTML instead, for checking the layout.
+   */
+  @Get('pdf')
+  @RequirePermission('view_projects')
+  async pdf(@Param('clientId') clientId: string, @Param('id') id: string, @Query('format') format: string | undefined, @Res() res: Response) {
+    const doc = await this.reporting.printDocument(clientId, id);
+    if (format === 'html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(doc.html);
+      return;
+    }
+    const pdf = await this.browser.printPdf(doc.html);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${doc.fileName}"`);
+    res.send(pdf);
   }
 
   /** MONTHLY only — locks the current content into a new revision for review. 409 on DAY1. */

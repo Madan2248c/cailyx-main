@@ -10,6 +10,7 @@
 import { Module } from '@nestjs/common';
 import { AeoAuditModule } from '../aeo-audit/aeo-audit.module.js';
 import { CompetitorsModule } from '../competitors/competitors.module.js';
+import { FetcherModule } from '../fetcher/fetcher.module.js';
 import { GapAnalysisModule } from '../gap-analysis/gap-analysis.module.js';
 import { LlmModule } from '../llm/llm.module.js';
 import { SocialActivityModule } from '../social-activity/social-activity.module.js';
@@ -25,7 +26,7 @@ import { ReportRenderService } from './services/report-render.service.js';
 import { ReportingService } from './services/reporting.service.js';
 
 @Module({
-  imports: [TechnicalAuditModule, SocialActivityModule, AeoAuditModule, CompetitorsModule, GapAnalysisModule, LlmModule],
+  imports: [TechnicalAuditModule, SocialActivityModule, AeoAuditModule, CompetitorsModule, GapAnalysisModule, FetcherModule, LlmModule],
   controllers: [ReportsController, ReportController, PublicReportController, ClientPortalReportController],
   providers: [
     TechnicalAuditCollector,

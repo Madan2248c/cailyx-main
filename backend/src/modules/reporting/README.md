@@ -37,7 +37,9 @@ modules/reporting/
 Reuses `LlmModule` (no new provider) and imports `TechnicalAuditModule` /
 `SocialActivityModule` / `AeoAuditModule` / `CompetitorsModule` /
 `GapAnalysisModule` to reach their exported services. New dependency:
-`handlebars` — HTML render only, no PDF in this pass, and templates live
+`handlebars`. The downloadable PDF reuses `FetcherModule`'s
+`BrowserClientService.printPdf` (the Fix Plan PDF's Playwright printer, whose
+Chromium ships in the API's Docker image) — no new dependency. Templates live
 as TypeScript string constants (not loose `.hbs` files) since
 `nest-cli.json` has no asset-copy step.
 
@@ -101,6 +103,19 @@ Instrument Sans + Fraunces) are ported from the old repo's
 `docs/day1-report-pdf-style-guide.md`, not from its HTML template (which
 used a different, unrelated palette).
 
+**PDF ("Download report").** `renderPrint` lays the same section
+view-models out as the approved Day-1 diagnostic (the Faydo PDF): a
+full-bleed dark cover (named `@page cover`, zero margin) with the agency ×
+client lockup, "AI Visibility, *Day One.*" (MONTHLY: *This Month.*), a
+meta grid and the score; then `01 Executive Summary` with up to four
+headline tiles, then the present sections numbered from `02` with no gaps.
+Print overrides (`PRINT_STYLE`) sit on top of `STYLE`, so the web page is
+unchanged. Every figure comes from the content snapshot, and the cover date
+is the report's own (released, else created) — never the render time.
+`printDocument` reads through the same private lookup as `getOne`
+(`ownedWithContent`), so the PDF cannot show content or reach reports the
+report page can't.
+
 ## Persistence: `Report` + `ReportRevision` + `ReportShareLink`
 
 Append-only, like every other pipeline module — a `ReportRevision` is
@@ -129,6 +144,7 @@ Two decisions filling gaps the analysis doc's 3-table schema left open:
 | POST | `/team/clients/:clientId/projects/:projectId/reports` | ADMIN | generate; DAY1 releases immediately, MONTHLY starts DRAFT |
 | GET | `/team/clients/:clientId/projects/:projectId/reports` | `view_projects` | list, newest first, optional `?kind=` |
 | GET | `/team/clients/:clientId/reports/:id` | `view_projects` | live content if DRAFT/IN_REVIEW, frozen released snapshot otherwise |
+| GET | `/team/clients/:clientId/reports/:id/pdf` | `view_projects` | the same content as the row above, as a branded PDF attachment (`?format=html` returns the print HTML) |
 | POST | `/team/clients/:clientId/reports/:id/review` | ADMIN | MONTHLY only — re-collects+re-renders fresh, DRAFT → IN_REVIEW; 409 on DAY1 |
 | POST | `/team/clients/:clientId/reports/:id/approve` | ADMIN | MONTHLY only — release or send back to draft; 409 on DAY1 |
 | POST | `/team/clients/:clientId/reports/:id/withdraw` | ADMIN | RELEASED → WITHDRAWN |

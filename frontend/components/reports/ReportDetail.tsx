@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/portal/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { getReport } from '@/lib/report-api';
+import { downloadReportPdf, getReport } from '@/lib/report-api';
+import { Download } from '@/components/animate-ui/icons/download';
+import { MagneticAction } from '@/components/portal/magnetic-action';
 import type {
   AeoAuditSection,
   CompetitorsSection,
@@ -422,6 +424,20 @@ export function ReportDetail({
 }) {
   const [report, setReport] = useState<ReportDetailData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+
+  async function download(slug: string) {
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      await downloadReportPdf(accessToken, clientId, reportId, `${slug}.pdf`);
+    } catch (err) {
+      setDownloadError(err instanceof Error ? err.message : 'Could not prepare the report PDF. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -475,6 +491,27 @@ export function ReportDetail({
                 <StatusChip tone={REPORT_STATUS[report.status].tone}>{REPORT_STATUS[report.status].word}</StatusChip>
               ) : null}
             </>
+          }
+          actions={
+            <div className="flex flex-col items-end gap-1.5">
+              <MagneticAction>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void download(report.slug)}
+                  disabled={downloading}
+                  title="The full report as a PDF, ready to share"
+                >
+                  <Download className="size-4" aria-hidden />
+                  {downloading ? 'Preparing…' : 'Download report'}
+                </Button>
+              </MagneticAction>
+              {downloadError ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {downloadError}
+                </p>
+              ) : null}
+            </div>
           }
         />
       </div>

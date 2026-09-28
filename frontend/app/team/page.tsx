@@ -2,38 +2,21 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ErrorCard } from '@/components/ui/error-state';
 import { PageLoadingState } from '@/components/ui/skeleton';
-import { InviteMemberDialog } from '@/components/team/invite-member-dialog';
+import { TeamManagement } from '@/components/team/TeamManagement';
 import { useAuth } from '@/contexts/auth-context';
-import { disableMember, enableMember, listMembers, resendInvite } from '@/lib/team-api';
-import type { TeamMember, TeamMembers } from '@/types/team';
 
-const STATUS_VARIANT: Record<TeamMember['status'], 'default' | 'secondary' | 'destructive'> = {
-  ACTIVE: 'default',
-  INVITED: 'secondary',
-  DISABLED: 'destructive',
-};
-
-export default function TeamPage() {
+/**
+ * The standalone `/team` page, still linked from `/dashboard`'s "Manage team".
+ *
+ * Inside the workspace the sidebar opens `/client/projects/[id]/team` instead,
+ * which renders the same `TeamManagement` screen within the client shell.
+ */
+export default function StandaloneTeamPage() {
   const { user, accessToken, isLoading } = useAuth();
   const router = useRouter();
-  const [team, setTeam] = useState<TeamMembers | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingId, setPendingId] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setTeam(await listMembers(accessToken));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load team');
-    }
-  }, [accessToken]);
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== 'CLIENT_POC')) {
@@ -41,44 +24,7 @@ export default function TeamPage() {
     }
   }, [isLoading, user, router]);
 
-  useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-
-    listMembers(accessToken)
-      .then((data) => {
-        if (!cancelled) setTeam(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load team');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken]);
-
-  async function handleAction(member: TeamMember, action: 'resend' | 'toggle') {
-    if (!accessToken) return;
-    setPendingId(member.id);
-    setError(null);
-    try {
-      if (action === 'resend') {
-        await resendInvite(accessToken, member.id);
-      } else if (member.status === 'DISABLED') {
-        await enableMember(accessToken, member.id);
-      } else {
-        await disableMember(accessToken, member.id);
-      }
-      await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setPendingId(null);
-    }
-  }
-
-  if (isLoading || !user || user.role !== 'CLIENT_POC') {
+  if (isLoading || !user || !accessToken || user.role !== 'CLIENT_POC') {
     return (
       <div className="flex flex-1 flex-col px-4 py-10">
         <PageLoadingState message="Loading your team…" />
@@ -86,84 +32,12 @@ export default function TeamPage() {
     );
   }
 
-  const atSeatLimit = team ? team.seatsUsed >= team.seatLimit : false;
-
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
-      <div>
+    <div className="flex flex-1 flex-col">
+      <div className="mx-auto w-full max-w-6xl px-5 pt-6 md:px-8">
         <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/client">← Back to projects</Link>} />
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Your team</h1>
-        {accessToken && !atSeatLimit ? (
-          <InviteMemberDialog accessToken={accessToken} onInvited={refresh} />
-        ) : null}
-      </div>
-
-      {error ? <ErrorCard message={error} onRetry={refresh} /> : null}
-
-      {team === null ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Members</CardTitle>
-              <span className="text-sm text-muted-foreground">
-                {team.seatsUsed} / {team.seatLimit} seats used
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {atSeatLimit ? (
-              <p className="text-sm text-muted-foreground">
-                You&apos;ve used all your available seats. Ask an admin to increase your seat limit
-                to invite more people.
-              </p>
-            ) : null}
-            {team.members.map((member) => {
-              const isSelf = member.id === user.id;
-              return (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between gap-3 border-b border-border pb-3 last:border-0 last:pb-0"
-                >
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-sm">{member.email}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {member.role === 'CLIENT_POC' ? 'POC' : 'Member'}
-                      {isSelf ? ' · You' : ''}
-                    </span>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                    <Badge variant={STATUS_VARIANT[member.status]}>{member.status}</Badge>
-                    {!isSelf && member.status === 'INVITED' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pendingId === member.id}
-                        onClick={() => handleAction(member, 'resend')}
-                      >
-                        Resend
-                      </Button>
-                    ) : null}
-                    {!isSelf && member.status !== 'INVITED' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={pendingId === member.id}
-                        onClick={() => handleAction(member, 'toggle')}
-                      >
-                        {member.status === 'DISABLED' ? 'Enable' : 'Disable'}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-      )}
+      <TeamManagement user={user} accessToken={accessToken} />
     </div>
   );
 }

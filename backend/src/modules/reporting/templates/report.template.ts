@@ -140,3 +140,130 @@ export const DOCUMENT_TEMPLATE = `
 </body>
 </html>
 `;
+
+/**
+ * Print overrides for the downloadable PDF, layered on top of `STYLE`.
+ * Mirrors the approved Day-1 diagnostic (the Faydo PDF): a full-bleed dark
+ * cover page, then A4 content pages with an italic Fraunces numeral + Jost
+ * title over an ink rule, linen KPI tiles with terracotta italic figures,
+ * rectangular severity badges and linen pull-quotes. The cover uses a named
+ * `@page` with zero margin so its background runs to the edge.
+ */
+export const PRINT_STYLE = `
+  @page { size: A4; margin: 18mm 16mm 16mm; }
+  @page cover { margin: 0; }
+  html, body { background: var(--white); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-size: 12.5px; color: rgba(20,18,13,0.82); }
+  .wrap { max-width: none; padding: 0; }
+
+  .cover { page: cover; break-after: page; position: relative; width: 210mm; height: 297mm; overflow: hidden;
+    color: #F2EDE2; background: radial-gradient(ellipse 70% 45% at 50% 34%, #3B2A17 0%, rgba(20,18,14,0) 70%), #14120E; }
+  .cover .top { position: absolute; top: 20mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; }
+  .cover .top span, .cover .meta-label { font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.3em; font-size: 9px; color: rgba(242,237,226,0.55); }
+  .cover .lockup { position: absolute; top: 74mm; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 30px; }
+  .cover .org { font-family: var(--font-display); font-size: 21px; letter-spacing: 0.16em; text-transform: uppercase; }
+  .cover .times { font-family: var(--font-label); font-size: 15px; color: rgba(242,237,226,0.55); }
+  .cover .client { background: #F2EDE2; color: var(--obsidian); border-radius: 12px; padding: 14px 24px; font-family: var(--font-display); font-size: 24px; }
+  .cover .main { position: absolute; top: 134mm; left: 30mm; right: 30mm; text-align: center; }
+  .cover .eyebrow { font-family: var(--font-label); text-transform: uppercase; letter-spacing: 0.3em; font-size: 10px; color: var(--terracotta); margin: 0 0 18px; }
+  .cover h1 { font-family: var(--font-display); font-weight: 500; font-size: 46px; line-height: 1.1; margin: 0; color: #F2EDE2; }
+  .cover h1 em { display: block; font-style: italic; font-weight: 600; color: var(--terracotta); }
+  .cover .lede { font-size: 13px; line-height: 1.65; color: rgba(242,237,226,0.62); max-width: 118mm; margin: 18px auto 0; }
+  .cover .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 0; width: 120mm; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid rgba(242,237,226,0.18); }
+  .cover .grid div { display: flex; flex-direction: column; gap: 4px; }
+  .cover .meta-label { font-size: 8px; letter-spacing: 0.2em; }
+  .cover .meta-value { font-size: 12.5px; font-weight: 500; color: #F2EDE2; }
+  .cover .bottom { position: absolute; bottom: 20mm; left: 20mm; right: 20mm; display: flex; justify-content: space-between; align-items: flex-end; }
+  .cover .score { font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 68px; line-height: 1; color: var(--terracotta); }
+  .cover .score-cap { font-size: 10px; color: rgba(242,237,226,0.55); max-width: 64mm; margin-top: 6px; }
+  .cover .sign { text-align: right; font-family: var(--font-display); font-size: 14px; }
+  .cover .sign em { font-style: italic; font-weight: 600; color: var(--terracotta); }
+  .cover .sign small { display: block; font-family: var(--font-body); font-size: 10px; color: rgba(242,237,226,0.55); margin-top: 4px; }
+
+  header { display: none; }
+  h2 { font-family: var(--font-label); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 21px; color: var(--obsidian);
+    border-bottom: 1.2px solid var(--obsidian); padding-bottom: 12px; margin: 34px 0 18px; break-after: avoid; }
+  h2 .numeral { font-size: 24px; margin-right: 10px; }
+  h3 { font-family: var(--font-label); font-weight: 500; font-size: 15px; color: var(--obsidian); margin: 20px 0 10px; break-after: avoid; }
+  .page-lead h2 { margin-top: 0; }
+  .exec-summary { background: none; border: 0; border-radius: 0; padding: 0; font-size: 13px; line-height: 1.7; margin-bottom: 18px; }
+  .exec-summary p { margin: 0 0 10px; }
+
+  .kpi-row { grid-template-columns: repeat(4, 1fr); gap: 10px; break-inside: avoid; }
+  .kpi, .kpi.emph { background: #F5F0E6; color: var(--obsidian); border: 1px solid rgba(20,18,13,0.12); border-radius: 0; padding: 16px 16px 14px; display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 10px; }
+  .kpi .label, .kpi.emph .label { margin: 0; font-size: 9px; letter-spacing: 0.14em; color: rgba(20,18,13,0.6); }
+  .kpi .value, .kpi.emph .value { font-size: 30px; font-weight: 600; line-height: 1; color: var(--terracotta); }
+
+  table { font-size: 12px; break-inside: auto; }
+  tr { break-inside: avoid; }
+  th { font-family: var(--font-label); font-weight: 500; font-size: 9px; letter-spacing: 0.12em; color: rgba(20,18,13,0.45); border-bottom: 1.2px solid var(--obsidian); }
+  td { padding: 10px; border-bottom: 1px solid rgba(20,18,13,0.1); }
+
+  .badge { border-radius: 2px; font-weight: 600; font-size: 9px; letter-spacing: 0.1em; padding: 4px 9px; }
+  .b-high { background: var(--obsidian); color: #F2EDE2; }
+  .b-strength { background: #F5F0E6; border: 1px solid rgba(20,18,13,0.14); color: var(--obsidian); }
+  .b-opportunity { border: 1px dashed rgba(20,18,13,0.35); color: rgba(20,18,13,0.6); }
+
+  blockquote { background: #F5F0E6; border-left: 3px solid var(--terracotta); border-radius: 0; padding: 14px 18px; font-family: var(--font-display); font-style: italic; font-weight: 600; color: var(--obsidian); break-inside: avoid; }
+  .callout { background: #F5F0E6; border: 0; border-left: 3px solid var(--terracotta); border-radius: 0; break-inside: avoid; }
+  .barlist .bar-row { grid-template-columns: 150px 1fr 90px; }
+  .barlist .bar-track { border-radius: 0; background: #ECE7DD; }
+  .barlist .bar-fill { border-radius: 0; }
+  .barlist .bar-value { font-weight: 600; color: var(--obsidian); }
+  .dimrow { break-inside: avoid; }
+  footer { font-family: var(--font-label); font-size: 9px; }
+`;
+
+/** The PDF document: dark cover, then `01 Executive Summary`, then the numbered sections. */
+export const PRINT_DOCUMENT_TEMPLATE = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{meta.projectName}}: {{kindLabel}}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Instrument+Sans:wght@400..700&family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500;1,9..144,600&display=swap" rel="stylesheet">
+  <style>{{{style}}}</style>
+</head>
+<body>
+<section class="cover">
+  <div class="top"><span>{{kindLabel}}</span><span>{{orgName}}</span></div>
+  <div class="lockup">
+    <span class="org">{{orgName}}</span>
+    <span class="times">&times;</span>
+    <span class="client">{{meta.domain}}</span>
+  </div>
+  <div class="main">
+    <p class="eyebrow">AEO audit &mdash; {{meta.domain}}</p>
+    <h1>AI Visibility,<em>{{headlineAccent}}</em></h1>
+    {{#if lede}}<p class="lede">{{lede}}</p>{{/if}}
+    <div class="grid">
+      {{#each coverMeta}}<div><span class="meta-label">{{label}}</span><span class="meta-value">{{value}}</span></div>{{/each}}
+    </div>
+  </div>
+  <div class="bottom">
+    <div>
+      {{#if coverScore}}<div class="score">{{coverScore}}</div><div class="score-cap">{{coverScoreCaption}}</div>{{/if}}
+    </div>
+    <div class="sign">{{orgName}}<small>{{preparedLong}}</small></div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="page-lead">
+    <h2><span class="numeral">01</span>Executive Summary</h2>
+    <div class="exec-summary">{{#each summaryParagraphs}}<p>{{this}}</p>{{/each}}</div>
+    {{#if summaryKpis.length}}{{> kpiRow items=summaryKpis}}{{/if}}
+  </div>
+
+  {{#each sections}}
+    {{{this.html}}}
+  {{/each}}
+
+  <footer>
+    {{orgName}} &mdash; {{kindLabel}} for {{meta.domain}}, prepared {{preparedLong}}. Compiled from stored audit data; sections omitted reflect audits not yet run for this project, never a fabricated result.
+  </footer>
+</div>
+</body>
+</html>
+`;

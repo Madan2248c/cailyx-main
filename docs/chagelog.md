@@ -3,6 +3,43 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — "Download report" PDF + Team management inside the workspace
+
+**Download report.** The report page has a **Download report** button. It saves the
+report as a PDF styled like the approved Day-1 diagnostic (the Faydo PDF):
+
+- a dark cover with the agency × client lockup, "AI Visibility, *Day One.*", a meta grid
+  and the score;
+- `01 Executive Summary` with headline tiles, then numbered sections;
+- linen KPI tiles with terracotta italic figures, and black / outlined / faint severity badges.
+
+How it's built:
+
+- Backend: `GET /team/clients/:clientId/reports/:id/pdf` (`view_projects`) prints
+  `ReportRenderService.renderPrint` with the existing Playwright printer
+  (`BrowserClientService.printPdf`, as the Fix Plan PDF does). It adds no dependency.
+- The PDF reads through the same lookup as the report page.
+- Frontend: a proxy route, `downloadReportPdf`, and the button in the `ReportDetail` header.
+
+**Team management in the workspace.** The client sidebar's **Team management** used to
+open `/team`, which is outside the workspace shell. The sidebar disappeared, and a
+non-POC member was bounced to `/dashboard`.
+
+- It now opens `/client/projects/[id]/team` inside the shell.
+- The page is the shared `components/team/TeamManagement.tsx`, built with the portal's
+  own components.
+- The POC can invite, resend, enable and disable; other members get a read-only list.
+- `/team` (the "Manage team" button on `/dashboard`) renders the same component.
+
+**Verified:**
+
+- Backend `tsc --noEmit` is clean. Reporting `vitest` passes 36/36, including 2 new
+  tests for the PDF route: an attachment with the server's file name, and the
+  `?format=html` preview.
+- A Faydo-shaped fixture was rendered through `renderPrint` and Playwright Chromium:
+  4 A4 pages with a full-bleed cover, compared with the reference.
+- Frontend `tsc` is clean and eslint is clean on the changed files.
+
 ## 2026-09-28 — Open-SEO parity: backlinks, keywords, rank tracking, SERP snapshots, domain overview
 
 Backend `dataforseo` datasets 3 → 9 (`backlink-rows` source/target/anchor/

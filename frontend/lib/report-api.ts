@@ -37,3 +37,30 @@ export async function getReport(
   });
   return parseOrThrow<ReportDetail>(response);
 }
+
+/**
+ * Downloads the report as the branded PDF (dark cover, numbered sections).
+ * The file name comes from the server, with `fallbackName` as a backstop.
+ * Nothing is saved on a failed response — the caller shows the error.
+ */
+export async function downloadReportPdf(
+  accessToken: string,
+  clientId: string,
+  reportId: string,
+  fallbackName: string,
+): Promise<void> {
+  const response = await fetch(`/api/team/clients/${clientId}/reports/${reportId}/pdf`, {
+    headers: authHeaders(accessToken),
+  });
+  if (!response.ok) throw new Error('Could not prepare the report PDF. Please try again.');
+  const filename = /filename="([^"]+)"/.exec(response.headers.get('content-disposition') ?? '')?.[1] ?? fallbackName;
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}

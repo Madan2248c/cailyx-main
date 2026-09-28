@@ -156,16 +156,37 @@ export class ReportingService {
 
   /** Live content if DRAFT/IN_REVIEW (always the latest revision), frozen snapshot if RELEASED/WITHDRAWN. */
   async getOne(clientId: string, reportId: string) {
+    const { report, content } = await this.ownedWithContent(clientId, reportId);
+    return this.toDetail(report, content);
+  }
+
+  /** The one read both `getOne` and `printDocument` go through, so the page and the PDF can't disagree. */
+  private async ownedWithContent(clientId: string, reportId: string) {
     const report = await this.getOwned(clientId, reportId);
     const revision = report.status === 'RELEASED' || report.status === 'WITHDRAWN'
       ? await this.prisma.reportRevision.findUnique({ where: { id: report.releasedRevisionId ?? '' } })
       : await this.prisma.reportRevision.findFirst({ where: { reportId: report.id }, orderBy: { revisionNumber: 'desc' } });
     if (!revision) throw new NotFoundException('Report has no content yet.');
-    return this.toDetail(report, revision.contentSnapshot as unknown as ReportContent);
+    return { report, content: revision.contentSnapshot as unknown as ReportContent };
   }
 
   async renderHtml(content: ReportContent): Promise<string> {
     return this.renderer.render(content);
+  }
+
+  /**
+   * The print HTML behind "Download report", plus the file name to save it
+   * under. Reads through {@link getOne}, so the PDF is exactly the content
+   * (and the access rule) the report page itself shows: the frozen snapshot
+   * once released, the latest revision before that.
+   */
+  async printDocument(clientId: string, reportId: string): Promise<{ html: string; fileName: string }> {
+    const { report, content } = await this.ownedWithContent(clientId, reportId);
+    const html = this.renderer.renderPrint(content, { createdAt: report.createdAt, releasedAt: report.releasedAt });
+    const stamp = new Date(report.releasedAt ?? report.createdAt).toISOString().slice(0, 10);
+    const base = `${content.meta.projectName}-${report.kind === 'DAY1' ? 'day1' : 'monthly'}-report-${stamp}`;
+    const fileName = `${base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}.pdf`;
+    return { html, fileName };
   }
 
   // ─── Editorial lifecycle (MONTHLY only) ────────────────────────────
