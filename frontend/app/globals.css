@@ -322,7 +322,12 @@
   transition-timing-function: var(--g-ease-out);
 }
 
-.theme-graphite [data-slot="button"]:active:not(:disabled) {
+/* Animate UI motion buttons animate transform themselves (spring). */
+.theme-graphite [data-slot="button"][data-motion] {
+  transition-property: color, background-color, border-color, box-shadow;
+}
+
+.theme-graphite [data-slot="button"]:not([data-motion]):active:not(:disabled) {
   transform: scale(0.98);
 }
 

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { GscOverview } from '@/types/google';
 import { AreaChart, DeltaArrow } from './OrganicChart';
+import { Num } from '@/components/portal/motion';
 
 function pct(ratio: number | null): string {
   if (ratio === null) return '—';
@@ -16,7 +17,7 @@ export function GscKpis({ overview }: { overview: GscOverview }) {
       <Card>
         <CardContent className="flex flex-col gap-1 pt-5">
           <p className="text-xs font-medium text-muted-foreground">Clicks</p>
-          <p className="text-3xl font-semibold">{totals.clicks.toLocaleString()}</p>
+          <p className="text-3xl font-semibold"><Num value={totals.clicks} /></p>
           <div className="text-xs">
             <DeltaArrow current={totals.clicks} previous={previousTotals.clicks} />
           </div>
@@ -25,7 +26,7 @@ export function GscKpis({ overview }: { overview: GscOverview }) {
       <Card>
         <CardContent className="flex flex-col gap-1 pt-5">
           <p className="text-xs font-medium text-muted-foreground">Impressions</p>
-          <p className="text-3xl font-semibold">{totals.impressions.toLocaleString()}</p>
+          <p className="text-3xl font-semibold"><Num value={totals.impressions} /></p>
           <div className="text-xs">
             <DeltaArrow current={totals.impressions} previous={previousTotals.impressions} />
           </div>

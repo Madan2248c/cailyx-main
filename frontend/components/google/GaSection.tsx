@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAnalytics, listGaProperties, startGoogleConnect } from '@/lib/google-api';
 import type { GaOverview } from '@/types/google';
 import { AreaChart, DeltaArrow } from './OrganicChart';
 import { PropertyPicker } from './PropertyPicker';
+import { Num } from '@/components/portal/motion';
 
 function GaPropertyPicker({
   accessToken,
@@ -186,7 +187,7 @@ export function GaSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Sessions</p>
-            <p className="text-3xl font-semibold">{overview.totals.sessions.toLocaleString()}</p>
+            <p className="text-3xl font-semibold"><Num value={overview.totals.sessions} /></p>
             <div className="text-xs">
               <DeltaArrow current={overview.totals.sessions} previous={overview.previousTotals.sessions} />
             </div>
@@ -195,7 +196,7 @@ export function GaSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Active users</p>
-            <p className="text-3xl font-semibold">{overview.totals.activeUsers.toLocaleString()}</p>
+            <p className="text-3xl font-semibold"><Num value={overview.totals.activeUsers} /></p>
             <div className="text-xs">
               <DeltaArrow current={overview.totals.activeUsers} previous={overview.previousTotals.activeUsers} />
             </div>
@@ -204,7 +205,7 @@ export function GaSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Pageviews</p>
-            <p className="text-3xl font-semibold">{overview.totals.screenPageViews.toLocaleString()}</p>
+            <p className="text-3xl font-semibold"><Num value={overview.totals.screenPageViews} /></p>
             <div className="text-xs">
               <DeltaArrow current={overview.totals.screenPageViews} previous={overview.previousTotals.screenPageViews} />
             </div>

@@ -39,3 +39,11 @@ export function CountUp({ value, prefix = '', suffix = '' }: { value: number; pr
     </span>
   );
 }
+
+/** CountUp for real numbers; anything else (a dash, a formatted string) renders as-is. */
+export function Num({ value, suffix }: { value: number | string | null | undefined; suffix?: string }) {
+  if (typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0) {
+    return <CountUp value={value} suffix={suffix} />;
+  }
+  return <>{value ?? '—'}{suffix && typeof value === 'number' ? suffix : ''}</>;
+}

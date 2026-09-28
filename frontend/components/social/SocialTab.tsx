@@ -14,6 +14,8 @@ import {
   type SocialPlatformActivity,
 } from '@/types/social';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
+import { Num } from '@/components/portal/motion';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -215,6 +217,7 @@ export function SocialTab({
   const auditedOn = formatDate(latest.completedAt ?? latest.createdAt);
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Social</h1>
@@ -258,7 +261,7 @@ export function SocialTab({
           <CardContent className="flex flex-col gap-2 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Active platforms</p>
             <p className="text-4xl font-semibold">
-              {healthy.length}
+              <Num value={healthy.length} />
               <span className="text-base font-normal text-muted-foreground">/{platforms.length}</span>
             </p>
             <p className="text-xs text-muted-foreground">posting on a steady rhythm</p>
@@ -268,7 +271,7 @@ export function SocialTab({
         <Card>
           <CardContent className="flex flex-col gap-2 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Posts in window</p>
-            <p className="text-4xl font-semibold">{postsInWindow}</p>
+            <p className="text-4xl font-semibold"><Num value={postsInWindow} /></p>
             <p className="text-xs text-muted-foreground">last 30 days, all channels</p>
           </CardContent>
         </Card>
@@ -277,7 +280,7 @@ export function SocialTab({
           <CardContent className="flex flex-col gap-2 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Dormant</p>
             <p className={`text-4xl font-semibold ${dormant.length > 0 ? 'text-danger' : ''}`}>
-              {dormant.length}
+              <Num value={dormant.length} />
             </p>
             <p className="text-xs text-muted-foreground">
               {dormant.length > 0 ? dormant.map((p) => platformLabel(p.platform)).join(', ') : 'no quiet channels'}
@@ -443,5 +446,6 @@ export function SocialTab({
         ) : null}
       </div>
     </div>
+    </StaggerIn>
   );
 }

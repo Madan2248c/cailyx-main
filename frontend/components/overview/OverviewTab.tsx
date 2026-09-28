@@ -7,6 +7,7 @@ import { RankTable } from '@/components/overview/RankTable';
 import { SerpSnapshotViewer, type SerpOption, type SerpResult } from '@/components/overview/SerpSnapshotViewer';
 import { ExploreLinks } from '@/components/overview/ExploreLinks';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
 
 function num(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
@@ -250,6 +251,7 @@ export function OverviewTab({
   }
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Performance overview</h1>
@@ -272,5 +274,6 @@ export function OverviewTab({
 
       <ExploreLinks projectId={projectId} />
     </div>
+    </StaggerIn>
   );
 }

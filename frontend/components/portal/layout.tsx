@@ -3,7 +3,10 @@
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from 'cn';
+import { AnimateIcon } from '@/components/animate-ui/icons/icon';
+import { Shine } from '@/components/animate-ui/primitives/effects/shine';
 import { Hint } from './hint';
+import { Reveal } from './reveal';
 import { TONE_COLOR, TONE_SOFT, TONE_TEXT, type Tone } from './tone';
 
 /** The page frame every portal tab sits in. */
@@ -26,7 +29,8 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <header className="g-rise flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <Reveal>
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="flex min-w-0 flex-col gap-1.5">
         {eyebrow ? <p className="g-eyebrow">{eyebrow}</p> : null}
         <h1 className="text-3xl font-semibold leading-tight">{title}</h1>
@@ -35,6 +39,7 @@ export function PageHeader({
       </div>
       {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
     </header>
+    </Reveal>
   );
 }
 
@@ -55,27 +60,51 @@ export function Tile({
   className,
   children,
   ariaLabel,
+  shine = false,
 }: {
   href?: string;
   ink?: boolean;
+  /** One soft light sweep across the tile as it appears (hero tiles only). */
+  shine?: boolean;
   index?: number;
   className?: string;
   children: React.ReactNode;
   ariaLabel?: string;
 }) {
-  const classes = cn('g-tile g-rise p-5', ink && 'g-tile-ink', className);
+  const classes = cn('g-tile p-5', ink && 'g-tile-ink', className);
   const style = { '--i': index } as React.CSSProperties;
+  const sweep = shine ? (
+    <Shine
+      aria-hidden
+      color="#ffffff"
+      opacity={ink ? 0.09 : 0.5}
+      duration={1500}
+      delay={450}
+      deg={-20}
+      className="pointer-events-none absolute inset-0 rounded-[inherit]"
+    />
+  ) : null;
   if (href) {
     return (
-      <Link href={href} className={classes} style={style} aria-label={ariaLabel}>
-        {children}
-      </Link>
+      <Reveal index={index}>
+        <AnimateIcon animateOnHover asChild>
+          <Link href={href} className={classes} style={style} aria-label={ariaLabel}>
+            {children}
+            {sweep}
+          </Link>
+        </AnimateIcon>
+      </Reveal>
     );
   }
   return (
-    <section className={classes} style={style} aria-label={ariaLabel}>
-      {children}
-    </section>
+    <Reveal index={index}>
+      <AnimateIcon animateOnHover asChild>
+        <section className={classes} style={style} aria-label={ariaLabel}>
+          {children}
+          {sweep}
+        </section>
+      </AnimateIcon>
+    </Reveal>
   );
 }
 

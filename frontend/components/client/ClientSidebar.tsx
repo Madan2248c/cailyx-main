@@ -15,7 +15,7 @@ import { Settings } from '@/components/animate-ui/icons/settings';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Users } from '@/components/animate-ui/icons/users';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
 import { useClientProject } from '@/components/client/use-client-project';

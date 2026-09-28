@@ -9,6 +9,7 @@ import type { GoogleStatus } from '@/types/google';
 import type { Project } from '@/types/project';
 import type { TeamMembers } from '@/types/team';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
 
 /** Day-1 stages in execution order (mirrors the backend pipeline). */
 const DAY1_STAGE_ORDER = [
@@ -105,6 +106,7 @@ export function SettingsTab({
   }
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Settings</h1>
@@ -226,5 +228,6 @@ export function SettingsTab({
         Settings are read-only — contact your admin to change anything on this page.
       </p>
     </div>
+    </StaggerIn>
   );
 }

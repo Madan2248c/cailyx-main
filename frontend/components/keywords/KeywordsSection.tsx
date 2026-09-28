@@ -11,6 +11,8 @@ import {
   type KeywordOverviewRow,
 } from '@/lib/dataforseo-api';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
+import { Num } from '@/components/portal/motion';
 
 const WINNABLE_DIFFICULTY = 30;
 const WINNABLE_VOLUME = 100;
@@ -136,6 +138,7 @@ export function KeywordsSection({
   const visible = keywords.slice(0, TABLE_LIMIT);
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Keywords</h1>
@@ -148,14 +151,14 @@ export function KeywordsSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Keywords tracked</p>
-            <p className="text-4xl font-semibold">{keywords.length}</p>
+            <p className="text-4xl font-semibold"><Num value={keywords.length} /></p>
             <p className="text-xs text-muted-foreground">across overview and ideas</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Combined volume</p>
-            <p className="text-4xl font-semibold">{totalVolume.toLocaleString()}</p>
+            <p className="text-4xl font-semibold"><Num value={totalVolume} /></p>
             <p className="text-xs text-muted-foreground">monthly searches up for grabs</p>
           </CardContent>
         </Card>
@@ -163,7 +166,7 @@ export function KeywordsSection({
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Winnable now</p>
             <p className="text-4xl font-semibold text-success">
-              {keywords.filter((row) => row.difficulty <= WINNABLE_DIFFICULTY && row.volume >= WINNABLE_VOLUME).length}
+              <Num value={keywords.filter((row) => row.difficulty <= WINNABLE_DIFFICULTY && row.volume >= WINNABLE_VOLUME).length} />
             </p>
             <p className="text-xs text-muted-foreground">
               difficulty ≤ {WINNABLE_DIFFICULTY} · volume ≥ {WINNABLE_VOLUME} · avg difficulty{' '}
@@ -273,5 +276,6 @@ export function KeywordsSection({
         </CardContent>
       </Card>
     </div>
+    </StaggerIn>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useClientProject } from '@/components/client/use-client-project';
 import { SettingsTab } from '@/components/settings/SettingsTab';

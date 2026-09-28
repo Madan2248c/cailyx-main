@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,8 @@ import type {
   ReviewRating,
 } from '@/types/competitor';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
+import { Num } from '@/components/portal/motion';
 
 function asStringArray(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
@@ -249,6 +251,7 @@ export function CompetitorsTab({
   }
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Competitors</h1>
@@ -296,9 +299,9 @@ export function CompetitorsTab({
                 <p className="text-4xl font-semibold">
                   {hasAeoSignal ? (
                     <>
-                      <span className="text-success">{rivalsYouBeat.length}</span>
+                      <span className="text-success"><Num value={rivalsYouBeat.length} /></span>
                       <span className="text-base font-normal text-muted-foreground"> ahead · </span>
-                      <span className="text-danger">{rivalsBeatingYou.length}</span>
+                      <span className="text-danger"><Num value={rivalsBeatingYou.length} /></span>
                       <span className="text-base font-normal text-muted-foreground"> behind</span>
                     </>
                   ) : (
@@ -314,7 +317,7 @@ export function CompetitorsTab({
               <CardContent className="flex flex-col gap-1 pt-5">
                 <p className="text-xs font-medium text-muted-foreground">Structured data</p>
                 <p className="text-4xl font-semibold">
-                  {ownSchemas.size}
+                  <Num value={ownSchemas.size} />
                   <span className="text-base font-normal text-muted-foreground"> types</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -423,6 +426,7 @@ export function CompetitorsTab({
         </CardContent>
       </Card>
     </div>
+    </StaggerIn>
   );
 }
 

@@ -1,9 +1,10 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ReportListItem, ReportStatus } from '@/types/report';
+import { StaggerIn } from '@/components/portal/reveal';
 
 function statusVariant(status: ReportStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (status) {
@@ -57,6 +58,7 @@ export function ReportsList({
   const ordered = [...reports].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Reports</h1>
@@ -86,5 +88,6 @@ export function ReportsList({
         </Card>
       ))}
     </div>
+    </StaggerIn>
   );
 }

@@ -14,6 +14,8 @@ import {
   type TopPageRow,
 } from '@/lib/dataforseo-api';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
+import { Num } from '@/components/portal/motion';
 
 const TOXIC_SPAM_SCORE = 60;
 const ROW_LIMIT = 20;
@@ -180,6 +182,7 @@ export function BacklinksSection({
     .slice(0, PAGE_LIMIT);
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <h1 className="text-2xl font-semibold">Backlinks</h1>
@@ -193,28 +196,28 @@ export function BacklinksSection({
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Referring domains</p>
-            <p className="text-4xl font-semibold">{referringDomains}</p>
+            <p className="text-4xl font-semibold"><Num value={referringDomains} /></p>
             <p className="text-xs text-muted-foreground">unique sites linking to you</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">New backlinks</p>
-            <p className="text-4xl font-semibold text-success">{newBacklinks}</p>
+            <p className="text-4xl font-semibold text-success"><Num value={newBacklinks} /></p>
             <p className="text-xs text-muted-foreground">gained since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Lost backlinks</p>
-            <p className="text-4xl font-semibold text-danger">{lostBacklinks}</p>
+            <p className="text-4xl font-semibold text-danger"><Num value={lostBacklinks} /></p>
             <p className="text-xs text-muted-foreground">gone since the last pull</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="flex flex-col gap-1 pt-5">
             <p className="text-xs font-medium text-muted-foreground">Broken</p>
-            <p className="text-4xl font-semibold text-warning">{broken}</p>
+            <p className="text-4xl font-semibold text-warning"><Num value={broken} /></p>
             <p className="text-xs text-muted-foreground">flagged links to reclaim</p>
           </CardContent>
         </Card>
@@ -383,5 +386,6 @@ export function BacklinksSection({
         </Card>
       )}
     </div>
+    </StaggerIn>
   );
 }

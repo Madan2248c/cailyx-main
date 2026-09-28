@@ -1,9 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleCheck, Layers, MessageSquareQuote, Radar, Sparkles, Swords, Target, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Radar, Swords, Target, TriangleAlert } from 'lucide-react';
+import { Sparkles } from '@/components/animate-ui/icons/sparkles';
+import { Layers } from '@/components/animate-ui/icons/layers';
+import { MessageSquareQuote } from '@/components/animate-ui/icons/message-square-quote';
 import { HeadToHead, Meter, ScoreRing, StackedBar, type Segment } from '@/components/portal/charts';
 import { MetaDot, PageHeader, PortalPage, Tile, TileHeader } from '@/components/portal/layout';
+import { Marker } from '@/components/portal/marker';
 import { CountUp } from '@/components/portal/motion';
 import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
 import { formatDate, pct, plural, rateTone, TONE_TEXT } from '@/components/portal/tone';
@@ -126,10 +130,13 @@ export function AiTab({
     color: STANCE_COLOR[stance],
   }));
 
-  const summary =
-    `AI engines name ${projectName} in ${pct(overall.mentionRate)} of the answers we tested` +
-    (firstPicks > 0 ? `, and recommend you first ${plural(firstPicks, 'time')}.` : '.') +
-    (bestEngine && engines.length > 1 ? ` ${engineName(bestEngine.surface)} knows you best.` : '');
+  const summary = (
+    <>
+      AI engines name {projectName} in <Marker text={pct(overall.mentionRate)} /> of the answers we tested
+      {firstPicks > 0 ? `, and recommend you first ${plural(firstPicks, 'time')}.` : '.'}
+      {bestEngine && engines.length > 1 ? ` ${engineName(bestEngine.surface)} knows you best.` : ''}
+    </>
+  );
 
   return (
     <PortalPage>
@@ -156,7 +163,7 @@ export function AiTab({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {/* Hero: the two rates that define visibility */}
-        <Tile ink index={0} className="md:col-span-2 gap-5 p-6">
+        <Tile ink shine index={0} className="md:col-span-2 gap-5 p-6">
           <TileHeader icon={Sparkles} eyebrow="How often AI names you" hint="Mentioned: the answer names your company. Cited: the answer links to your site as a source, which usually drives visits." />
           <div className="grid grid-cols-2 gap-6">
             <RateRing label="Mentioned" hint="named in the answer" rate={overall.mentionRate} index={0} />

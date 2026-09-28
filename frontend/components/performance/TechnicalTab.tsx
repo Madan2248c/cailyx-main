@@ -1,10 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bot, CircleCheck, Clock, Code, FileSearch, Gauge, ListChecks, Minus, TriangleAlert, Zap } from 'lucide-react';
+import { CircleCheck, Code, FileSearch, ListChecks, Minus, TriangleAlert, Zap } from 'lucide-react';
+import { Gauge } from '@/components/animate-ui/icons/gauge';
+import { Bot } from '@/components/animate-ui/icons/bot';
+import { Clock } from '@/components/animate-ui/icons/clock';
 import { ShimmeringText } from '@/components/animate-ui/primitives/texts/shimmering';
 import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
 import { DeltaChip, MetaDot, PageHeader, PortalPage, StatusChip, Tile, TileHeader } from '@/components/portal/layout';
+import { Marker } from '@/components/portal/marker';
 import { CountUp } from '@/components/portal/motion';
 import { EmptyState, ErrorState, PortalLoading } from '@/components/portal/states';
 import { formatDate, plural, scoreTone, TONE_TEXT, TONE_WORD, type Tone } from '@/components/portal/tone';
@@ -162,10 +166,17 @@ export function TechnicalTab({
     ? agent.breakdown
     : {}) as { essential?: { passing?: number; total?: number }; recommended?: { passing?: number; total?: number } };
 
-  const summary =
-    latest.score !== null
-      ? `Your site scores ${latest.score} out of 100. ${passing} of ${checks.length} checks pass${failing.length > 0 ? `, and ${plural(failing.length, 'needs', 'need')} a fix.` : '.'}`
-      : `${passing} of ${checks.length} checks pass.`;
+  const summary = (
+    <>
+      {latest.score !== null ? (
+        <>
+          Your site scores <Marker text={`${latest.score} out of 100`} />.{' '}
+        </>
+      ) : null}
+      {passing} of {checks.length} checks pass
+      {failing.length > 0 ? `, and ${plural(failing.length, 'needs', 'need')} a fix.` : '.'}
+    </>
+  );
 
   return (
     <PortalPage>

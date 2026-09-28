@@ -1,6 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Num } from '@/components/portal/motion';
 
 export interface DomainOverview {
   rank: number | null;
@@ -49,7 +50,7 @@ export function DomainStrip({
         {stats.map((stat) => (
           <div key={stat.label} className="flex flex-col gap-1">
             <p className="text-xs font-medium text-muted-foreground">{stat.label}</p>
-            <p className="text-3xl font-semibold">{stat.value}</p>
+            <p className="text-3xl font-semibold"><Num value={stat.value} /></p>
           </div>
         ))}
         {pulledAt ? (

@@ -2,22 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowRight,
-  CircleCheck,
-  FileText,
-  Gauge,
-  Lightbulb,
-  Share2,
-  Sparkles,
-  Swords,
-  TriangleAlert,
-  Trophy,
-} from 'lucide-react';
+import { ArrowRight, CircleCheck, FileText, Share2, Swords, TriangleAlert, Trophy } from 'lucide-react';
+import { Gauge } from '@/components/animate-ui/icons/gauge';
+import { Lightbulb } from '@/components/animate-ui/icons/lightbulb';
+import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { RankHistory } from '@/components/dashboard/RankHistory';
 import { Meter, ScoreRing, Sparkline } from '@/components/portal/charts';
 import { PageHeader, MetaDot, PortalPage, StatusChip, Tile, TileHeader, DeltaChip } from '@/components/portal/layout';
+import { Marker } from '@/components/portal/marker';
 import { CountUp } from '@/components/portal/motion';
 import { ErrorState, PortalLoading } from '@/components/portal/states';
 import { pct, plural, rateTone, relativeDate, scoreTone, TONE_TEXT, type Tone } from '@/components/portal/tone';
@@ -280,8 +273,6 @@ export function DashboardTab({
     .sort()
     .at(-1);
   const summaryParts: string[] = [];
-  if (mentionRate !== null) summaryParts.push(`AI engines name ${projectName} in ${pct(mentionRate)} of the answers we tested.`);
-  else summaryParts.push(`Your AI visibility baseline is still being measured.`);
   if (attention.length > 0 || wins.length > 0) {
     summaryParts.push(
       `${attention.length === 0 ? 'Nothing needs attention right now' : `${plural(attention.length, 'thing')} ${attention.length === 1 ? 'needs' : 'need'} attention`}${wins.length > 0 ? `, and ${plural(wins.length, 'thing')} ${wins.length === 1 ? 'is' : 'are'} working` : ''}.`,
@@ -307,13 +298,24 @@ export function DashboardTab({
             ) : null}
           </>
         }
-        summary={summaryParts.join(' ')}
+        summary={
+          <>
+            {mentionRate !== null ? (
+              <>
+                AI engines name {projectName} in <Marker text={pct(mentionRate)} /> of the answers we tested.
+              </>
+            ) : (
+              'Your AI visibility baseline is still being measured.'
+            )}{' '}
+            {summaryParts.join(' ')}
+          </>
+        }
       />
 
       {/* ─── Bento: the answer first ─────────────────────────────────── */}
       <div className="grid auto-rows-[minmax(0,auto)] grid-cols-1 gap-4 md:grid-cols-4">
         {/* Hero: AI visibility, the product's reason to exist */}
-        <Tile ink href={`${base}/performance/visibility/ai`} index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6" ariaLabel="AI visibility details">
+        <Tile ink shine href={`${base}/performance/visibility/ai`} index={0} className="md:col-span-2 md:row-span-2 gap-5 p-6" ariaLabel="AI visibility details">
           <TileHeader icon={Sparkles} eyebrow="AI visibility" linkHint hint="How often ChatGPT, Perplexity and Gemini name your company when buyers ask the questions we track. A rate across many answers, not a ranking." />
           {verdict ? (
             <>

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ClientGate } from '@/components/client/ClientGate';
 import { ClientSidebar } from '@/components/client/ClientSidebar';
 import { PortalMotion } from '@/components/portal/motion';
+import { PageTransition } from '@/components/portal/reveal';
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   return (
@@ -11,7 +12,9 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       <PortalMotion>
       <div className="theme-graphite flex min-h-screen flex-col md:flex-row">
         <ClientSidebar />
-        <main className="flex flex-1 flex-col bg-canvas">{children}</main>
+        <main className="flex flex-1 flex-col bg-canvas">
+          <PageTransition>{children}</PageTransition>
+        </main>
       </div>
       </PortalMotion>
     </ClientGate>

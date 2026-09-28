@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getReport } from '@/lib/report-api';
 import type {
@@ -16,6 +16,8 @@ import type {
   TechnicalAuditSection,
 } from '@/types/report';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
+import { ScrollProgress, ScrollProgressProvider } from '@/components/animate-ui/primitives/animate/scroll-progress';
 
 function statusVariant(status: ReportStatus): 'default' | 'secondary' | 'outline' | 'destructive' {
   switch (status) {
@@ -472,6 +474,16 @@ export function ReportDetail({
   const deltas = content.deltas ?? [];
 
   return (
+    <>
+      {/* Reading progress for long reports (Animate UI Scroll Progress). */}
+      <ScrollProgressProvider global>
+        <ScrollProgress
+          mode="scaleX"
+          aria-hidden
+          className="fixed inset-x-0 top-0 z-50 h-[3px] origin-left bg-foreground/70"
+        />
+      </ScrollProgressProvider>
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div>
         <Button variant="ghost" size="sm" className="mb-2 -ml-2" onClick={onBack}>
@@ -526,5 +538,7 @@ export function ReportDetail({
           return null;
         })}
     </div>
+    </StaggerIn>
+    </>
   );
 }

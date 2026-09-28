@@ -3,7 +3,7 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/portal/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useClientProject } from '@/components/client/use-client-project';
 import { ConnectGoogle } from '@/components/google/ConnectGoogle';
@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { getGoogleStatus, getSearchConsole, listGscSites, startGoogleConnect } from '@/lib/google-api';
 import type { GoogleStatus, GscOverview } from '@/types/google';
 import { PortalLoading } from '@/components/portal/states';
+import { StaggerIn } from '@/components/portal/reveal';
 
 type GscState =
   | { status: 'loading' }
@@ -175,6 +176,7 @@ export default function OrganicPage() {
   }
 
   return (
+    <StaggerIn>
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -269,5 +271,6 @@ export default function OrganicPage() {
         canEdit={canEdit}
       />
     </div>
+    </StaggerIn>
   );
 }
