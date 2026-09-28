@@ -1,6 +1,10 @@
 import Joi from 'joi';
 
+const isProd = { is: 'production' } as const;
+
 export const validationSchema = Joi.object({
+  NODE_ENV: Joi.string().valid('development', 'production', 'test').default('development'),
+  PORT: Joi.number().port().optional(),
   DATABASE_URL: Joi.string().uri().required(),
   JWT_ACCESS_SECRET: Joi.string().min(32).required(),
   JWT_ACCESS_EXPIRES_IN: Joi.string().default('15m'),
@@ -12,12 +16,17 @@ export const validationSchema = Joi.object({
 
   // Where emailed links (invite, password reset) point. App-level, not
   // module-specific — auth composes absolute frontend links from this.
-  FRONTEND_URL: Joi.string().uri().default('http://localhost:3000'),
+  // In production it must be set explicitly (and https), or invite and reset
+  // emails would link to localhost.
+  FRONTEND_URL: Joi.string()
+    .uri()
+    .when('NODE_ENV', { ...isProd, then: Joi.string().uri({ scheme: ['https'] }).required(), otherwise: Joi.string().default('http://localhost:3000') }),
 
   // Discovery / company-context module. Optional — the services that read
   // these (fetcher's cache, the LLM client, the DataForSEO client) all fail
   // closed (disabled, not broken) when unset, per docs/analysis/discovery.md.
-  REDIS_URL: Joi.string().uri().optional(),
+  // Queues (Day-1 pipeline, audits, scheduling) need Redis, so production requires it.
+  REDIS_URL: Joi.string().uri().when('NODE_ENV', { ...isProd, then: Joi.required(), otherwise: Joi.optional() }),
   OPENROUTER_API_KEY: Joi.string().optional(),
   AEO_LLM_MODEL: Joi.string().default('deepseek/deepseek-v4.1-flash'),
   DATAFORSEO_LOGIN: Joi.string().optional(),
@@ -25,9 +34,10 @@ export const validationSchema = Joi.object({
   SWARM_ALLOW_LIVE: Joi.string().valid('0', '1').default('0'),
   PRESENCE_SERP_MAX_QUERIES: Joi.number().positive().default(20),
 
-  // DataForSEO module. Optional — mock collects unless explicitly disabled;
-  // per-run spend is capped so a live run cannot exceed budget.
-  DATAFORSEO_ALLOW_MOCK: Joi.string().valid('0', '1').default('1'),
+  // DataForSEO module. The mock produces made-up keyword and backlink data,
+  // so it is off unless explicitly enabled (as the module README documents)
+  // and can never be on in production, where clients would read it as real.
+  DATAFORSEO_ALLOW_MOCK: Joi.string().valid('0', '1').default('0'),
   DATAFORSEO_MAX_COST_PER_RUN_USD: Joi.number().positive().default(5.0),
 
   // Per-run crawl budgets. Ported from the old repo's AEO_CONTEXT_* env vars
@@ -80,7 +90,16 @@ export const validationSchema = Joi.object({
   // when unset or unlinked. See docs/analysis/google.md.
   GOOGLE_CLIENT_ID: Joi.string().optional(),
   GOOGLE_CLIENT_SECRET: Joi.string().optional(),
-  GOOGLE_REDIRECT_URI: Joi.string().uri().default('http://localhost:3001/auth/google/callback'),
+  GOOGLE_REDIRECT_URI: Joi.string()
+    .uri()
+    .when('NODE_ENV', {
+      ...isProd,
+      // GoogleService falls back to a localhost callback, so require it whenever Google is configured.
+      then: Joi.string()
+        .uri({ scheme: ['https'] })
+        .when('GOOGLE_CLIENT_ID', { is: Joi.exist(), then: Joi.required(), otherwise: Joi.optional() }),
+      otherwise: Joi.string().default('http://localhost:3001/auth/google/callback'),
+    }),
   GOOGLE_TOKEN_ENCRYPTION_KEY: Joi.string().optional(),
 
   // Day-1 pipeline orchestrator. Optional — DAY1_SURFACES selects the
@@ -95,4 +114,17 @@ export const validationSchema = Joi.object({
   // docs/analysis/email.md.
   PLUNK_SECRET_KEY: Joi.string().optional(),
   PLUNK_SENDER_EMAIL: Joi.string().email().optional(),
+
+  // NestJS Observe telemetry. Off unless both keys are set.
+  OBSERVE_APP_KEY: Joi.string().optional(),
+  OBSERVE_APP_SECRET: Joi.string().optional(),
+  OBSERVE_SERVICE_ID: Joi.string().optional(),
+}).custom((env: Record<string, unknown>, helpers) => {
+  // Mocks produce made-up data; in production a client would read it as real.
+  if (env.NODE_ENV === 'production') {
+    for (const key of ['DATAFORSEO_ALLOW_MOCK', 'MEASUREMENT_ALLOW_MOCK']) {
+      if (env[key] === '1') return helpers.message({ custom: `${key} must not be "1" in production` });
+    }
+  }
+  return env;
 });

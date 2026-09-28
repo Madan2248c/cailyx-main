@@ -23,8 +23,12 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "Cailyx",
-  description: "Cailyx client portal",
+  title: { default: "Cailyx", template: "%s · Cailyx" },
+  description: "Your Rothenhall client portal: AI visibility, site health and your Fix Plan.",
+  applicationName: "Cailyx",
+  // Private portal: keep every page out of search results.
+  robots: { index: false, follow: false, nocache: true },
+  formatDetection: { telephone: false, email: false, address: false },
 };
 
 export const viewport: Viewport = {

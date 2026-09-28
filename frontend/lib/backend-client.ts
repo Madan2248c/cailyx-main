@@ -1,4 +1,16 @@
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:3001';
+/**
+ * Where the NestJS API lives. Localhost is only a development default: in
+ * production a missing BACKEND_URL is a deploy mistake, so fail loudly
+ * instead of quietly calling localhost.
+ */
+export function backendUrl(): string {
+  const url = process.env.BACKEND_URL;
+  if (url) return url.replace(/\/+$/, '');
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('BACKEND_URL is not set. Set it to the API base URL (e.g. https://api.example.com).');
+  }
+  return 'http://localhost:3001';
+}
 
 export class BackendError extends Error {
   constructor(
@@ -40,7 +52,12 @@ function cleanDashes(value: unknown, key?: string): unknown {
 
 /** Server-side only: calls the NestJS backend directly. Never import this from a Client Component. */
 export async function backendFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${BACKEND_URL}${path}`, {
+  // Route params are decoded before they reach the proxy routes, so an id
+  // like "x%2F..%2Fadmin" would otherwise climb out of its path here.
+  if (/(^|\/)\.{1,2}(\/|\?|$)/.test(path) || path.includes('\\')) {
+    throw new BackendError(400, { message: 'Invalid path' });
+  }
+  const response = await fetch(`${backendUrl()}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });

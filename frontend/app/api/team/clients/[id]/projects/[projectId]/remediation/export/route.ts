@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.BACKEND_URL ?? 'http://localhost:3001';
+import { backendUrl } from '@/lib/backend-client';
 
 type Params = { params: Promise<{ id: string; projectId: string }> };
 
@@ -11,10 +11,11 @@ export async function GET(request: Request, { params }: Params) {
   const authorization = request.headers.get('authorization');
   if (!authorization) return Response.json({ message: 'Missing token' }, { status: 401 });
   const format = new URL(request.url).searchParams.get('format') === 'json' ? 'json' : 'md';
-  const upstream = await fetch(`${BACKEND_URL}/team/clients/${id}/projects/${projectId}/remediation/export?format=${format}`, {
-    headers: { authorization },
-  });
-  const headers = new Headers();
+  const upstream = await fetch(
+    `${backendUrl()}/team/clients/${encodeURIComponent(id)}/projects/${encodeURIComponent(projectId)}/remediation/export?format=${format}`,
+    { headers: { authorization } },
+  );
+  const headers = new Headers({ 'cache-control': 'no-store' });
   for (const name of ['content-type', 'content-disposition']) {
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);

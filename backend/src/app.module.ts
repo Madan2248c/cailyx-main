@@ -27,9 +27,15 @@ import { PrismaModule } from './prisma/prisma.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
+// Built before `observeEnabled` is read: forRoot loads .env into process.env synchronously.
+const configModule = ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema });
+
+/** Telemetry runs only with real keys; no placeholder credentials ship. */
+export const observeEnabled = Boolean(process.env.OBSERVE_APP_KEY && process.env.OBSERVE_APP_SECRET);
+
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration], validationSchema }),
+    configModule,
     // Module job queues (Discovery, Technical Audit, Social Activity). They
     // share the same Redis instance the fetcher module's cache/rate-limiter
     // use — one Redis config, independent consumers of it. See
@@ -58,13 +64,18 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     GoogleModule,
     DataforseoModule,
     RemediationModule,
-    // Distributed tracing, auto-correlated logs, request/job metrics, error
-    // telemetry, alarms, and more — out of the box. Sign up at https://observe.nestjs.com
-    ObserveModule.forRoot({
-      appKey: 'YOUR_APP_KEY',
-      appSecret: 'YOUR_APP_SECRET',
-      serviceId: 'backend',
-    }),
+    // Distributed tracing, correlated logs, request/job metrics and error
+    // telemetry (https://observe.nestjs.com). Set OBSERVE_APP_KEY and
+    // OBSERVE_APP_SECRET to turn it on.
+    ...(observeEnabled
+      ? [
+          ObserveModule.forRoot({
+            appKey: process.env.OBSERVE_APP_KEY as string,
+            appSecret: process.env.OBSERVE_APP_SECRET as string,
+            serviceId: process.env.OBSERVE_SERVICE_ID ?? 'cailyx-backend',
+          }),
+        ]
+      : []),
   ],
   controllers: [AppController],
   providers: [AppService],
