@@ -34,6 +34,24 @@ export const NON_COMPETITOR_PLATFORMS = new Set(
   ].map((s) => s.toLowerCase()),
 );
 
+/**
+ * ChatGPT answers carry source chips, so a brand often arrives with its own domain glued on
+ * ("Woohoowoohoo.in", "GyFTRgyftr.com"). That splits one rival into two names. Strip the suffix when
+ * the domain repeats the brand; leave every other name untouched.
+ */
+export function cleanBrandName(name: string): string {
+  const trimmed = name.trim();
+  const m = trimmed.match(/^(.+)\.(?:com|in|co\.in|app|io|net|org|ai|store|shop)$/i);
+  if (!m) return trimmed;
+  const glued = m[1];
+  const alnum = (s: string) => s.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  // Find the split where the brand repeats as the domain label: "Woohoo" + "woohoo".
+  for (let k = 1; k < glued.length; k++) {
+    if (alnum(glued.slice(0, k)) !== '' && alnum(glued.slice(0, k)) === alnum(glued.slice(k))) return glued.slice(0, k).trim();
+  }
+  return trimmed;
+}
+
 export function normalizeName(name: string): string {
   return name.trim().toLowerCase();
 }

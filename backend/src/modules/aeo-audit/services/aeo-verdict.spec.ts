@@ -97,6 +97,23 @@ describe('buildVerdict — competitor standing', () => {
   });
 });
 
+describe('buildVerdict — only real rivals count as co-mentions', () => {
+  it('ignores brands that are not on the rival list when one is given', () => {
+    const stances: VerdictStance[] = [
+      { observationId: '1', stance: 'absent', recommendedOver: [], losesTo: ['Woohoo'], brandsNamed: ['Woohoo', 'Amazon', 'Flipkart', 'GyFTR'] },
+    ];
+    const v = buildVerdict([obs({ id: '1' })], stances, 'Faydo', new Set(['woohoo', 'gyftr']));
+    const names = v.counted.competitorStanding.map((c) => c.name).sort();
+    expect(names).toEqual(['GyFTR', 'Woohoo']);
+  });
+
+  it('keeps counting every named brand when no rival list is given (older audits)', () => {
+    const stances: VerdictStance[] = [{ observationId: '1', stance: 'absent', recommendedOver: [], losesTo: [], brandsNamed: ['Amazon', 'GyFTR'] }];
+    const v = buildVerdict([obs({ id: '1' })], stances, 'Faydo');
+    expect(v.counted.competitorStanding.map((c) => c.name).sort()).toEqual(['Amazon', 'GyFTR']);
+  });
+});
+
 describe('buildVerdict — judged summary', () => {
   it('is null when no stances were judged', () => {
     const v = buildVerdict([obs({ id: '1' })], [], 'Acme');

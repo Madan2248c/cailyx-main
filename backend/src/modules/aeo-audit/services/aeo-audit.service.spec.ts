@@ -54,6 +54,7 @@ describe('AeoAuditService', () => {
     narrative = { write: vi.fn().mockResolvedValue({ headlines: ['n'], model: 'm', costUsd: 0 }) };
     competitors = { knownNames: vi.fn().mockResolvedValue([]), recordCandidate: vi.fn() };
     config = { get: vi.fn((_key: string, fallback?: unknown) => fallback) };
+    prisma.competitor.findMany.mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -208,6 +209,36 @@ describe('AeoAuditService', () => {
     it('409s on a non-completed audit — nothing to narrate yet', async () => {
       prisma.aeoAudit.findFirst.mockResolvedValue(auditRow({ status: 'running' }));
       await expect(service.regenerateNarrative('client-1', 'audit-1')).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('pruneWeakCandidates', () => {
+    it('drops auto-filed candidates named in fewer than two answers, and keeps the rest', async () => {
+      prisma.aeoStance.findMany.mockResolvedValue([
+        { losesTo: ['Woohoo'], recommendedOver: [], otherNamesSeen: ['Woohoo', "Domino's"] },
+        { losesTo: ['woohoo'], recommendedOver: [], otherNamesSeen: [] },
+      ]);
+      prisma.competitor.findMany.mockResolvedValue([
+        { id: 'c1', name: 'Woohoo' },
+        { id: 'c2', name: "Domino's" },
+      ]);
+      const removed = await service.pruneWeakCandidates('audit-1', 'project-1');
+      expect(removed).toBe(1);
+      expect(prisma.competitor.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['c2'] } } });
+      // only auto-filed, unprofiled candidates are ever considered
+      expect(prisma.competitor.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { projectId: 'project-1', status: 'candidate', source: 'stance_discovered', profiles: { none: {} } } }),
+      );
+    });
+
+    it('deletes nothing when every candidate is backed by two answers', async () => {
+      prisma.aeoStance.findMany.mockResolvedValue([
+        { losesTo: ['A'], recommendedOver: [], otherNamesSeen: [] },
+        { losesTo: ['A'], recommendedOver: [], otherNamesSeen: [] },
+      ]);
+      prisma.competitor.findMany.mockResolvedValue([{ id: 'c1', name: 'A' }]);
+      expect(await service.pruneWeakCandidates('audit-1', 'project-1')).toBe(0);
+      expect(prisma.competitor.deleteMany).not.toHaveBeenCalled();
     });
   });
 });

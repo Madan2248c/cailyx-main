@@ -19,9 +19,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { LlmService } from '../../llm/llm.service.js';
 import { STANCES, type Stance, type StanceJudgment } from '../aeo-audit.types.js';
 import { STANCE_ANSWER_CHAR_CAP, STANCE_EVIDENCE_QUOTE_CAP, STANCE_MAX_TOKENS } from '../aeo-audit.constants.js';
-import { isNoiseName, normalizeName } from './name-noise.js';
+import { cleanBrandName, isNoiseName, normalizeName } from './name-noise.js';
 
-const SYSTEM = `You judge how an AI answer-engine's response positions one specific business ("the subject"), among the businesses/products it names.
+const SYSTEM = `You judge how an AI answer-engine's response positions one specific business ("the subject"), among the businesses/products it names. You are given a short brief about the subject (what it sells, to whom, where). Use it.
 
 Classify the subject's stance as exactly one of:
 - recommended_primary: the subject is presented as THE top recommendation
@@ -30,23 +30,26 @@ Classify the subject's stance as exactly one of:
 - mentioned_negative: the subject appears with negative framing
 - absent: the subject is not named at all
 
-Also extract, from the answer text only. Never invent a name that isn't there:
+Then extract, from the answer text only. Never invent a name that isn't there:
 - rankAmongBrands: the subject's 1-based position among every named brand, if the answer orders them; else null
 - brandsNamed: every brand/company/product name the answer mentions, in the order they appear
-- recommendedOver: brands the subject is explicitly placed ahead of
-- losesTo: brands the subject is explicitly placed behind
-- otherNamesSeen: same as brandsNamed (the caller does the filtering)
+- directCompetitors: the names in the answer that are DIRECT COMPETITORS of the subject. A direct competitor is a business a buyer could choose INSTEAD of the subject to meet the same need, in the same category, for the same kind of customer (use the brief to decide). These are NOT competitors, so never list them: brands or merchants the subject sells, lists or resells (they are its suppliers or partners); the products a shopper would spend a voucher or gift card on; payment networks, banks, wallets and gateways; phone or software platforms; review, news and social sites; generic terms. A business only counts if it plays the same role for the buyer as the subject. A single brand's own store, app, gift card or product is a merchant, not a competitor, even when the answer tells the buyer to buy from it (for example a restaurant, retailer, hotel, venue or airline). When unsure, leave the name out.
+- recommendedOver: direct competitors the answer explicitly places behind the subject
+- losesTo: direct competitors the buyer is pointed to INSTEAD of the subject. That means competitors the answer ranks above the subject, and also competitors the answer offers as the options for this need when the subject is absent or is not the top pick. Empty when the subject is the top recommendation, or when the answer names no direct competitor.
+- otherNamesSeen: same as directCompetitors
 - evidenceQuote: the single verbatim sentence (max 280 chars) that most supports your stance call, or null if absent
 - rationale: one sentence explaining your call
 
-Respond with ONLY JSON: {"stance": string, "rankAmongBrands": number|null, "brandsNamed": string[], "recommendedOver": string[], "losesTo": string[], "otherNamesSeen": string[], "evidenceQuote": string|null, "rationale": string|null}`;
+If the brief does not state the target customer, infer it from what the subject sells. Respond with ONLY JSON: {"stance": string, "rankAmongBrands": number|null, "brandsNamed": string[], "directCompetitors": string[], "recommendedOver": string[], "losesTo": string[], "otherNamesSeen": string[], "evidenceQuote": string|null, "rationale": string|null}`;
 
 export interface StanceInput {
   observationId: string;
   rawAnswer: string;
   subjectName: string;
-  /** Known competitor names for this project (tracked + candidate) — the only names `recommendedOver`/`losesTo` are allowed to cite. */
+  /** Known competitor names for this project (tracked + candidate), used to tell new rivals from ones already on file. */
   knownCompetitorNames: string[];
+  /** Plain-text summary of what the subject sells, to whom and where (see business-brief.ts). */
+  businessBrief?: string;
 }
 
 export interface StanceOutput {
@@ -75,7 +78,7 @@ export class AeoStanceService {
     const result = await this.llm.json<StanceJudgment>(
       {
         system: SYSTEM,
-        user: `Subject business: ${input.subjectName}\n\nAnswer text:\n${answer}`,
+        user: `${input.businessBrief ? `Brief about the subject:\n${input.businessBrief}` : `Subject business: ${input.subjectName}`}\n\nAnswer text:\n${answer}`,
         maxTokens: STANCE_MAX_TOKENS,
         purpose: 'aeo-stance-judge',
       },
@@ -84,15 +87,30 @@ export class AeoStanceService {
 
     const known = new Set(input.knownCompetitorNames.map(normalizeName));
 
-    const recommendedOver = result.data.recommendedOver.filter((n) => known.has(normalizeName(n)));
-    const losesTo = result.data.losesTo.filter((n) => known.has(normalizeName(n)));
-    const otherNamesSeen = [...new Set(result.data.otherNamesSeen)].filter((n) => !isNoiseName(n, input.subjectName) && !known.has(normalizeName(n)));
+    // New path: the model names the direct competitors, using the business brief. Only those can be
+    // "lost to" / "recommended over", and only those are filed as new rival candidates. Never the
+    // subject's own brand or a known non-competitor platform.
+    // Legacy path (model gave no directCompetitors): only names already on file count.
+    const clean = (names: string[]) => names.map(cleanBrandName).filter(Boolean);
+    const direct = result.data.directCompetitors ? clean(result.data.directCompetitors) : undefined;
+    const isRival = direct
+      ? (() => {
+          const set = new Set(direct.filter((n) => !isNoiseName(n, input.subjectName)).map(normalizeName));
+          return (n: string) => set.has(normalizeName(n));
+        })()
+      : (n: string) => known.has(normalizeName(n));
+
+    const recommendedOver = clean(result.data.recommendedOver).filter(isRival);
+    const losesTo = [...new Set(clean(result.data.losesTo).filter(isRival))];
+    const otherNamesSeen = [...new Set(clean(result.data.otherNamesSeen))].filter(
+      (n) => !isNoiseName(n, input.subjectName) && !known.has(normalizeName(n)) && (direct ? isRival(n) : true),
+    );
 
     return {
       observationId: input.observationId,
       stance: result.data.stance,
       rankAmongBrands: result.data.rankAmongBrands,
-      brandsNamed: result.data.brandsNamed,
+      brandsNamed: clean(result.data.brandsNamed),
       recommendedOver,
       losesTo,
       otherNamesSeen,
@@ -112,6 +130,7 @@ function validateJudgment(raw: unknown): StanceJudgment {
     stance,
     rankAmongBrands: typeof o.rankAmongBrands === 'number' ? o.rankAmongBrands : null,
     brandsNamed: asStringArray(o.brandsNamed),
+    directCompetitors: Array.isArray(o.directCompetitors) ? asStringArray(o.directCompetitors) : undefined,
     recommendedOver: asStringArray(o.recommendedOver),
     losesTo: asStringArray(o.losesTo),
     otherNamesSeen: asStringArray(o.otherNamesSeen),

@@ -63,6 +63,8 @@ export interface StanceJudgment {
   stance: Stance;
   rankAmongBrands: number | null;
   brandsNamed: string[];
+  /** Names the judge marked as direct competitors of the subject; undefined when an older judge run did not say. */
+  directCompetitors?: string[];
   recommendedOver: string[];
   losesTo: string[];
   otherNamesSeen: string[];

@@ -69,7 +69,13 @@ function groupBy<T, K extends string>(rows: T[], key: (row: T) => K | null): Map
   return map;
 }
 
-export function buildVerdict(observations: VerdictObservation[], stances: VerdictStance[], subjectName: string): AeoVerdict {
+export function buildVerdict(
+  observations: VerdictObservation[],
+  stances: VerdictStance[],
+  subjectName: string,
+  /** Lower-cased names of the project's tracked/candidate rivals. When given, only these count as co-mentions. */
+  rivalNames?: ReadonlySet<string>,
+): AeoVerdict {
   const unbranded = observations.filter((o) => o.branding === 'unbranded');
   const branded = observations.filter((o) => o.branding === 'branded');
 
@@ -86,7 +92,7 @@ export function buildVerdict(observations: VerdictObservation[], stances: Verdic
     ...metrics(rows),
   }));
 
-  const competitorStanding = buildCompetitorStanding(stances, subjectName);
+  const competitorStanding = buildCompetitorStanding(stances, subjectName, rivalNames);
   const judged = stances.length > 0 ? buildJudgedSummary(observations, stances) : null;
 
   const headlines = buildHeadlines({ observations, unbranded, bySurface: bySurfaceUnbranded(unbranded), judged, competitorStanding });
@@ -110,7 +116,7 @@ function bySurfaceUnbranded(unbranded: VerdictObservation[]): Array<{ surface: s
   return [...groupBy(unbranded, (o) => o.surface)].map(([surface, rows]) => ({ surface, ...metrics(rows) }));
 }
 
-function buildCompetitorStanding(stances: VerdictStance[], subjectName: string): CompetitorStanding[] {
+function buildCompetitorStanding(stances: VerdictStance[], subjectName: string, rivalNames?: ReadonlySet<string>): CompetitorStanding[] {
   const rows = new Map<string, CompetitorStanding>();
   const get = (name: string) => {
     const existing = rows.get(name);
@@ -128,6 +134,7 @@ function buildCompetitorStanding(stances: VerdictStance[], subjectName: string):
     // can count toward any rival's standing. A name already ranked above
     // is not double-counted as a co-mention too.
     for (const name of s.brandsNamed) {
+      if (rivalNames && !rivalNames.has(name.trim().toLowerCase())) continue; // a brand that is not a rival is not a co-mention
       if (!ranked.has(name) && !isNoiseName(name, subjectName)) get(name).coMentions += 1;
     }
   }

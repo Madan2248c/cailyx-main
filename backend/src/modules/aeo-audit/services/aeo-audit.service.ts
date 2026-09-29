@@ -27,6 +27,7 @@ import { SURFACES, type Surface } from '../../measurement/measurement.types.js';
 import { DEFAULT_MAX_COST_PER_AUDIT } from '../aeo-audit.constants.js';
 import type { AeoVerdict } from '../aeo-audit.types.js';
 import { AeoNarrativeService } from './aeo-narrative.service.js';
+import { buildBusinessBrief } from './business-brief.js';
 import { AeoStanceService } from './aeo-stance.service.js';
 import { areAuditsComparable } from './aeo-comparability.js';
 import { buildVerdict, type VerdictObservation, type VerdictStance } from './aeo-verdict.js';
@@ -176,6 +177,9 @@ export class AeoAuditService {
     const observationsForStance = await this.prisma.observation.findMany({
       where: { run: { aeoSurfaceRuns: { some: { auditId: audit.id } } } },
     });
+    // What the company sells and to whom, so the judge can tell a rival from a supplier or merchant.
+    const profile = await this.prisma.companyContextProfile.findFirst({ where: { projectId: audit.projectId }, orderBy: { createdAt: 'desc' } });
+    const businessBrief = buildBusinessBrief(profile?.profileJson, project.name);
     let stanceBudget = cap - spent;
     let stanceJudged = 0;
     for (const obs of observationsForStance) {
@@ -187,6 +191,7 @@ export class AeoAuditService {
           rawAnswer: obs.rawAnswer,
           subjectName: project.name,
           knownCompetitorNames: knownNames,
+          businessBrief,
         });
         await this.prisma.aeoStance.create({
           data: {
@@ -215,6 +220,8 @@ export class AeoAuditService {
         this.logger.warn(`Stance judging failed for observation ${obs.id}: ${(err as Error).message}`);
       }
     }
+
+    await this.pruneWeakCandidates(audit.id, audit.projectId);
 
     const verdict = await this.computeVerdict(audit.id);
 
@@ -258,6 +265,26 @@ export class AeoAuditService {
     }
   }
 
+  /**
+   * A brand named once in one answer is not evidence of a rival. After judging, drop the auto-filed
+   * `candidate` rows this audit created that appear in fewer than two answers. Tracked rivals, rows a
+   * person added, and rows already profiled are never touched.
+   */
+  async pruneWeakCandidates(auditId: string, projectId: string): Promise<number> {
+    const stances = await this.prisma.aeoStance.findMany({ where: { auditId }, select: { losesTo: true, recommendedOver: true, otherNamesSeen: true } });
+    const seen = new Map<string, number>();
+    for (const s of stances) {
+      for (const n of new Set([...s.losesTo, ...s.recommendedOver, ...s.otherNamesSeen].map((x) => x.trim().toLowerCase()))) seen.set(n, (seen.get(n) ?? 0) + 1);
+    }
+    const candidates = await this.prisma.competitor.findMany({
+      where: { projectId, status: 'candidate', source: 'stance_discovered', profiles: { none: {} } },
+      select: { id: true, name: true },
+    });
+    const weak = candidates.filter((c) => (seen.get(c.name.trim().toLowerCase()) ?? 0) < 2).map((c) => c.id);
+    if (weak.length > 0) await this.prisma.competitor.deleteMany({ where: { id: { in: weak } } });
+    return weak.length;
+  }
+
   // ─── Verdict ─────────────────────────────────────────────────────────
 
   /** Recomputes the verdict fresh from stored rows — side-effect free, cheap, never trusts the cached `AeoAudit.verdict` blindly. */
@@ -288,7 +315,8 @@ export class AeoAuditService {
       brandsNamed: s.brandsNamed,
     }));
 
-    return buildVerdict(verdictObservations, verdictStances, project.name);
+    const rivalNames = new Set((await this.competitors.knownNames(audit.projectId)).map((n) => n.trim().toLowerCase()));
+    return buildVerdict(verdictObservations, verdictStances, project.name, rivalNames);
   }
 
   async getVerdict(clientId: string, auditId: string): Promise<AeoVerdict> {

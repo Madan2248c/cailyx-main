@@ -3,6 +3,27 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — AEO: rivals judged with business context; "lost to a rival" fixed
+
+Faydo's AI visibility screen said "No questions lost to a rival" while Faydo was absent from 83% of
+answers, and listed Amazon and Flipkart as rivals. Causes and fixes:
+
+- **"Lost" needed an explicit ranking.** `losesTo` only counted when an answer ranked the subject
+  *behind* someone, so an answer that simply recommended Woohoo/GyFTR instead of Faydo counted as no loss.
+  It now means "direct competitors the buyer is pointed to instead of the subject".
+- **No business context.** The judge only saw the company name, so any named brand became a rival
+  (merchants Faydo resells, restaurants, payment brands). It now receives a brief built from the stored
+  company profile (`business-brief.ts`: what it is, sells, why customers choose it, where, and the
+  ideal customer when known) and returns `directCompetitors`, told that a brand's own store or gift card
+  is a merchant, not a rival. The profile has no ICP for Faydo; the judge is told to infer it from the offering.
+- **Noise fed back in.** Every named brand was filed as a candidate rival and then treated as known.
+  Only direct competitors are filed now, and after judging, candidates named in fewer than two answers
+  are pruned. Rival standing counts only brands on the rival list.
+- Brand names arriving with a glued source domain ("Woohoowoohoo.in") are cleaned so a rival is not split in two.
+- Faydo's audit was re-judged: 15 of 80 answers now point the buyer to a direct rival (was 0);
+  most frequent: Woohoo (5), GyFTR (4), Gyftpe (3). Amazon/Flipkart are gone; PriceDiff (a price
+  tracker, not a gift-card rival) was moved from tracked to candidate.
+
 ## 2026-09-29 — Live DataForSEO (real keywords and backlinks) + Faydo data
 
 - `LiveDataforseoAdapter` now makes real DataForSEO calls for all nine datasets, in the same payload
