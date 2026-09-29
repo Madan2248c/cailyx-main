@@ -35,6 +35,8 @@ export interface Day1StageRecord {
   runId?: string;
   error?: string;
   skippedReason?: string;
+  /** When the stage settled (any outcome). Lets the portal show real progress and a fair time estimate. */
+  finishedAt?: string;
 }
 
 export type Day1StagesState = Partial<Record<Day1Stage, Day1StageRecord>>;

@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Eye } from 'lucide-react';
 import { ClientSchedulesSection } from '@/components/admin/client-schedules/client-schedules-section';
 import { ConfirmDialog, Day1Chip, Monogram, Notice } from '@/components/admin/admin-ui';
 import { CreateProjectDialog } from '@/components/admin/create-project-dialog';
+import { Day1ProgressPanel } from '@/components/admin/day1-progress-panel';
 import { useLoad } from '@/components/admin/use-load';
 import { SyncFixPlanButton, type SyncResult } from '@/components/admin/sync-fix-plan-button';
 import { Button } from '@/components/portal/button';
@@ -71,6 +72,14 @@ export default function ClientProjectsPage() {
   /** `null` until the first status lookup lands, so no control flashes in with a guessed state. */
   const day1 = projectsLoad.data?.day1 ?? null;
   const error = projectsLoad.error ?? clientLoad.error;
+
+  // While any audit is live, re-read the statuses so the progress moves on its own.
+  const anyActive = Object.values(projectsLoad.data?.day1 ?? {}).some((d) => d?.status === 'RUNNING' || d?.status === 'QUEUED');
+  useEffect(() => {
+    if (!anyActive) return;
+    const id = setInterval(() => void reload(), 6000);
+    return () => clearInterval(id);
+  }, [anyActive, reload]);
 
   if (client === undefined || (projects === null && projectsLoad.loading)) return <PortalLoading label="Loading the client" />;
 
@@ -193,6 +202,7 @@ export default function ClientProjectsPage() {
                       </Button>
                     </div>
                   </div>
+                  {run ? <Day1Block day1={run} /> : null}
                 </li>
               );
             })}
@@ -237,5 +247,24 @@ export default function ClientProjectsPage() {
         }}
       />
     </PortalPage>
+  );
+}
+
+/** The Day-1 audit under a project row. Live and failed audits are open; a finished one folds away. */
+function Day1Block({ day1 }: { day1: Day1Status }) {
+  if (day1.status === 'COMPLETE') {
+    return (
+      <details className="group px-5 pb-4">
+        <summary className="w-fit cursor-pointer list-none rounded text-xs font-medium text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          Day-1 audit finished. <span className="underline underline-offset-4">Show the steps</span>
+        </summary>
+        <Day1ProgressPanel day1={day1} />
+      </details>
+    );
+  }
+  return (
+    <div className="px-5 pb-4">
+      <Day1ProgressPanel day1={day1} />
+    </div>
   );
 }

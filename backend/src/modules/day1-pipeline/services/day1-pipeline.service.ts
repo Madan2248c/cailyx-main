@@ -15,7 +15,7 @@
  * @module day1-pipeline/services/day1-pipeline.service
  */
 
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
@@ -59,6 +59,23 @@ function asJson(value: unknown): any {
 /** Discovery terminal states that still allow the pipeline to proceed. */
 const DISCOVERY_DONE = new Set(['COMPLETE', 'COMPLETE_WITH_GAPS', 'MANUAL_REVIEW_REQUIRED']);
 
+/**
+ * How long a request will wait for the job queue. Redis being down does not
+ * make `queue.add` fail: it waits for the connection forever, which would hang
+ * the HTTP request (project creation sat on "Creating…"). Bound the wait so
+ * the caller gets an answer; the pipeline row is saved either way and can be
+ * re-enqueued with the retry endpoint.
+ */
+const ENQUEUE_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
+}
+
 @Injectable()
 export class Day1PipelineService {
   private readonly logger = new Logger(Day1PipelineService.name);
@@ -99,10 +116,10 @@ export class Day1PipelineService {
     });
 
     try {
-      await this.queue.add(
-        DAY1_JOB,
-        { pipelineRunId: row.id, projectId, clientId },
-        { ...DAY1_JOB_OPTIONS, jobId: row.id },
+      await withTimeout(
+        this.queue.add(DAY1_JOB, { pipelineRunId: row.id, projectId, clientId }, { ...DAY1_JOB_OPTIONS, jobId: row.id }),
+        ENQUEUE_TIMEOUT_MS,
+        'the job queue did not answer in time (is Redis reachable?)',
       );
     } catch (err) {
       this.logger.error(
@@ -134,11 +151,16 @@ export class Day1PipelineService {
     if (row.status === 'RUNNING') {
       throw new ConflictException('Day-1 pipeline is already running for this project.');
     }
-    await this.queue.add(
-      DAY1_JOB,
-      { pipelineRunId: row.id, projectId, clientId },
-      { ...DAY1_JOB_OPTIONS, jobId: row.id },
-    );
+    try {
+      await withTimeout(
+        this.queue.add(DAY1_JOB, { pipelineRunId: row.id, projectId, clientId }, { ...DAY1_JOB_OPTIONS, jobId: row.id }),
+        ENQUEUE_TIMEOUT_MS,
+        'the job queue did not answer in time',
+      );
+    } catch (err) {
+      this.logger.error(`Day-1 pipeline ${row.id} could not be enqueued: ${(err as Error).message}`);
+      throw new ServiceUnavailableException('The job queue is not reachable right now, so the audit could not be started. Check that Redis is running, then try again.');
+    }
     return row;
   }
 
@@ -181,12 +203,12 @@ export class Day1PipelineService {
         await this.prisma.day1PipelineRun.update({ where: { id: row.id }, data: { currentStage: stage } });
         onProgress?.(stage);
         try {
-          state[stage] = await this.runStage(stage, row.id, clientId, projectId, state);
+          state[stage] = { ...(await this.runStage(stage, row.id, clientId, projectId, state)), finishedAt: new Date().toISOString() };
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           this.logger.error(`Day-1 pipeline ${row.id} stage ${stage} failed: ${message}`);
           const prior = state[stage];
-          state[stage] = { status: 'failed', error: message, ...(prior?.runId ? { runId: prior.runId } : {}) };
+          state[stage] = { status: 'failed', error: message, ...(prior?.runId ? { runId: prior.runId } : {}), finishedAt: new Date().toISOString() };
           // Without a released report there is no pipeline result — every
           // other stage failure is recorded and the pipeline continues.
           if (stage === 'reporting') throw err;

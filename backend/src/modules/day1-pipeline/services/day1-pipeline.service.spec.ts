@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
@@ -173,9 +173,40 @@ describe('Day1PipelineService', () => {
 
       expect(row.id).toBe('pipeline-1');
     });
+
+    it('does not hang when the queue never answers (Redis unreachable)', async () => {
+      vi.useFakeTimers();
+      try {
+        prisma.day1PipelineRun.findUnique.mockResolvedValue(null);
+        prisma.day1PipelineRun.create.mockResolvedValue(buildRow());
+        queue.add.mockReturnValue(new Promise(() => {})); // ioredis waiting for a connection that never comes
+
+        const pending = service.startPipeline('client-1', 'project-1', {});
+        await vi.advanceTimersByTimeAsync(5_100);
+
+        await expect(pending).resolves.toMatchObject({ id: 'pipeline-1' });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('retry', () => {
+    it('answers 503 instead of hanging when the queue is unreachable', async () => {
+      vi.useFakeTimers();
+      try {
+        prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow({ status: 'FAILED' }));
+        queue.add.mockReturnValue(new Promise(() => {}));
+
+        const pending = service.retry('client-1', 'project-1');
+        const assertion = expect(pending).rejects.toThrow(ServiceUnavailableException);
+        await vi.advanceTimersByTimeAsync(5_100);
+        await assertion;
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('re-enqueues a FAILED row', async () => {
       prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow({ status: 'FAILED' }));
 
@@ -229,7 +260,7 @@ describe('Day1PipelineService', () => {
       expect(final.reportId).toBe('r1');
       const stages = final.stages as Record<string, { status: string; runId?: string }>;
       expect(Object.values(stages)).toHaveLength(10);
-      expect(stages.remediation).toEqual({ status: 'completed', runId: 'rem1' });
+      expect(stages.remediation).toMatchObject({ status: 'completed', runId: 'rem1', finishedAt: expect.any(String) });
       expect(Object.values(stages).every((s) => s.status === 'completed')).toBe(true);
       expect(stages['aeo-audit'].runId).toBe('a1');
     });

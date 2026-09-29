@@ -16,6 +16,11 @@ import { Input } from '@/components/ui/input';
 import { Field, Notice } from '@/components/admin/admin-ui';
 import { createProject } from '@/lib/projects-api';
 
+/** Longest the dialog waits before it stops saying "Creating…" and lets you act. */
+const CREATE_TIMEOUT_MS = 20_000;
+
+class SlowResponse extends Error {}
+
 interface FieldErrors {
   name?: string;
   domain?: string;
@@ -84,15 +89,30 @@ export function CreateProjectDialog({
     setIsSubmitting(true);
     try {
       const ceiling = spendCeiling.trim() === '' ? undefined : Number(spendCeiling);
-      await createProject(accessToken, clientId, name.trim(), normalizeDomain(domain), {
+      const created = createProject(accessToken, clientId, name.trim(), normalizeDomain(domain), {
         day1SpendConsent: true,
         ...(ceiling !== undefined ? { day1SpendCeilingUsd: ceiling } : {}),
       });
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const tooSlow = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new SlowResponse()), CREATE_TIMEOUT_MS);
+      });
+      try {
+        await Promise.race([created, tooSlow]);
+      } finally {
+        clearTimeout(timer);
+      }
       reset();
       setOpen(false);
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      if (err instanceof SlowResponse) {
+        // The project may well exist: refresh the list so it isn't created twice by a second try.
+        setError('The server took too long to answer. The project may have been created, so check the list before trying again.');
+        onCreated();
+      } else {
+        setError(err instanceof Error ? err.message : 'Something went wrong');
+      }
     } finally {
       setIsSubmitting(false);
     }

@@ -14,6 +14,8 @@ export interface Day1StageRecord {
   runId?: string;
   error?: string;
   skippedReason?: string;
+  /** When the step settled. Absent on runs from before this was recorded. */
+  finishedAt?: string;
 }
 
 export interface Day1Status {

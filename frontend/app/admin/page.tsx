@@ -15,6 +15,7 @@ import { plural, relativeDate } from '@/components/portal/tone';
 import { useAuth } from '@/contexts/auth-context';
 import { getDataforseoSchedule } from '@/lib/admin-api';
 import { clearApiCache } from '@/lib/api-cache';
+import { computeDay1Progress } from '@/lib/day1-progress';
 import { listProjects } from '@/lib/projects-api';
 import { getSocialActivitySchedule, getTechnicalAuditSchedule } from '@/lib/schedules-api';
 import { getDay1Status, type Day1Status } from '@/lib/settings-api';
@@ -343,6 +344,7 @@ export default function AdminOverviewPage() {
                         <span className="truncate text-sm font-medium">{f.project.name}</span>
                         <span className="truncate text-xs text-muted-foreground">
                           {f.client.name} · {f.project.domain}
+                          {f.day1 ? ` · step ${Math.min(computeDay1Progress(f.day1).finished + 1, 10)} of 10` : ''}
                         </span>
                       </span>
                       <Day1Chip status={f.day1?.status} />
