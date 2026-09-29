@@ -16,6 +16,7 @@ import type { RefreshTokenDto } from '../dto/refresh-token.dto.js';
 import type { ResetPasswordDto } from '../dto/reset-password.dto.js';
 import { PasswordService } from './password.service.js';
 import { TokenService } from './token.service.js';
+import { renderEmail } from '../../email/email-template.js';
 import { EmailService } from '../../email/email.service.js';
 
 type UserWithClient = UserModel & { client: ClientModel | null };
@@ -264,11 +265,12 @@ export class AuthService {
       await this.emailService.send({
         to: email,
         subject: 'Reset your Cailyx password',
-        html:
-          `<p>Someone requested a password reset for your Cailyx account.</p>` +
-          `<p><a href="${link}">Reset your password</a></p>` +
-          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
-          `If you didn't ask for this, you can safely ignore it.</p>`,
+        html: renderEmail({
+          heading: 'Reset your password',
+          paragraphs: ['Someone requested a password reset for your Cailyx account.'],
+          cta: { label: 'Reset your password', url: link },
+          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you didn't ask for this, you can safely ignore it.`,
+        }),
       });
     } catch (err) {
       this.logger.error(`Password reset email to ${email} failed: ${(err as Error).message}`);

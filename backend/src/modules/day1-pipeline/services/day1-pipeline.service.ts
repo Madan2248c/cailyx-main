@@ -175,7 +175,9 @@ export class Day1PipelineService {
     try {
       for (const stage of DAY1_STAGES) {
         const recorded = state[stage];
-        if (recorded?.status === 'completed' || recorded?.status === 'skipped') continue;
+        // A skipped AEO audit (no query set, spend ceiling) is re-attempted on retry:
+        // the report is held until it has actually completed.
+        if (recorded?.status === 'completed' || (recorded?.status === 'skipped' && stage !== 'aeo-audit')) continue;
         await this.prisma.day1PipelineRun.update({ where: { id: row.id }, data: { currentStage: stage } });
         onProgress?.(stage);
         try {
@@ -190,6 +192,13 @@ export class Day1PipelineService {
           if (stage === 'reporting') throw err;
         }
         await this.prisma.day1PipelineRun.update({ where: { id: row.id }, data: { stages: asJson(state) } });
+        // The AEO audit is the headline of the Day-1 report. Without it, don't
+        // release a report or tell the client it is ready: hold here so the run
+        // shows as needing attention, and a retry resumes from this stage.
+        if (stage === 'aeo-audit' && state[stage]?.status !== 'completed') {
+          const detail = state[stage]?.error ?? state[stage]?.skippedReason ?? state[stage]?.status;
+          throw new Error(`AEO audit did not complete (${detail}). Report and client email held. Fix the cause, then retry the pipeline.`);
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

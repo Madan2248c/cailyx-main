@@ -265,36 +265,40 @@ describe('Day1PipelineService', () => {
       expect(team.sendDay1ReadyEmail).not.toHaveBeenCalled();
     });
 
-    it('skips the query chain when generation fails, and the AEO stage records the reason', async () => {
+    it('skips the query chain when generation fails, and holds the report and email because AEO did not run', async () => {
       mockHappyStages();
       querySets.generate.mockRejectedValueOnce(new ConflictException('No CompanyContextProfile exists'));
       prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow());
       prisma.day1PipelineRun.update.mockImplementation((args: unknown) => Promise.resolve({ id: 'pipeline-1', ...(args as { data: Record<string, unknown> }).data }));
 
-      await service.executePipeline('pipeline-1');
+      await expect(service.executePipeline('pipeline-1')).rejects.toThrow(/AEO audit did not complete/);
 
       expect(aeoAudit.create).not.toHaveBeenCalled();
+      expect(reporting.generate).not.toHaveBeenCalled();
+      expect(team.sendDay1ReadyEmail).not.toHaveBeenCalled();
       const updates = prisma.day1PipelineRun.update.mock.calls.map((c) => (c[0] as { data: Record<string, unknown> }).data);
       const final = updates[updates.length - 1];
-      expect(final.status).toBe('COMPLETE');
+      expect(final.status).toBe('FAILED');
+      expect(String(final.error)).toContain('Report and client email held');
       const stages = final.stages as Record<string, { status: string; skippedReason?: string }>;
       expect(stages['query-set'].status).toBe('failed');
       expect(stages['aeo-audit']).toMatchObject({ status: 'skipped', skippedReason: 'no-active-query-set' });
     });
 
-    it('skips paid stages once the ceiling is reached', async () => {
+    it('skips paid stages once the ceiling is reached, and holds the report because AEO was skipped', async () => {
       mockHappyStages();
       socialActivity.listRuns.mockResolvedValue([{ totalCostUsd: 6 }]);
       prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow({ spendCeilingUsd: 5 }));
       prisma.day1PipelineRun.update.mockImplementation((args: unknown) => Promise.resolve({ id: 'pipeline-1', ...(args as { data: Record<string, unknown> }).data }));
 
-      await service.executePipeline('pipeline-1');
+      await expect(service.executePipeline('pipeline-1')).rejects.toThrow(/AEO audit did not complete/);
 
       expect(socialActivity.startRun).not.toHaveBeenCalled();
       expect(aeoAudit.create).not.toHaveBeenCalled();
+      expect(reporting.generate).not.toHaveBeenCalled();
       const updates = prisma.day1PipelineRun.update.mock.calls.map((c) => (c[0] as { data: Record<string, unknown> }).data);
       const final = updates[updates.length - 1];
-      expect(final.status).toBe('COMPLETE');
+      expect(final.status).toBe('FAILED');
       const stages = final.stages as Record<string, { status: string; skippedReason?: string }>;
       expect(stages['social-activity'].skippedReason).toContain('spend-ceiling-reached');
       expect(stages['aeo-audit'].skippedReason).toContain('spend-ceiling-reached');

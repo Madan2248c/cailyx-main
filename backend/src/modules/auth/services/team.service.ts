@@ -8,6 +8,7 @@ import type { UpdateSeatLimitDto } from '../dto/update-seat-limit.dto.js';
 import { TokenService } from './token.service.js';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from '../../email/email.service.js';
+import { renderEmail } from '../../email/email-template.js';
 
 /** Statuses that occupy a seat. A DISABLED or soft-deleted user frees theirs up. */
 const SEAT_OCCUPYING_STATUSES: UserStatus[] = [UserStatus.INVITED, UserStatus.ACTIVE];
@@ -247,11 +248,12 @@ export class TeamService {
       await this.emailService.send({
         to: email,
         subject: "You've been invited to Cailyx",
-        html:
-          `<p>You've been invited to join Cailyx.</p>` +
-          `<p><a href="${link}">Set up your account</a></p>` +
-          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
-          `If you weren't expecting this, you can safely ignore it.</p>`,
+        html: renderEmail({
+          heading: "You've been invited to Cailyx",
+          paragraphs: ["You've been invited to join Cailyx, your Rothenhall client portal for AI visibility and site health."],
+          cta: { label: 'Set up your account', url: link },
+          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you weren't expecting this, you can safely ignore it.`,
+        }),
       });
     } catch (err) {
       this.logger.error(`Invite email to ${email} failed: ${(err as Error).message}`);
@@ -284,9 +286,11 @@ export class TeamService {
         await this.emailService.send({
           to: poc.email,
           subject: 'Your Day-1 audit is ready',
-          html:
-            `<p>Your Day-1 audit is ready.</p>` +
-            `<p><a href="${frontendUrl}/login">Log in to Cailyx</a> to view it.</p>`,
+          html: renderEmail({
+            heading: 'Your Day-1 audit is ready',
+            paragraphs: ['Your Day-1 audit is ready to view in Cailyx.'],
+            cta: { label: 'Log in to Cailyx', url: `${frontendUrl}/login` },
+          }),
         });
       } catch (err) {
         this.logger.error(`Day-1 ready email to ${poc.email} failed: ${(err as Error).message}`);
@@ -302,11 +306,12 @@ export class TeamService {
       await this.emailService.send({
         to: poc.email,
         subject: 'Your Day-1 audit is ready: set up your account',
-        html:
-          `<p>Your Day-1 audit is ready.</p>` +
-          `<p><a href="${link}">Set up your account</a> to view it.</p>` +
-          `<p>This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. ` +
-          `If you weren't expecting this, you can safely ignore it.</p>`,
+        html: renderEmail({
+          heading: 'Your Day-1 audit is ready',
+          paragraphs: ['Your Day-1 audit is ready. Set up your account to view it.'],
+          cta: { label: 'Set up your account', url: link },
+          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you weren't expecting this, you can safely ignore it.`,
+        }),
       });
     } catch (err) {
       this.logger.error(`Day-1 ready email to ${poc.email} failed: ${(err as Error).message}`);
