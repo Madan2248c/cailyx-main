@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, ListChecks, Share2, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, FolderKanban, ListChecks, LoaderCircle, Share2, Wrench } from 'lucide-react';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Key } from '@/components/animate-ui/icons/key';
@@ -119,9 +119,16 @@ export function ClientSidebar() {
     setManualOpen(readStoredPerformanceOpen(projectId));
   }
 
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   async function handleLogout() {
-    await logout();
-    router.push('/login');
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      router.push('/login');
+    } finally {
+      setIsLoggingOut(false);
+    }
   }
 
   function renderSection(section: NavSection, index: number, perfBase: string) {
@@ -181,11 +188,11 @@ export function ClientSidebar() {
 
   return (
     <aside className="flex w-full flex-col gap-4 border-b border-border bg-sidebar p-4 md:sticky md:top-0 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:border-r md:border-b-0">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 pt-3 pb-4 md:pt-4 md:pb-5">
         <Link
           href="/client"
           aria-label="Cailyx home"
-          className="flex items-center gap-2 rounded px-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="flex items-center gap-2 rounded px-2 py-1 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <CailyxLockup />
         </Link>
@@ -225,19 +232,45 @@ export function ClientSidebar() {
             </div>
           </Highlight>
         ) : (
-          <p className="px-2 text-sm text-muted-foreground">Select a project to see its sections.</p>
+          <div className="flex flex-col gap-3">
+            <Highlight
+              controlledItems
+              hover
+              click={false}
+              mode="children"
+              className="inset-0 rounded-lg bg-muted"
+              transition={{ type: 'spring', stiffness: 420, damping: 38 }}
+            >
+              <NavLink pathname={pathname} item={{ label: 'Projects', href: '/client', icon: FolderKanban }} />
+            </Highlight>
+            <p className="px-2 text-xs leading-relaxed text-muted-foreground">
+              Open a project to see its dashboard, Fix Plan, reports and more.
+            </p>
+          </div>
         )}
       </nav>
 
-      <div className="flex flex-col gap-2 border-t border-border pt-3 md:mt-auto">
-        <RothenhallCredit />
-        {user ? <p className="truncate px-1 text-xs text-muted-foreground">{user.email}</p> : null}
+      <div className="flex flex-col gap-3 border-t border-border pt-3 md:mt-auto">
+        {user ? (
+          <div className="flex items-center gap-2.5 px-1">
+            <span
+              aria-hidden
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background"
+            >
+              {user.email.charAt(0).toUpperCase()}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={user.email}>
+              {user.email}
+            </span>
+          </div>
+        ) : null}
         <AnimateIcon animateOnHover asChild>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut size={16} className="size-4" />
-            Log out
+          <Button variant="outline" size="sm" onClick={handleLogout} disabled={isLoggingOut} aria-busy={isLoggingOut}>
+            {isLoggingOut ? <LoaderCircle aria-hidden className="size-4 animate-spin" /> : <LogOut size={16} className="size-4" />}
+            {isLoggingOut ? 'Logging out…' : 'Log out'}
           </Button>
         </AnimateIcon>
+        <RothenhallCredit />
       </div>
     </aside>
   );

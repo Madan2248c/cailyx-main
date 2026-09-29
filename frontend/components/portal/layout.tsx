@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { ArrowUpRight } from 'lucide-react';
 import { cn } from 'cn';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
@@ -29,6 +30,11 @@ export function PageHeader({
   summary?: React.ReactNode;
   actions?: React.ReactNode;
 }) {
+  // Tab title follows the page, so history, tabs and screen readers say where you are.
+  useEffect(() => {
+    document.title = `${title} · Cailyx`;
+  }, [title]);
+
   return (
     <Reveal>
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

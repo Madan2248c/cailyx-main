@@ -3,6 +3,36 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Fix Plan: clearer to use
+
+- Plan page: "How the Fix Plan works" (3 steps), a "Hand this to your developer" call-to-action with
+  Download one-page PDF / Download full fix list (.md), a "Start here" block (top 3 by impact, then
+  quickest), rows say "View steps", and the empty "Needs your decision" box is gone when nothing is waiting.
+- Row hover is a steady background tint (no sliding highlight).
+- Fix page: a "What to do" callout with an "I've done this" button that jumps to "We've applied this".
+- Auth: a reload no longer signs you out in dev. Two simultaneous refreshes shared one rotating
+  refresh token; they now share one in-flight request.
+
+## 2026-09-29 — Day-1: no report or client email without a completed AEO audit
+
+Before, a failed or skipped AEO audit (no query set, spend ceiling) did not stop the run: a
+Day-1 report was released without the AEO section and the client was emailed "audit ready".
+Now the pipeline holds after the `aeo-audit` stage unless it completed: no report is released,
+no email is sent, and the run is marked FAILED with "AEO audit did not complete (reason)...".
+A retry re-attempts the AEO stage (a previously *skipped* one too) and resumes from there.
+Other stages still fail soft. Tests updated; all 927 pass.
+
+## 2026-09-29 — Standard 100% density, Rothenhall serif headings, griffin favicon
+
+- Density: the 0.84 runtime multiplier (`--g-scale`) is gone. The tokens are now literal
+  values equal to the old look at 80% browser zoom (0.672 x Tailwind defaults), set on
+  `:root` so portal, admin and auth screens all share them. Tune in `globals.css`.
+- Type: Cormorant Garamond (the Rothenhall wordmark's high-contrast serif) is the heading
+  face everywhere (`h1-h4`, card and dialog titles) and sets the "CAILYX / by Rothenhall"
+  lockup (sidebar, auth, admin).
+- Sign-in card: wider, centred serif title.
+- Favicon and app icons: the griffin, on a white rounded tile.
+
 ## 2026-09-29 — Railway: infrastructure-as-code works and matches production
 
 `railway config plan` never ran on this Windows/Volta setup: the CLI's version check and

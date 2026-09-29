@@ -25,6 +25,19 @@ async function parseOrThrow(response: Response): Promise<{ accessToken: string |
   return data;
 }
 
+// The refresh token rotates on use, so two simultaneous refreshes (React strict
+// mode mounts effects twice in dev; two quick reloads can do the same) would
+// make the second one fail and sign the user out. Share one in-flight request.
+let inflightRefresh: Promise<Awaited<ReturnType<typeof parseOrThrow>>> | null = null;
+function refreshSession() {
+  inflightRefresh ??= fetch('/api/auth/refresh', { method: 'POST' })
+    .then(parseOrThrow)
+    .finally(() => {
+      inflightRefresh = null;
+    });
+  return inflightRefresh;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -36,8 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    fetch('/api/auth/refresh', { method: 'POST' })
-      .then(parseOrThrow)
+    refreshSession()
       .then((data) => {
         if (!cancelled) {
           setAccessToken(data.accessToken);

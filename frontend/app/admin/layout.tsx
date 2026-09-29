@@ -30,9 +30,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen flex-col bg-background md:flex-row">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
       <aside className="flex w-full flex-col gap-4 border-b border-border bg-background p-4 md:h-screen md:w-60 md:shrink-0 md:overflow-y-auto md:border-r md:border-b-0 md:sticky md:top-0">
         <Link href="/admin" className="px-1 text-base font-semibold tracking-tight">
-          Cailyx <span className="font-normal text-muted-foreground">· Admin</span>
+          <span className="font-heading font-bold tracking-[0.08em] uppercase">Cailyx</span> <span className="font-normal text-muted-foreground">· Admin</span>
         </Link>
 
         <nav className="flex flex-row gap-1 overflow-x-auto md:flex-col">
@@ -83,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </Button>
           </div>
         </header>
-        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">{children}</main>
       </div>
     </div>
   );

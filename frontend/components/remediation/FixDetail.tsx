@@ -96,6 +96,24 @@ export function FixDetail({
           </Tile>
         ) : null}
 
+        {canMarkApplied(fix) && fix.status !== 'AWAITING_DECISION' ? (
+          <Tile index={0} className="md:col-span-4 gap-3">
+            <TileHeader icon={ClipboardList} eyebrow="What to do" />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="max-w-2xl text-sm">
+                Follow the <span className="font-semibold">steps</span> below (or hand this page to your developer). When the change is live, press{' '}
+                <span className="font-semibold">&ldquo;We&rsquo;ve applied this&rdquo;</span> and we will re-check your site and mark it Verified.
+              </p>
+              <a
+                href="#mark-applied"
+                className="inline-flex min-h-9 items-center rounded-lg bg-foreground px-3.5 text-sm font-medium text-background outline-none hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                I&rsquo;ve done this
+              </a>
+            </div>
+          </Tile>
+        ) : null}
+
         <Tile index={1} className="md:col-span-2">
           <TileHeader icon={Lightbulb} eyebrow="Why this matters" />
           {fix.steps[0] ? <p className="text-sm">{fix.steps[0]}</p> : null}
@@ -197,7 +215,11 @@ export function FixDetail({
           </ol>
         </Tile>
 
-        {canMarkApplied(fix) ? <AppliedForm fix={fix} accessToken={accessToken} clientId={clientId} onDone={setFix} /> : null}
+        {canMarkApplied(fix) ? (
+          <div id="mark-applied" className="scroll-mt-6 md:col-span-4">
+            <AppliedForm fix={fix} accessToken={accessToken} clientId={clientId} onDone={setFix} />
+          </div>
+        ) : null}
       </div>
     </PortalPage>
   );

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, CircleCheck, TriangleAlert } from 'lucide-react';
+import { ArrowUpRight, CircleCheck, Globe, TriangleAlert } from 'lucide-react';
 import { PageHeader, PortalPage } from '@/components/portal/layout';
 import { EmptyState, ErrorState, Skeleton } from '@/components/portal/states';
 import { useAuth } from '@/contexts/auth-context';
@@ -51,6 +51,7 @@ export default function ClientProjectsPage() {
         eyebrow="Welcome back"
         title="Your projects"
         summary="Choose a project to see how AI answer engines see your company, and what to do next."
+        meta={projects && projects.length > 0 ? <span>{projects.length} {projects.length === 1 ? 'project' : 'projects'}</span> : undefined}
       />
 
       {googleResult === 'connected' ? (
@@ -79,19 +80,27 @@ export default function ClientProjectsPage() {
             <li key={project.id}>
               <Link
                 href={`/client/projects/${project.id}`}
-                className="g-tile g-rise h-full gap-5 p-5"
+                className="g-tile g-rise h-full gap-6 p-5"
                 style={{ '--i': i + 1 } as React.CSSProperties}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-foreground text-sm font-semibold text-background">
+                  <span className="flex size-12 items-center justify-center rounded-xl bg-foreground text-base font-semibold text-background">
                     {initials(project.name)}
                   </span>
-                  <ArrowUpRight className="g-row-arrow size-4 text-muted-foreground" />
+                  <span className="flex size-8 items-center justify-center rounded-full ring-1 ring-foreground/10">
+                    <ArrowUpRight aria-hidden className="g-row-arrow size-4 text-muted-foreground" />
+                  </span>
                 </div>
-                <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex min-w-0 flex-col gap-1">
                   <p className="truncate text-lg font-semibold">{project.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">{project.domain}</p>
+                  <p className="flex items-center gap-1.5 truncate text-sm text-muted-foreground">
+                    <Globe aria-hidden className="size-3.5 shrink-0" />
+                    <span className="truncate">{project.domain}</span>
+                  </p>
                 </div>
+                <p className="border-t border-border pt-3 text-xs font-medium text-muted-foreground">
+                  Open dashboard
+                </p>
               </Link>
             </li>
           ))}

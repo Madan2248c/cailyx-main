@@ -11,15 +11,14 @@ export function CailyxMark({ className }: { className?: string }) {
   return <Image src="/brand/cailyx-mark.svg" alt="" width={32} height={32} className={cn('size-8 shrink-0', className)} priority />;
 }
 
-/** Mark + "Cailyx / by Rothenhall". `size="lg"` for the centred auth header. */
+/** Mark + "Cailyx" wordmark (the Rothenhall credit sits separately below). `size="lg"` for the centred auth header. */
 export function CailyxLockup({ size = 'md' }: { size?: 'md' | 'lg' }) {
   const lg = size === 'lg';
   return (
-    <span className={cn('flex items-center', lg ? 'gap-3' : 'gap-2')}>
-      <CailyxMark className={lg ? 'size-11' : undefined} />
-      <span className="flex flex-col leading-none">
-        <span className={cn('font-bold tracking-tight', lg ? 'text-2xl' : 'text-base')}>Cailyx</span>
-        <span className={cn('text-muted-foreground', lg ? 'mt-1 text-xs' : 'mt-0.5 text-[0.65rem]')}>by Rothenhall</span>
+    <span className={cn('flex', lg ? 'flex-col items-center gap-3 text-center' : 'items-center gap-2')}>
+      <CailyxMark className={lg ? 'size-12' : undefined} />
+      <span className="leading-none">
+        <span className={cn('font-heading font-bold tracking-[0.08em] uppercase', lg ? 'text-3xl' : 'text-xl')}>Cailyx</span>
       </span>
     </span>
   );

@@ -15,7 +15,7 @@ export function FixRow({ fix, href }: { fix: FixSpec; href: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-5 py-3 outline-none focus-visible:outline-2 focus-visible:outline-offset-[-4px] focus-visible:outline-ring"
+      className="group mx-2 flex items-center gap-3 rounded-xl px-3 py-3 outline-none transition-colors duration-150 hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring motion-reduce:transition-none"
     >
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="truncate text-sm font-medium">{fix.title}</span>
@@ -36,7 +36,8 @@ export function FixRow({ fix, href }: { fix: FixSpec; href: string }) {
           <StatusChip tone={STATUS_TONE[fix.status]}>{STATUS_WORD[fix.status]}</StatusChip>
         )}
       </span>
-      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:inline">View steps</span>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none" aria-hidden />
     </Link>
   );
 }

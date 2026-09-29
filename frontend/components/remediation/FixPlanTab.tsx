@@ -1,11 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { CircleCheck, ListChecks, Scale, TriangleAlert } from 'lucide-react';
+import { CircleCheck, ListChecks, Scale, TriangleAlert, Zap } from 'lucide-react';
 import { Download } from '@/components/animate-ui/icons/download';
-import { MagneticAction } from '@/components/portal/magnetic-action';
 import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from '@/components/animate-ui/components/animate/tabs';
-import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { ScoreRing, StackedBar, type Segment } from '@/components/portal/charts';
 import { Button } from '@/components/portal/button';
 import { DeltaChip, MetaDot, PageHeader, PortalPage, StatusChip, Tile, TileHeader } from '@/components/portal/layout';
@@ -21,6 +19,24 @@ import { FixRow } from './FixRow';
 import { PLAN_TABS } from './fix-meta';
 
 const GROUP_PREVIEW = 6;
+
+const LEVEL_RANK = { HIGH: 0, MEDIUM: 1, LOW: 2 } as const;
+
+/** The few fixes to do first: biggest impact, then the quickest, one per distinct problem. */
+function startHere(fixes: FixSpec[]): FixSpec[] {
+  const seen = new Set<string>();
+  return fixes
+    .filter((f) => f.status === 'OPEN')
+    .sort((a, b) => LEVEL_RANK[a.severity] - LEVEL_RANK[b.severity] || LEVEL_RANK[b.effort] - LEVEL_RANK[a.effort])
+    .filter((f) => (seen.has(f.title) ? false : (seen.add(f.title), true)))
+    .slice(0, 3);
+}
+
+const HOW_IT_WORKS = [
+  { n: 1, title: 'Open a fix', body: 'Each one says what is wrong, where, and the exact steps to change it.' },
+  { n: 2, title: 'Make the change', body: 'You or your developer follow the steps. Send them the .md list or the one-page PDF.' },
+  { n: 3, title: 'Tell us it is done', body: "Press 'We've applied this' on the fix. We re-check your live site and mark it Verified." },
+] as const;
 
 const STATUS_SEGMENT: Array<{ status: FixStatus; label: string; color: string }> = [
   { status: 'VERIFIED', label: 'Verified', color: 'var(--success)' },
@@ -129,6 +145,8 @@ export function FixPlanTab({
     );
   }
 
+  const starters = startHere(active);
+
   const segments: Segment[] = STATUS_SEGMENT.map((s) => ({ key: s.status, label: s.label, value: summary.byStatus[s.status] ?? 0, color: s.color })).filter(
     (s) => s.value > 0,
   );
@@ -157,42 +175,26 @@ export function FixPlanTab({
             {decisions.length > 0 ? ` ${plural(decisions.length, 'needs', 'need')} your decision.` : ' Nothing is waiting on you.'}
           </>
         }
-        actions={
-          <div className="flex flex-col items-end gap-1.5">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => download('md')}
-                disabled={downloading !== null}
-                title="Every fix with its steps, as a Markdown file your developers can work through"
-              >
-                {downloading === 'md' ? 'Preparing…' : 'Full fix list (.md)'}
-              </Button>
-              <MagneticAction>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => download('pdf')}
-                  disabled={downloading !== null}
-                  title="A one-page overview to send with the fix list: why, where to start, and what happens next"
-                >
-                  <Download className="size-4" aria-hidden />
-                  {downloading === 'pdf' ? 'Preparing…' : 'Overview for your developer (PDF)'}
-                </Button>
-              </MagneticAction>
-            </div>
-            {downloadError ? (
-              <p role="alert" className="text-xs text-destructive">
-                {downloadError}
-              </p>
-            ) : null}
-          </div>
-        }
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <Tile ink shine index={0} className="md:col-span-2 gap-5 p-6">
+        {!readOnly ? (
+          <Tile index={0} className="md:col-span-4 gap-3">
+            <TileHeader icon={ListChecks} eyebrow="How the Fix Plan works" />
+            <ol className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {HOW_IT_WORKS.map((s) => (
+                <li key={s.n} className="flex gap-3">
+                  <span className="g-num flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-semibold text-background">{s.n}</span>
+                  <span className="flex flex-col gap-0.5 text-sm">
+                    <span className="font-semibold">{s.title}</span>
+                    <span className="text-muted-foreground">{s.body}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </Tile>
+        ) : null}
+        <Tile ink shine index={0} className={`gap-5 p-6 ${decisions.length > 0 ? 'md:col-span-2' : 'md:col-span-4'}`}>
           <TileHeader
             icon={CircleCheck}
             eyebrow="Progress"
@@ -231,6 +233,7 @@ export function FixPlanTab({
           </div>
         </Tile>
 
+        {decisions.length > 0 ? (
         <Tile index={1} className="md:col-span-2">
           <TileHeader
             icon={Scale}
@@ -238,12 +241,7 @@ export function FixPlanTab({
             hint="Some fixes change what search engines index or which AI crawlers may read your site. Those are your call, so we wait for you."
             right={decisions.length > 0 ? <StatusChip tone="watch">{decisions.length} waiting</StatusChip> : null}
           />
-          {decisions.length === 0 ? (
-            <div className="flex flex-1 flex-col items-start justify-center gap-2 text-sm text-muted-foreground">
-              <CircleCheck className="size-6 text-success" aria-hidden />
-              Nothing needs your decision right now.
-            </div>
-          ) : (
+          {(
             <div className="flex flex-col gap-3">
               {decisions.slice(0, 3).map((fix) =>
                 readOnly ? (
@@ -267,8 +265,51 @@ export function FixPlanTab({
             </div>
           )}
         </Tile>
+        ) : null}
 
-        <Tile index={2} className="md:col-span-4 p-0">
+        {!readOnly ? (
+          <Tile index={2} className="md:col-span-4 gap-4 p-6">
+            <TileHeader icon={Download} eyebrow="Hand this to your developer" />
+            <div className="flex flex-wrap items-center justify-between gap-5">
+              <p className="max-w-xl text-sm text-muted-foreground">
+                Everything in this plan, ready to send. The <span className="font-semibold text-foreground">one-page PDF</span> explains why it matters and where to start.
+                The <span className="font-semibold text-foreground">full fix list</span> has every step for all {active.length} fixes.
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="default" onClick={() => download('pdf')} disabled={downloading !== null}>
+                  <Download className="size-4" aria-hidden />
+                  {downloading === 'pdf' ? 'Preparing…' : 'Download one-page PDF'}
+                </Button>
+                <Button size="default" variant="outline" onClick={() => download('md')} disabled={downloading !== null}>
+                  <Download className="size-4" aria-hidden />
+                  {downloading === 'md' ? 'Preparing…' : 'Download full fix list (.md)'}
+                </Button>
+              </div>
+            </div>
+            {downloadError ? (
+              <p role="alert" className="text-sm text-destructive">
+                {downloadError}
+              </p>
+            ) : null}
+          </Tile>
+        ) : null}
+
+        {!readOnly && starters.length > 0 ? (
+          <Tile index={3} className="md:col-span-4 p-0">
+            <div className="px-5 pt-5">
+              <TileHeader icon={Zap} eyebrow="Start here" hint="The biggest wins first. Open one, follow its steps, then mark it applied." />
+            </div>
+            <ul className="pb-2">
+              {starters.map((fix) => (
+                <li key={fix.id}>
+                  <FixRow fix={fix} href={`${base}/${fix.id}`} />
+                </li>
+              ))}
+            </ul>
+          </Tile>
+        ) : null}
+
+        <Tile index={4} className="md:col-span-4 p-0">
           <div className="px-5 pt-5">
             <TileHeader icon={ListChecks} eyebrow="All fixes" />
           </div>
@@ -349,22 +390,13 @@ function FixGroups({
                 ))}
               </ul>
             ) : (
-              <Highlight
-                controlledItems
-                hover
-                click={false}
-                mode="children"
-                className="inset-x-2 inset-y-0 rounded-xl bg-muted"
-                transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-              >
-                <ul>
-                  {shown.map((fix) => (
-                    <HighlightItem key={fix.id} as="li" value={fix.id}>
-                      <FixRow fix={fix} href={`${base}/${fix.id}`} />
-                    </HighlightItem>
-                  ))}
-                </ul>
-              </Highlight>
+              <ul>
+                {shown.map((fix) => (
+                  <li key={fix.id}>
+                    <FixRow fix={fix} href={`${base}/${fix.id}`} />
+                  </li>
+                ))}
+              </ul>
             )}
             {items.length > GROUP_PREVIEW ? (
               <button

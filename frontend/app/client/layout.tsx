@@ -11,8 +11,14 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
     <ClientGate>
       <PortalMotion>
       <div className="theme-graphite flex min-h-screen flex-col md:flex-row">
+      <a
+        href="#main-content"
+        className="sr-only z-50 rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
         <ClientSidebar />
-        <main className="flex flex-1 flex-col bg-canvas">
+        <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col bg-canvas outline-none">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

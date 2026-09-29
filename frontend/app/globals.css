@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-montserrat), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-cormorant), Georgia, "Times New Roman", serif; /* brand serif: Cailyx wordmark only */
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -103,6 +103,32 @@
   --canvas: var(--background);
   --elevation-card: 0 0 #0000;
   --elevation-card-hover: 0 0 #0000;
+
+  /* Density: these are the standard sizes at 100% browser zoom. They are the
+     values that used to be reached by 0.84 x 80% browser zoom (= 0.672 of
+     Tailwind's defaults), written out as real numbers instead of a multiplier,
+     so nothing is scaled at runtime. Set on :root so every screen shares them. */
+  --spacing: 0.168rem;
+  --text-xs: 0.504rem;
+  --text-sm: 0.588rem;
+  --text-base: 0.672rem;
+  --text-lg: 0.756rem;
+  --text-xl: 0.84rem;
+  --text-2xl: 1.008rem;
+  --text-3xl: 1.26rem;
+  --text-4xl: 1.512rem;
+  --text-5xl: 2.016rem;
+  --text-6xl: 2.52rem;
+  --container-sm: 16.128rem;
+  --container-md: 18.816rem;
+  --container-lg: 21.504rem;
+  --container-xl: 24.192rem;
+  --container-2xl: 28.224rem;
+  --container-3xl: 32.256rem;
+  --container-4xl: 37.632rem;
+  --container-5xl: 43.008rem;
+  --container-6xl: 48.384rem;
+  --container-7xl: 53.76rem;
 }
 
 .dark {
@@ -240,33 +266,6 @@
   --warning: #9a5b0b;
   --danger: #b3261e;
   --destructive: var(--danger);
-
-  /* Density: the whole portal renders at this fraction of Tailwind's default
-     size — like browser zoom, but through the variables every spacing, text
-     and width utility reads, so full-height layouts stay full height. Change
-     this one number to tune it (1 = Tailwind default). */
-  --g-scale: 0.84;
-  --spacing: calc(0.25rem * var(--g-scale));
-  --text-xs: calc(0.75rem * var(--g-scale));
-  --text-sm: calc(0.875rem * var(--g-scale));
-  --text-base: calc(1rem * var(--g-scale));
-  --text-lg: calc(1.125rem * var(--g-scale));
-  --text-xl: calc(1.25rem * var(--g-scale));
-  --text-2xl: calc(1.5rem * var(--g-scale));
-  --text-3xl: calc(1.875rem * var(--g-scale));
-  --text-4xl: calc(2.25rem * var(--g-scale));
-  --text-5xl: calc(3rem * var(--g-scale));
-  --text-6xl: calc(3.75rem * var(--g-scale));
-  --container-sm: calc(24rem * var(--g-scale));
-  --container-md: calc(28rem * var(--g-scale));
-  --container-lg: calc(32rem * var(--g-scale));
-  --container-xl: calc(36rem * var(--g-scale));
-  --container-2xl: calc(42rem * var(--g-scale));
-  --container-3xl: calc(48rem * var(--g-scale));
-  --container-4xl: calc(56rem * var(--g-scale));
-  --container-5xl: calc(64rem * var(--g-scale));
-  --container-6xl: calc(72rem * var(--g-scale));
-  --container-7xl: calc(80rem * var(--g-scale));
 
   /* Radius: kit sm = 8px (buttons, inputs), lg = 12px (cards, below). */
   --radius: 0.5rem;
