@@ -24,6 +24,7 @@
 
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
+import { LiveDataforseoAdapter } from './adapters/live.adapter.js';
 import { MockDataforseoAdapter } from './adapters/mock.adapter.js';
 import { DataforseoController, DataforseoSnapshotController } from './controllers/dataforseo.controller.js';
 import { DATAFORSEO_QUEUE } from './queue/dataforseo.queue.js';
@@ -35,12 +36,13 @@ import { DataforseoService } from './services/dataforseo.service.js';
   imports: [BullModule.registerQueue({ name: DATAFORSEO_QUEUE })],
   controllers: [DataforseoController, DataforseoSnapshotController],
   providers: [
-    // The queue consumer, the schedule manager, the mock-only adapter,
-    // and the orchestrator that does the real work. LiveDataforseoAdapter
-    // is NOT provided on purpose — see the module doc above.
+    // The queue consumer, the schedule manager, both adapters and the
+    // orchestrator. The live adapter only runs when DATAFORSEO_LIVE=1 with
+    // credentials, and every live collect needs a spend confirmation.
     DataforseoProcessor,
     DataforseoScheduler,
     MockDataforseoAdapter,
+    LiveDataforseoAdapter,
     DataforseoService,
   ],
   exports: [DataforseoService],

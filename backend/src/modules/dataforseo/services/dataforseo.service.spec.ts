@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { asPrismaService, createPrismaMock, type PrismaMock } from '../../../../test/mocks/prisma.mock.js';
+import { LiveDataforseoAdapter } from '../adapters/live.adapter.js';
 import { MockDataforseoAdapter } from '../adapters/mock.adapter.js';
 import { DataforseoService } from './dataforseo.service.js';
 
@@ -28,11 +29,32 @@ describe('DataforseoService', () => {
       providers: [
         DataforseoService,
         MockDataforseoAdapter,
+        LiveDataforseoAdapter,
         { provide: PrismaService, useValue: asPrismaService(prisma) },
         { provide: ConfigService, useValue: { get: vi.fn((key: string, fallback?: unknown) => configValues[key] ?? fallback) } },
       ],
     }).compile();
     service = moduleRef.get(DataforseoService);
+  });
+
+  describe('live mode', () => {
+    it('refuses a live collect without confirmSpend: nothing is fetched or stored', async () => {
+      Object.assign(configValues, { DATAFORSEO_LIVE: '1', DATAFORSEO_LOGIN: 'l', DATAFORSEO_PASSWORD: 'p' });
+      prisma.project.findFirst.mockResolvedValue(project);
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      await expect(service.collectNow('client-1', 'project-1', ['backlinks-summary'])).rejects.toBeInstanceOf(BadRequestException);
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(prisma.dataforseoSnapshot.create).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
+    });
+
+    it('stays on the mock unless the live switch AND both credentials are present', async () => {
+      Object.assign(configValues, { DATAFORSEO_LIVE: '1', DATAFORSEO_LOGIN: 'l' });
+      prisma.project.findFirst.mockResolvedValue(project);
+      prisma.dataforseoSnapshot.create.mockResolvedValue({ id: 's', dataset: 'serp-ranks', costUsd: 0.01 });
+      const result = await service.collectNow('client-1', 'project-1', ['serp-ranks']);
+      expect(result.snapshots).toHaveLength(1); // mock path needs no confirmSpend
+    });
   });
 
   describe('collectNow', () => {

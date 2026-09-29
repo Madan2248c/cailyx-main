@@ -3,6 +3,19 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Live DataForSEO (real keywords and backlinks) + Faydo data
+
+- `LiveDataforseoAdapter` now makes real DataForSEO calls for all nine datasets, in the same payload
+  shapes the mock uses, so snapshots and pages are unchanged. Off unless `DATAFORSEO_LIVE=1` and
+  `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` are set; otherwise the mock (still gated) is used.
+- Every manual live collect needs `confirmSpend: true` (400 otherwise, nothing spent); scheduled
+  collects already needed the schedule's spend opt-in. Per-run cap `DATAFORSEO_MAX_COST_PER_RUN_USD`.
+- Country is picked from the domain ending (.in = India, else US); `DATAFORSEO_LOCATION_CODE` overrides.
+- Faydo (faydo.in): collected 22 ranked keywords, 28 referring domains, 35 backlinks, top pages and
+  a SERP snapshot for about $0.19 in total; Instagram social check (20 posts, $0.016). X returned
+  nothing (its Apify actor needs setup), Facebook was not run.
+- To use it in production: set `DATAFORSEO_LIVE=1` (and the login/password) on the Railway backend.
+
 ## 2026-09-29 — Emails: brand-aligned templates, proper sender, spam-safer
 
 - One shared branded layout for the invite, "audit ready" (login and set-up variants) and password

@@ -149,7 +149,8 @@ export class DataforseoScheduler {
     });
 
     const datasets = schedule.datasets.length > 0 ? schedule.datasets : [...DATASETS];
-    return this.dataforseo.collectNow(project.clientId, projectId, datasets);
+    // The schedule's spend opt-in was checked above, so this collect is approved.
+    return this.dataforseo.collectNow(project.clientId, projectId, datasets, { confirmSpend: true });
   }
 
   private async removeRecurrence(scheduleId: string): Promise<void> {

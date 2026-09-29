@@ -33,7 +33,7 @@ export class DataforseoController {
   @Roles(Role.ADMIN)
   @HttpCode(HttpStatus.CREATED)
   collectNow(@Param('clientId') clientId: string, @Param('projectId') projectId: string, @Body() dto: CollectDataforseoDto) {
-    return this.dataforseo.collectNow(clientId, projectId, dto.datasets);
+    return this.dataforseo.collectNow(clientId, projectId, dto.datasets, { confirmSpend: dto.confirmSpend });
   }
 
   /** GET …/dataforseo-snapshots — this project's snapshots, newest first. `?dataset=` filters. */

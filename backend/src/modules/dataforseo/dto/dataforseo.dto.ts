@@ -10,6 +10,11 @@ export class CollectDataforseoDto {
   @IsArray()
   @IsString({ each: true })
   datasets?: string[];
+
+  /** Required when live DataForSEO is on: it spends real credit. */
+  @IsOptional()
+  @IsBoolean()
+  confirmSpend?: boolean;
 }
 
 export class SetDataforseoScheduleDto {

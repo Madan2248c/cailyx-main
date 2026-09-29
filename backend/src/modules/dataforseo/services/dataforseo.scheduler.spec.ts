@@ -120,7 +120,7 @@ describe('DataforseoScheduler', () => {
 
     const update = prisma.dataforseoSchedule.update.mock.calls[0]![0] as { data: { nextRunAt: Date } };
     expect(update.data.nextRunAt.getTime()).toBeGreaterThanOrEqual(before + 30 * 86_400_000);
-    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', ['keyword-overview']);
+    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', ['keyword-overview'], { confirmSpend: true });
   });
 
   it('fireScheduledTick falls back to every dataset when the schedule stores none', async () => {
@@ -148,7 +148,7 @@ describe('DataforseoScheduler', () => {
       'keyword-ideas',
       'serp-snapshot',
       'domain-overview',
-    ]);
+    ], { confirmSpend: true });
   });
 
   it('setSchedule 400s on unknown datasets before storing anything', async () => {

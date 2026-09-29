@@ -44,7 +44,7 @@ describe('DataforseoController', () => {
 
   it('collectNow passes scope + datasets through', async () => {
     await controller.collectNow('client-1', 'project-1', { datasets: ['serp-ranks'] });
-    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', ['serp-ranks']);
+    expect(dataforseo.collectNow).toHaveBeenCalledWith('client-1', 'project-1', ['serp-ranks'], { confirmSpend: undefined });
   });
 
   it('reads pass scope through', async () => {

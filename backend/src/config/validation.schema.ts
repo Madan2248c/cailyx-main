@@ -112,6 +112,9 @@ export const validationSchema = Joi.object({
   // Email module. Optional — EmailService fails closed (503
   // email-unconfigured, nothing sent) when unset. See
   // docs/analysis/email.md.
+  // Live DataForSEO: real keyword/backlink data, real spend. Off unless "1" (and login/password set).
+  DATAFORSEO_LIVE: Joi.string().valid('0', '1').optional(),
+  DATAFORSEO_LOCATION_CODE: Joi.number().integer().positive().optional(),
   PLUNK_SECRET_KEY: Joi.string().optional(),
   PLUNK_SENDER_EMAIL: Joi.string().email().optional(),
   // Display name shown as the sender in the inbox. Defaults to "Cailyx".

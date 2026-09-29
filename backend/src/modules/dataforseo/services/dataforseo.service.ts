@@ -18,6 +18,7 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../prisma/prisma.service.js';
+import { LiveDataforseoAdapter } from '../adapters/live.adapter.js';
 import { MockDataforseoAdapter } from '../adapters/mock.adapter.js';
 import {
   DEFAULT_MAX_COST_PER_RUN_USD,
@@ -25,7 +26,7 @@ import {
   DEFAULT_SNAPSHOT_TAKE,
   MAX_SNAPSHOT_TAKE,
 } from '../dataforseo.constants.js';
-import { DATASETS, type DataforseoDataset } from '../dataforseo.types.js';
+import { DATASETS, type DataforseoAdapter, type DataforseoDataset } from '../dataforseo.types.js';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function asJson(value: unknown): any {
@@ -47,7 +48,13 @@ export class DataforseoService {
     private readonly prisma: PrismaService,
     private readonly config: ConfigService,
     private readonly mock: MockDataforseoAdapter,
+    private readonly live: LiveDataforseoAdapter,
   ) {}
+
+  /** Real data when DATAFORSEO_LIVE=1 and credentials are set; otherwise the (separately gated) mock. */
+  private adapter(): DataforseoAdapter {
+    return LiveDataforseoAdapter.isEnabled(this.config) ? this.live : this.mock;
+  }
 
   /**
    * Collect one append-only snapshot per dataset for the project, in
@@ -55,7 +62,12 @@ export class DataforseoService {
    * before anything is stored. The cost cap stops the run between
    * datasets — never mid-dataset, never silently.
    */
-  async collectNow(clientId: string, projectId: string, datasets?: string[]): Promise<CollectResult> {
+  async collectNow(
+    clientId: string,
+    projectId: string,
+    datasets?: string[],
+    opts: { confirmSpend?: boolean } = {},
+  ): Promise<CollectResult> {
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, clientId, deletedAt: null },
       select: { id: true, domain: true },
@@ -68,6 +80,12 @@ export class DataforseoService {
       throw new BadRequestException(`Unknown datasets: ${unknown.join(', ')}. Available: ${DATASETS.join(', ')}`);
     }
 
+    const adapter = this.adapter();
+    if (adapter.name === 'live' && opts.confirmSpend !== true) {
+      throw new BadRequestException(
+        'Live DataForSEO collects spend real credit. Pass confirmSpend: true. Nothing was run and nothing was spent.',
+      );
+    }
     const cap = this.costCap();
     const now = new Date();
     const periodStart = new Date(now.getTime() - DEFAULT_PERIOD_DAYS * 86_400_000);
@@ -80,7 +98,7 @@ export class DataforseoService {
     // per-dataset isolation means one failed fetch never aborts the rest.
     for (const dataset of wanted as DataforseoDataset[]) {
       try {
-        const result = await this.mock.fetchDataset(dataset, project.domain);
+        const result = await adapter.fetchDataset(dataset, project.domain);
         if (totalCostUsd + result.costUsd > cap) {
           skipped.push(dataset);
           continue;
@@ -108,7 +126,7 @@ export class DataforseoService {
       }
     }
 
-    this.logger.log(`DataForSEO collect for project ${projectId}: ${snapshots.length} snapshots, $${totalCostUsd.toFixed(3)} mock spend`);
+    this.logger.log(`DataForSEO collect for project ${projectId}: ${snapshots.length} snapshots, $${totalCostUsd.toFixed(3)} ${adapter.name} spend`);
     return { snapshots, totalCostUsd, skipped };
   }
 
