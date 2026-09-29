@@ -267,9 +267,14 @@ export class AuthService {
         subject: 'Reset your Cailyx password',
         html: renderEmail({
           heading: 'Reset your password',
-          paragraphs: ['Someone requested a password reset for your Cailyx account.'],
-          cta: { label: 'Reset your password', url: link },
-          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you didn't ask for this, you can safely ignore it.`,
+          preheader: 'Use this link to choose a new Cailyx password.',
+          paragraphs: [
+            'We received a request to reset the password for your Cailyx account.',
+            'Choose a new password with the button below. Your current password keeps working until you do.',
+          ],
+          cta: { label: 'Choose a new password', url: link },
+          details: [{ label: 'Account', value: email }],
+          footnote: `This link works once and expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you did not ask for this, you can safely ignore this email and your password will stay the same.`,
         }),
       });
     } catch (err) {

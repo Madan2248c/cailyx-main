@@ -56,6 +56,7 @@ describe('EmailService', () => {
     expect(seenBody).toMatchObject({
       to: 'user@example.com',
       from: 'noreply@rothenhall.com',
+      name: 'Cailyx',
       subject: 'Hello',
       body: '<p>Hi</p>',
     });

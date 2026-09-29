@@ -61,6 +61,8 @@ export class EmailService {
   async send(input: SendEmailInput): Promise<EmailSendResult> {
     const apiKey = this.config.get<string>('PLUNK_SECRET_KEY');
     const sender = this.config.get<string>('PLUNK_SENDER_EMAIL');
+    // Shown as the sender's name in the inbox ("Cailyx" rather than "noreply").
+    const senderName = this.config.get<string>('PLUNK_SENDER_NAME') || 'Cailyx';
     if (!apiKey || !sender) {
       throw new ServiceUnavailableException(
         'email-unconfigured: PLUNK_SECRET_KEY / PLUNK_SENDER_EMAIL is not set. Nothing was sent',
@@ -75,6 +77,7 @@ export class EmailService {
         body: JSON.stringify({
           to: input.to,
           from: sender,
+          name: senderName,
           subject: input.subject,
           body: input.html,
         }),

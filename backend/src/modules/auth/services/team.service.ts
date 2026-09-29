@@ -247,12 +247,20 @@ export class TeamService {
     try {
       await this.emailService.send({
         to: email,
-        subject: "You've been invited to Cailyx",
+        subject: 'Set up your Cailyx account',
         html: renderEmail({
-          heading: "You've been invited to Cailyx",
-          paragraphs: ["You've been invited to join Cailyx, your Rothenhall client portal for AI visibility and site health."],
-          cta: { label: 'Set up your account', url: link },
-          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you weren't expecting this, you can safely ignore it.`,
+          heading: 'Welcome to Cailyx',
+          preheader: 'Your Cailyx account is ready. Choose your password to sign in.',
+          paragraphs: [
+            'Your Cailyx account is ready. Cailyx is your Rothenhall client portal: it shows how AI assistants and search engines see your company, and gives your team a clear plan to improve it.',
+            'Choose your password to sign in for the first time.',
+          ],
+          cta: { label: 'Set your password', url: link },
+          details: [
+            { label: 'Sign in with', value: email },
+            { label: 'Portal', value: frontendUrl.replace(/^https?:\/\//, '') },
+          ],
+          footnote: `This link works once and expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If it has expired, ask your Rothenhall lead for a new one. If you were not expecting this email, you can safely ignore it.`,
         }),
       });
     } catch (err) {
@@ -285,11 +293,15 @@ export class TeamService {
       try {
         await this.emailService.send({
           to: poc.email,
-          subject: 'Your Day-1 audit is ready',
+          subject: 'Your Day-1 audit is ready in Cailyx',
           html: renderEmail({
             heading: 'Your Day-1 audit is ready',
-            paragraphs: ['Your Day-1 audit is ready to view in Cailyx.'],
-            cta: { label: 'Log in to Cailyx', url: `${frontendUrl}/login` },
+            preheader: 'Your first audit is ready to view in Cailyx.',
+            paragraphs: [
+              'Your Day-1 audit is ready. It shows how AI assistants and search engines see your company today, with a prioritised Fix Plan for your team.',
+            ],
+            cta: { label: 'Sign in to view it', url: `${frontendUrl}/login` },
+            footnote: 'If you were not expecting this email, you can safely ignore it.',
           }),
         });
       } catch (err) {
@@ -305,12 +317,20 @@ export class TeamService {
     try {
       await this.emailService.send({
         to: poc.email,
-        subject: 'Your Day-1 audit is ready: set up your account',
+        subject: 'Your Day-1 audit is ready: set up your Cailyx account',
         html: renderEmail({
           heading: 'Your Day-1 audit is ready',
-          paragraphs: ['Your Day-1 audit is ready. Set up your account to view it.'],
-          cta: { label: 'Set up your account', url: link },
-          footnote: `This link expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If you weren't expecting this, you can safely ignore it.`,
+          preheader: 'Choose your password to open your first audit in Cailyx.',
+          paragraphs: [
+            'Your Day-1 audit is ready. It shows how AI assistants and search engines see your company today, with a prioritised Fix Plan for your team.',
+            'Choose your password to sign in and open it.',
+          ],
+          cta: { label: 'Set your password', url: link },
+          details: [
+            { label: 'Sign in with', value: poc.email },
+            { label: 'Portal', value: frontendUrl.replace(/^https?:\/\//, '') },
+          ],
+          footnote: `This link works once and expires in ${ttlHours} ${ttlHours === 1 ? 'hour' : 'hours'}. If it has expired, ask your Rothenhall lead for a new one. If you were not expecting this email, you can safely ignore it.`,
         }),
       });
     } catch (err) {

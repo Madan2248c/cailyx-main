@@ -3,6 +3,17 @@
 Running record of what shipped, how it was verified, and what it left for
 later. Newest first.
 
+## 2026-09-29 — Emails: brand-aligned templates, proper sender, spam-safer
+
+- One shared branded layout for the invite, "audit ready" (login and set-up variants) and password
+  reset emails: Cailyx wordmark, portal colours, one clear button, the full link under it, expiry,
+  "Delivered by Rothenhall Partners". No password is ever put in an email, only a one-time link.
+- Clearer subjects (no "[TEST]" style, no hype): "Set up your Cailyx account", "Your Day-1 audit is
+  ready in Cailyx", "Reset your Cailyx password". The sign-in address and portal are shown in the mail.
+- Sender shows as "Cailyx" (`PLUNK_SENDER_NAME`, default "Cailyx") from noreply@rothenhall.com.
+- Deliverability still depends on DNS for rothenhall.com: add a DMARC record and a root SPF record,
+  enable Google Workspace DKIM, and confirm the Plunk DKIM records are verified in Plunk.
+
 ## 2026-09-29 — Fix Plan: clearer to use
 
 - Plan page: "How the Fix Plan works" (3 steps), a "Hand this to your developer" call-to-action with

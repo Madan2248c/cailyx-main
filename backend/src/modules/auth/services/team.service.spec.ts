@@ -152,7 +152,7 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'poc@acme.com',
-        subject: "You've been invited to Cailyx",
+        subject: 'Set up your Cailyx account',
         html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
       });
       expect(result.poc.email).toBe('target@test.com');
@@ -248,7 +248,7 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'member@acme.com',
-        subject: "You've been invited to Cailyx",
+        subject: 'Set up your Cailyx account',
         html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
       });
     });
@@ -281,7 +281,7 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'target@test.com',
-        subject: "You've been invited to Cailyx",
+        subject: 'Set up your Cailyx account',
         html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
       });
       expect(result).toEqual({ success: true });
@@ -334,7 +334,7 @@ describe('TeamService', () => {
 
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'target@test.com',
-        subject: 'Your Day-1 audit is ready',
+        subject: 'Your Day-1 audit is ready in Cailyx',
         html: expect.stringContaining('http://localhost:3000/login'),
       });
       expect(prisma.authToken.create).not.toHaveBeenCalled();
@@ -349,7 +349,7 @@ describe('TeamService', () => {
       expect(prisma.authToken.create).toHaveBeenCalled();
       expect(emailService.send).toHaveBeenCalledWith({
         to: 'target@test.com',
-        subject: 'Your Day-1 audit is ready: set up your account',
+        subject: 'Your Day-1 audit is ready: set up your Cailyx account',
         html: expect.stringContaining('http://localhost:3000/accept-invite?token=raw-token'),
       });
       expect(result).toEqual({ sent: true, kind: 'invite' });

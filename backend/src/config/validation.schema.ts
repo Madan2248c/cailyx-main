@@ -114,6 +114,8 @@ export const validationSchema = Joi.object({
   // docs/analysis/email.md.
   PLUNK_SECRET_KEY: Joi.string().optional(),
   PLUNK_SENDER_EMAIL: Joi.string().email().optional(),
+  // Display name shown as the sender in the inbox. Defaults to "Cailyx".
+  PLUNK_SENDER_NAME: Joi.string().optional(),
 
   // NestJS Observe telemetry. Off unless both keys are set.
   OBSERVE_APP_KEY: Joi.string().optional(),
