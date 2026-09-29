@@ -2,113 +2,70 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCallback, useEffect } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+import { Monogram, Notice } from '@/components/admin/admin-ui';
+import { useLoad } from '@/components/admin/use-load';
+import { Section } from '@/components/portal/blocks';
+import { PageHeader, PortalPage } from '@/components/portal/layout';
+import { EmptyState, PortalLoading } from '@/components/portal/states';
 import { useAuth } from '@/contexts/auth-context';
 import { listProjects } from '@/lib/projects-api';
-import { listClients } from '@/lib/team-api';
 import type { Project } from '@/types/project';
 
-export default function AdminPreviewClientPage() {
-  const { user, accessToken, isLoading } = useAuth();
+/** Picks which of the client's projects to step into. With only one, it goes straight there. */
+export default function PreviewProjectPickerPage() {
+  const { accessToken } = useAuth();
+  const { clientId } = useParams<{ clientId: string }>();
   const router = useRouter();
-  const params = useParams<{ clientId: string }>();
-  const clientId = params.clientId;
+  const load = useCallback(() => listProjects(accessToken ?? '', clientId), [accessToken, clientId]);
+  const { data: projects, error, loading } = useLoad<Project[]>(accessToken ? load : null, 'Failed to load projects');
 
-  const [clientName, setClientName] = useState<string | null>(null);
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
+  const only = projects && projects.length === 1 ? projects[0] : null;
   useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'ADMIN')) {
-      router.replace('/dashboard');
-    }
-  }, [isLoading, user, router]);
+    if (only) router.replace(`/admin/preview/${clientId}/projects/${only.id}`);
+  }, [only, clientId, router]);
 
-  useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-
-    listClients(accessToken)
-      .then((clients) => {
-        if (!cancelled) setClientName(clients.find((c) => c.id === clientId)?.name ?? clientId);
-      })
-      .catch(() => {
-        if (!cancelled) setClientName(clientId);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, clientId]);
-
-  useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-
-    listProjects(accessToken, clientId)
-      .then((data) => {
-        if (!cancelled) setProjects(data);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load projects');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, clientId]);
-
-  if (isLoading || !user || user.role !== 'ADMIN') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
+  if ((loading && !projects) || only) return <PortalLoading label="Opening the client's portal" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
-      <div>
-        <Button variant="ghost" size="sm" onClick={() => router.push('/admin/clients')}>
-          ← Clients
-        </Button>
-      </div>
-      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2">
-        <p className="text-sm font-medium">Previewing {clientName ?? '…'} (read-only)</p>
-        <p className="text-sm text-muted-foreground">
-          You are viewing this client&apos;s projects as an admin. Nothing here can be edited.
-        </p>
-      </div>
-      <h1 className="text-xl font-semibold">Projects</h1>
+    <PortalPage>
+      <PageHeader eyebrow="Preview" title="Choose a project" summary="You'll see exactly what the client sees, with your admin controls on top." />
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
 
-      {projects === null && !error ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : (projects ?? []).length === 0 && !error ? (
-        <p className="text-sm text-muted-foreground">No projects yet.</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {(projects ?? []).map((project) => (
-            <Card key={project.id}>
-              <CardHeader>
-                <CardTitle className="text-base">{project.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>{project.domain}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link href={`/admin/preview/${clientId}/projects/${project.id}`}>Preview</Link>}
-                />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-    </div>
+      {projects && projects.length === 0 ? (
+        <Section eyebrow="Projects">
+          <EmptyState title="No projects to preview" body="This client has no projects yet. Create one from the client page, then come back." />
+          <div className="mb-6 flex justify-center">
+            <Link href={`/admin/clients/${clientId}`} className="text-sm font-medium underline underline-offset-4">
+              Open the client page
+            </Link>
+          </div>
+        </Section>
+      ) : null}
+
+      {projects && projects.length > 1 ? (
+        <Section eyebrow="Projects" flush>
+          <ul className="flex flex-col pb-1">
+            {projects.map((project) => (
+              <li key={project.id} className="border-t border-border first:border-t-0">
+                <Link
+                  href={`/admin/preview/${clientId}/projects/${project.id}`}
+                  className="g-row-link flex items-center gap-3 px-5 py-3.5 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                >
+                  <Monogram name={project.name} />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-sm font-semibold">{project.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">{project.domain}</span>
+                  </span>
+                  <ArrowUpRight aria-hidden className="g-row-arrow size-4 shrink-0 opacity-50" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+    </PortalPage>
   );
 }

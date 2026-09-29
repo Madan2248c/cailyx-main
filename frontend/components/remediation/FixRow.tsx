@@ -6,6 +6,7 @@ import { StatusChip } from '@/components/portal/layout';
 import { relativeDate } from '@/components/portal/tone';
 import type { FixSpec } from '@/types/remediation';
 import { STATUS_WORD } from '@/types/remediation';
+import { FixRowRemove } from '@/components/admin/preview/fix-admin';
 import { SEVERITY_TONE, SEVERITY_WORD, STATUS_TONE, targetLabel } from './fix-meta';
 
 /** One fix in the plan list. The whole row opens the fix's detail page. */
@@ -13,9 +14,10 @@ export function FixRow({ fix, href }: { fix: FixSpec; href: string }) {
   const verifiedLine =
     fix.status === 'VERIFIED' && fix.lastVerifiedAt ? `Verified ${relativeDate(fix.lastVerifiedAt)}` : null;
   return (
+    <div className="flex items-center">
     <Link
       href={href}
-      className="group mx-2 flex items-center gap-3 rounded-xl px-3 py-3 outline-none transition-colors duration-150 hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring motion-reduce:transition-none"
+      className="group mx-2 flex min-w-0 flex-1 items-center gap-3 rounded-xl px-3 py-3 outline-none transition-colors duration-150 hover:bg-muted/70 focus-visible:bg-muted/70 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring motion-reduce:transition-none"
     >
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="truncate text-sm font-medium">{fix.title}</span>
@@ -39,5 +41,7 @@ export function FixRow({ fix, href }: { fix: FixSpec; href: string }) {
       <span className="hidden shrink-0 text-xs font-medium text-muted-foreground sm:inline">View steps</span>
       <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none" aria-hidden />
     </Link>
+    <FixRowRemove fix={fix} />
+    </div>
   );
 }

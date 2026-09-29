@@ -37,6 +37,7 @@ import type {
 import { socialRunPlatforms } from '@/types/dashboard';
 import type { TechnicalAuditRun, TrendPoint } from '@/types/technical';
 import { CHECK_LABEL } from '@/types/technical';
+import { useProjectBase } from '@/components/portal/routes';
 
 interface DashboardSnapshot {
   tech: TechnicalAuditRun | null;
@@ -116,7 +117,7 @@ export function DashboardTab({
   const [error, setError] = useState<string | null>(null);
   const fixSummary = useFixSummary(accessToken, clientId, projectId);
 
-  const base = `/client/projects/${projectId}`;
+  const base = useProjectBase(projectId);
 
   useEffect(() => {
     let cancelled = false;

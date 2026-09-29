@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState, type ReactNode } from 'react';
+import { CADENCE_OPTIONS, ScheduleChip, Segmented, cadenceLabel } from '@/components/admin/admin-ui';
+import { StatusChip } from '@/components/portal/layout';
 import {
   setSocialActivitySchedule,
   setTechnicalAuditSchedule,
@@ -12,43 +12,45 @@ import {
 } from '@/lib/schedules-api';
 import type { Project } from '@/types/project';
 
-const CADENCES: ScheduleCadence[] = ['WEEKLY', 'MONTHLY', 'MANUAL_ONLY'];
-
-function cadenceVariant(cadence: ScheduleCadence | null): 'default' | 'secondary' | 'outline' {
-  if (cadence === 'WEEKLY') return 'default';
-  if (cadence === 'MONTHLY') return 'secondary';
-  return 'outline';
-}
-
-function CadenceSelect({
-  label,
-  value,
-  disabled,
-  onChange,
+/** One line of the schedule list: what it is, where it stands, and how to change it. */
+export function ScheduleRow({
+  title,
+  description,
+  chip,
+  children,
+  footer,
 }: {
-  label: string;
-  value: ScheduleCadence;
-  disabled: boolean;
-  onChange: (cadence: ScheduleCadence) => void;
+  title: string;
+  description: ReactNode;
+  chip: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
-      {label}
-      <select
-        aria-label={label}
-        className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value as ScheduleCadence)}
-      >
-        {CADENCES.map((c) => (
-          <option key={c} value={c}>
-            {c}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="flex flex-col gap-3 border-t border-border px-5 py-4 first:border-t-0">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-6">
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold">{title}</p>
+            {chip}
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">{description}</p>
+        </div>
+        {children ? <div className="flex shrink-0 flex-wrap items-center gap-3">{children}</div> : null}
+      </div>
+      {footer}
+    </div>
   );
+}
+
+/** A row for something that only runs on demand, so it is honest about having no schedule. */
+export function OnDemandRow({ title, description }: { title: string; description: string }) {
+  return <ScheduleRow title={title} description={description} chip={<StatusChip tone="neutral">On demand</StatusChip>} />;
+}
+
+export interface ScheduleFeedback {
+  tone: 'ok' | 'error';
+  text: string;
 }
 
 export function ProjectScheduleCard({
@@ -58,6 +60,7 @@ export function ProjectScheduleCard({
   technical,
   social,
   onChanged,
+  onFeedback,
 }: {
   accessToken: string;
   clientId: string;
@@ -65,113 +68,110 @@ export function ProjectScheduleCard({
   technical: TechnicalAuditSchedule | null;
   social: SocialActivitySchedule | null;
   onChanged: () => void;
+  onFeedback: (feedback: ScheduleFeedback) => void;
 }) {
-  const [error, setError] = useState<string | null>(null);
+  // Local copies so a control settles the moment the save returns, instead of
+  // snapping back while the parent reloads. They re-sync whenever the parent
+  // hands down fresher data.
+  const [tech, setTech] = useState(technical);
+  const [soc, setSoc] = useState(social);
+  const [seenTechnical, setSeenTechnical] = useState(technical);
+  const [seenSocial, setSeenSocial] = useState(social);
   const [pending, setPending] = useState<'technical' | 'social' | null>(null);
 
-  async function handleTechnical(cadence: ScheduleCadence) {
+  // Adjusted during render (not in an effect) when the parent hands down fresh data.
+  if (seenTechnical !== technical) {
+    setSeenTechnical(technical);
+    setTech(technical);
+  }
+  if (seenSocial !== social) {
+    setSeenSocial(social);
+    setSoc(social);
+  }
+
+  async function saveTechnical(cadence: ScheduleCadence) {
     setPending('technical');
-    setError(null);
     try {
-      await setTechnicalAuditSchedule(accessToken, clientId, project.id, cadence);
+      setTech(await setTechnicalAuditSchedule(accessToken, clientId, project.id, cadence));
+      onFeedback({ tone: 'ok', text: `${project.name}: technical audits set to ${cadenceLabel(cadence).toLowerCase()}.` });
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update technical audit schedule');
+      onFeedback({ tone: 'error', text: `${project.name}: ${err instanceof Error ? err.message : 'Could not update the technical audit schedule.'}` });
     } finally {
       setPending(null);
     }
   }
 
-  async function handleSocial(cadence: ScheduleCadence) {
+  async function saveSocial(cadence: ScheduleCadence, spendOptIn?: boolean) {
     setPending('social');
-    setError(null);
     try {
-      await setSocialActivitySchedule(accessToken, clientId, project.id, cadence);
+      setSoc(await setSocialActivitySchedule(accessToken, clientId, project.id, cadence, spendOptIn === undefined ? {} : { spendOptIn }));
+      onFeedback({
+        tone: 'ok',
+        text:
+          spendOptIn === undefined
+            ? `${project.name}: social activity set to ${cadenceLabel(cadence).toLowerCase()}.`
+            : `${project.name}: scheduled social runs ${spendOptIn ? 'may now spend' : 'no longer spend'}.`,
+      });
       onChanged();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update social activity schedule');
+      onFeedback({ tone: 'error', text: `${project.name}: ${err instanceof Error ? err.message : 'Could not update the social activity schedule.'}` });
     } finally {
       setPending(null);
     }
   }
+
+  const socialCadence = soc?.cadence ?? 'MANUAL_ONLY';
+  const socialWaiting = soc !== null && soc.active && !soc.spendOptIn;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
-          {project.name} <span className="font-normal text-muted-foreground">· {project.domain}</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3 text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Technical audit</span>
-            {technical ? (
-              <>
-                <Badge variant={cadenceVariant(technical.cadence)}>{technical.cadence}</Badge>
-                <Badge variant={technical.active ? 'default' : 'outline'}>
-                  {technical.active ? 'active' : 'inactive'}
-                </Badge>
-              </>
-            ) : (
-              <Badge variant="outline">not scheduled yet</Badge>
-            )}
-          </div>
-          <CadenceSelect
-            label="Set cadence"
-            value={technical?.cadence ?? 'MANUAL_ONLY'}
+    <>
+      <ScheduleRow
+        title="Technical audit"
+        description="A fresh crawl of the site's health: speed, links, markup."
+        chip={<ScheduleChip schedule={tech} />}
+      >
+        <Segmented
+          label={`Technical audit cadence for ${project.name}`}
+          value={tech?.cadence ?? 'MANUAL_ONLY'}
+          options={CADENCE_OPTIONS}
+          disabled={pending !== null}
+          onChange={(cadence) => void saveTechnical(cadence)}
+        />
+      </ScheduleRow>
+
+      <ScheduleRow
+        title="Social activity"
+        description={
+          socialWaiting
+            ? 'Scheduled, but nothing runs until you allow spend. The scrapers cost money, so the scheduler waits for your opt-in.'
+            : 'Recent posting on the client\'s social profiles. The scrapers cost money, so scheduled runs need your opt-in.'
+        }
+        chip={
+          <>
+            <ScheduleChip schedule={soc} />
+            {socialWaiting ? <StatusChip tone="watch">Waiting for spend opt-in</StatusChip> : null}
+          </>
+        }
+      >
+        <label className="flex cursor-pointer items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={soc?.spendOptIn ?? false}
             disabled={pending !== null}
-            onChange={handleTechnical}
+            onChange={(e) => void saveSocial(socialCadence, e.target.checked)}
           />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Social activity</span>
-            {social ? (
-              <>
-                <Badge variant={cadenceVariant(social.cadence)}>{social.cadence}</Badge>
-                <Badge variant={social.active ? 'default' : 'outline'}>
-                  {social.active ? 'active' : 'inactive'}
-                </Badge>
-                {!social.spendOptIn ? (
-                  <span className="text-xs text-muted-foreground">Scheduled ticks skipped (no spend opt-in)</span>
-                ) : null}
-              </>
-            ) : (
-              <Badge variant="outline">not scheduled yet</Badge>
-            )}
-          </div>
-          <CadenceSelect
-            label="Set cadence"
-            value={social?.cadence ?? 'MANUAL_ONLY'}
-            disabled={pending !== null}
-            onChange={handleSocial}
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">Reporting (monthly)</span>
-            <Badge variant="outline">not scheduled yet</Badge>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Gap: no reporting schedule endpoint on the backend. Reports are generated on demand.
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
-          <div className="flex items-center gap-2">
-            <span className="font-medium">AEO audit</span>
-            <Badge variant="outline">not scheduled yet</Badge>
-          </div>
-          <span className="text-xs text-muted-foreground">
-            Gap: no AEO schedule endpoint on the backend. Audits are created and run on demand.
-          </span>
-        </div>
-
-        {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      </CardContent>
-    </Card>
+          Allow scheduled spend
+        </label>
+        <Segmented
+          label={`Social activity cadence for ${project.name}`}
+          value={socialCadence}
+          options={CADENCE_OPTIONS}
+          disabled={pending !== null}
+          onChange={(cadence) => void saveSocial(cadence)}
+        />
+      </ScheduleRow>
+    </>
   );
 }

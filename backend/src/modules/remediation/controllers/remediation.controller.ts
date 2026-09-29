@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
@@ -10,7 +10,7 @@ import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { FixClass, FixStatus, Role } from '../../../generated/prisma/enums.js';
 import { BrowserClientService } from '../../fetcher/clients/browser-client.service.js';
-import { ClientAppliedDto, DraftSharedDto, FixDecisionDto, SetFixStatusDto } from '../dto/remediation.dto.js';
+import { ClientAppliedDto, CreateManualFixDto, DraftSharedDto, FixDecisionDto, SetFixStatusDto } from '../dto/remediation.dto.js';
 import { RemediationDraftService } from '../services/remediation-draft.service.js';
 import { RemediationSyncService } from '../services/remediation-sync.service.js';
 import { RemediationService, type FixListFilter } from '../services/remediation.service.js';
@@ -38,6 +38,19 @@ export class RemediationController {
   @HttpCode(HttpStatus.CREATED)
   sync(@Param('clientId') clientId: string, @Param('projectId') projectId: string, @CurrentUser() user: AccessTokenPayload) {
     return this.syncer.sync(clientId, projectId, user.sub);
+  }
+
+  /** POST …/fixes — add a fix by hand. Admin-only. It is never touched by a re-sync. */
+  @Post('fixes')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  createManual(
+    @Param('clientId') clientId: string,
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateManualFixDto,
+    @CurrentUser() user: AccessTokenPayload,
+  ) {
+    return this.remediation.createManualFix(clientId, projectId, dto, user.sub);
   }
 
   @Get('runs')
@@ -139,6 +152,13 @@ export class RemediationFixController {
   @Roles(Role.ADMIN)
   setStatus(@Param('clientId') clientId: string, @Param('id') id: string, @Body() dto: SetFixStatusDto, @CurrentUser() user: AccessTokenPayload) {
     return this.remediation.setStatus(clientId, id, dto, user.sub);
+  }
+
+  /** DELETE …/fixes/:id — remove a fix that was added by hand. 409 for audit-found fixes: dismiss those. Admin-only. */
+  @Delete()
+  @Roles(Role.ADMIN)
+  remove(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.remediation.deleteManualFix(clientId, id);
   }
 
   /** POST …/decision — the client's approve/decline on a fix that needs it (POC; admins may record it on their behalf). */

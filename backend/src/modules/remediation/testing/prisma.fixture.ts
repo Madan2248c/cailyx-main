@@ -14,7 +14,7 @@ export function createRemediationPrismaMock() {
     project: { findFirst: vi.fn() },
     user: { findMany: vi.fn() },
     remediationRun: { create: vi.fn(), update: vi.fn(), findMany: vi.fn(), findFirst: vi.fn() },
-    fixSpec: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    fixSpec: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     fixSpecSource: { deleteMany: vi.fn() },
     fixSpecEvent: { count: vi.fn() },
     $transaction: vi.fn(async (ops: unknown) => (Array.isArray(ops) ? Promise.all(ops) : (ops as (tx: unknown) => unknown)(mock))),

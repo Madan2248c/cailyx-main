@@ -4,10 +4,11 @@ import { Gauge } from '@/components/animate-ui/icons/gauge';
 import { Search } from '@/components/animate-ui/icons/search';
 import { Sparkles } from '@/components/animate-ui/icons/sparkles';
 import { Tile, TileHeader } from '@/components/portal/layout';
+import { useProjectBase } from '@/components/portal/routes';
 
 /** Onward links to the deeper Technical / Organic / AI pages. */
 export function ExploreLinks({ projectId, index = 0 }: { projectId: string; index?: number }) {
-  const base = `/client/projects/${projectId}`;
+  const base = useProjectBase(projectId);
   const links = [
     {
       href: `${base}/performance/technical`,

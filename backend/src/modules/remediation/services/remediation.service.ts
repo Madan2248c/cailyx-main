@@ -10,6 +10,7 @@
  * @module remediation/services/remediation.service
  */
 
+import { createHash, randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import type { FixClass, FixStatus } from '../../../generated/prisma/enums.js';
@@ -54,6 +55,25 @@ export const CLIENT_VERIFY_COOLDOWN_MS = 60_000;
 export interface ClientApplied {
   note?: string;
   prUrl?: string;
+}
+
+/** `problemKey` of every fix an admin adds by hand. */
+export const MANUAL_PROBLEM_KEY = 'manual.custom';
+
+export function isManualFix(fix: { problemKey: string }): boolean {
+  return fix.problemKey === MANUAL_PROBLEM_KEY;
+}
+
+export interface CreateManualFixInput {
+  title: string;
+  target: string;
+  fixClass: FixClass;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH';
+  effort: 'LOW' | 'MEDIUM' | 'HIGH';
+  steps: string[];
+  note?: string;
+  groupKey?: string;
+  needsClientDecision?: boolean;
 }
 
 function isClient(viewer?: Viewer): viewer is Viewer {
@@ -152,8 +172,11 @@ export class RemediationService {
 
   async setStatus(clientId: string, fixId: string, change: StatusChange, actorId: string) {
     const fix = await this.getFix(clientId, fixId);
+    const manual = isManualFix(fix);
+    // A hand-added fix has no audit or live check to prove it, so an admin's word is the verification.
+    if (manual && change.status === 'VERIFIED') return this.markManualVerified(fix, actorId, change.note);
     if (change.status === 'VERIFIED') throw new BadRequestException('VERIFIED is set only by verification. Use POST …/verify.');
-    if (!canMove(fix.status, change.status)) {
+    if (!(manual && fix.status === 'VERIFIED' && change.status === 'OPEN') && !canMove(fix.status, change.status)) {
       throw new ConflictException(`Cannot move a fix from ${fix.status} to ${change.status}.`);
     }
     if (change.status === 'DISMISSED' && !change.reason?.trim()) throw new BadRequestException('A reason is required to dismiss a fix.');
@@ -177,6 +200,67 @@ export class RemediationService {
             detail: asJson({ reason: change.reason ?? null, prUrl: change.prUrl ?? null, note: change.note ?? null }),
           },
         },
+      },
+      include: { sources: true },
+    });
+  }
+
+  // ─── Manual fixes (admin) ────────────────────────────────────────────
+
+  /**
+   * Adds a fix by hand. It has no sources, so a re-sync never touches it or
+   * settles it as fixed on its own: only a person moves it along.
+   */
+  async createManualFix(clientId: string, projectId: string, dto: CreateManualFixInput, actorId: string) {
+    await this.assertProjectInClient(projectId, clientId);
+    const status: FixStatus = dto.needsClientDecision ? 'AWAITING_DECISION' : 'OPEN';
+    const steps = dto.steps.map((s) => s.trim()).filter(Boolean);
+    return this.prisma.fixSpec.create({
+      data: {
+        projectId,
+        fingerprint: createHash('sha256').update(`${projectId}|manual|${randomUUID()}`).digest('hex'),
+        problemKey: MANUAL_PROBLEM_KEY,
+        target: dto.target.trim(),
+        fixClass: dto.fixClass,
+        method: 'HUMAN',
+        groupKey: dto.groupKey?.trim() || 'manual',
+        severity: dto.severity,
+        effort: dto.effort,
+        title: dto.title.trim(),
+        evidence: asJson({ note: dto.note?.trim() ?? null, addedBy: 'staff' }),
+        steps: asJson(steps),
+        acceptance: asJson({ kind: 'manual' }),
+        needsClientDecision: dto.needsClientDecision ?? false,
+        status,
+        lastReportedAt: new Date(),
+        events: { create: { kind: 'status', toStatus: status, actor: actorId, detail: asJson({ manual: true, created: true }) } },
+      },
+      include: { sources: true },
+    });
+  }
+
+  /**
+   * Removes a hand-added fix for good. A fix the audits found would only come
+   * back on the next sync, so those are dismissed (with a reason) instead.
+   */
+  async deleteManualFix(clientId: string, fixId: string) {
+    const fix = await this.getFix(clientId, fixId);
+    if (!isManualFix(fix)) {
+      throw new ConflictException('Only a fix added by hand can be deleted. Dismiss this one instead: the next audit would bring it back.');
+    }
+    await this.prisma.fixSpec.delete({ where: { id: fix.id } });
+    return { success: true };
+  }
+
+  private async markManualVerified(fix: { id: string; status: FixStatus }, actorId: string, note?: string) {
+    const now = new Date();
+    return this.prisma.fixSpec.update({
+      where: { id: fix.id },
+      data: {
+        status: 'VERIFIED',
+        lastVerifiedAt: now,
+        lastVerifyResult: asJson({ passed: true, kind: 'manual', checkedAt: now.toISOString(), observed: note?.trim() || 'Confirmed by Rothenhall.' }),
+        events: { create: { kind: 'verify', fromStatus: fix.status, toStatus: 'VERIFIED', actor: actorId, detail: asJson({ manual: true, note: note ?? null }) } },
       },
       include: { sources: true },
     });
@@ -216,6 +300,9 @@ export class RemediationService {
       }
     }
     const check = fix.acceptance as unknown as AcceptanceCheck;
+    if (check.kind === 'manual') {
+      throw new ConflictException('This fix was added by hand, so there is no automatic check. Ask Rothenhall to confirm it.');
+    }
     if (!isLiveCheckable(check)) {
       throw new ConflictException('This fix is verified by the next audit, not a live check: re-run the source audit, then sync.');
     }

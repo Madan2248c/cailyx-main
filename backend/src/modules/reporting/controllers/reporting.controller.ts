@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser } from '../../../common/decorators/current-user.decorator.js';
 import { RequirePermission } from '../../../common/decorators/require-permission.decorator.js';
@@ -9,7 +9,7 @@ import { ClientScopeGuard } from '../../../common/guards/client-scope.guard.js';
 import { RolesGuard } from '../../../common/guards/roles.guard.js';
 import type { AccessTokenPayload } from '../../../common/jwt/access-token-payload.js';
 import { Role } from '../../../generated/prisma/enums.js';
-import { ApproveReportDto, GenerateReportDto } from '../dto/reporting.dto.js';
+import { ApproveReportDto, EditReportDto, GenerateReportDto } from '../dto/reporting.dto.js';
 import { BrowserClientService } from '../../fetcher/clients/browser-client.service.js';
 import { ReportingService } from '../services/reporting.service.js';
 
@@ -85,6 +85,21 @@ export class ReportController {
   @Roles(Role.ADMIN)
   approve(@Param('clientId') clientId: string, @Param('id') id: string, @Body() dto: ApproveReportDto) {
     return this.reporting.approve(clientId, id, dto);
+  }
+
+  /** PATCH …/reports/:id — edit the title and/or executive summary as a new revision. Live reports update for the client at once. */
+  @Patch()
+  @Roles(Role.ADMIN)
+  edit(@Param('clientId') clientId: string, @Param('id') id: string, @Body() dto: EditReportDto) {
+    return this.reporting.edit(clientId, id, dto);
+  }
+
+  /** POST …/publish — release the newest revision to the client from any state but already-live. Skips the review gate. */
+  @Post('publish')
+  @Roles(Role.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  publish(@Param('clientId') clientId: string, @Param('id') id: string) {
+    return this.reporting.publish(clientId, id);
   }
 
   /** Pulls a released report from client visibility. */

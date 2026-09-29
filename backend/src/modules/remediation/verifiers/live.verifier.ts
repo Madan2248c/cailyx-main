@@ -72,6 +72,8 @@ export class LiveVerifier {
       }
       case 'finding-absent':
         throw new Error('finding-absent checks are settled by the next audit, not a live check.');
+      case 'manual':
+        throw new Error('Manual fixes have no live check. An admin confirms them.');
     }
   }
 

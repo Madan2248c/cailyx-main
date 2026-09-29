@@ -10,7 +10,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { randomBytes, randomUUID } from 'node:crypto';
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { AeoAuditReportCollector } from '../collectors/aeo-audit.collector.js';
 import { CompetitorsReportCollector } from '../collectors/competitors.collector.js';
@@ -230,6 +230,52 @@ export class ReportingService {
     const revision = await this.prisma.reportRevision.findFirst({ where: { reportId: report.id }, orderBy: { revisionNumber: 'desc' } });
     if (!revision) throw new ConflictException('No revision to release.');
 
+    await this.prisma.report.update({
+      where: { id: report.id },
+      data: { status: 'RELEASED', releasedRevisionId: revision.id, releasedAt: new Date() },
+    });
+    return this.getOne(clientId, reportId);
+  }
+
+  /**
+   * Edits the title and/or executive summary. It never rewrites history: the
+   * change becomes a new revision. If the report is live, the client sees the
+   * new revision straight away.
+   */
+  async edit(clientId: string, reportId: string, input: { title?: string; executiveSummary?: string }) {
+    if (input.title === undefined && input.executiveSummary === undefined) {
+      throw new BadRequestException('Send a title or an executive summary to change.');
+    }
+    const { report, content } = await this.ownedWithContent(clientId, reportId);
+    const latest = await this.prisma.reportRevision.findFirst({ where: { reportId: report.id }, orderBy: { revisionNumber: 'desc' } });
+    const next: ReportContent = { ...content, executiveSummary: input.executiveSummary ?? content.executiveSummary };
+
+    await this.prisma.$transaction(async (tx) => {
+      const revision = await tx.reportRevision.create({
+        data: { reportId: report.id, revisionNumber: (latest?.revisionNumber ?? 0) + 1, contentSnapshot: asJson(next) },
+      });
+      await tx.report.update({
+        where: { id: report.id },
+        data: {
+          ...(input.title !== undefined ? { title: input.title.trim() } : {}),
+          ...(input.executiveSummary !== undefined ? { executiveSummary: input.executiveSummary } : {}),
+          ...(report.status === 'RELEASED' ? { releasedRevisionId: revision.id } : {}),
+        },
+      });
+    });
+    return this.getOne(clientId, reportId);
+  }
+
+  /**
+   * Publishes the newest revision to the client from any state except already
+   * live: a draft, one in review, or one that was withdrawn. Staff can skip the
+   * review step; that is the point of this control.
+   */
+  async publish(clientId: string, reportId: string) {
+    const report = await this.getOwned(clientId, reportId);
+    if (report.status === 'RELEASED') throw new ConflictException('This report is already published.');
+    const revision = await this.prisma.reportRevision.findFirst({ where: { reportId: report.id }, orderBy: { revisionNumber: 'desc' } });
+    if (!revision) throw new ConflictException('This report has no content to publish.');
     await this.prisma.report.update({
       where: { id: report.id },
       data: { status: 'RELEASED', releasedRevisionId: revision.id, releasedAt: new Date() },

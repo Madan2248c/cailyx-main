@@ -16,6 +16,7 @@ import { formatDate, plural, scoreTone, TONE_TEXT, TONE_WORD, type Tone } from '
 import { getTechnicalAuditTrend, listTechnicalAuditRuns } from '@/lib/technical-api';
 import type { AuditCheckType, AuditStatus, TechnicalAuditRun, TrendPoint } from '@/types/technical';
 import { CHECK_LABEL, CHECK_ORDER, ISSUE_LABEL, type PageIssueCode } from '@/types/technical';
+import { useProjectBase } from '@/components/portal/routes';
 
 function num(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
@@ -72,6 +73,7 @@ export function TechnicalTab({
   projectId: string;
   projectName: string;
 }) {
+  const projectBase = useProjectBase(projectId);
   const [runs, setRuns] = useState<TechnicalAuditRun[] | null>(null);
   const [trend, setTrend] = useState<TrendPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -246,7 +248,7 @@ export function TechnicalTab({
                 <li key={type}>
                   {finding?.status === 'fail' ? (
                     <Link
-                      href={`/client/projects/${projectId}/plan${FIX_GROUP[type] ? `?focus=${FIX_GROUP[type]}` : ''}`}
+                      href={`${projectBase}/plan${FIX_GROUP[type] ? `?focus=${FIX_GROUP[type]}` : ''}`}
                       className="flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-2 text-sm transition-colors hover:bg-muted"
                       title="See how to fix this"
                     >

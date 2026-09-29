@@ -131,5 +131,7 @@ export function describeAcceptance(check: AcceptanceCheck): string {
       return `${check.url} no longer shows: ${check.issues.join(', ')}.`;
     case 'finding-absent':
       return `the next ${check.module} run no longer reports it.`;
+    case 'manual':
+      return 'Rothenhall confirms the change is in place.';
   }
 }

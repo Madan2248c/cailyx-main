@@ -91,11 +91,17 @@ export async function setSocialActivitySchedule(
   clientId: string,
   projectId: string,
   cadence: ScheduleCadence,
+  /**
+   * `spendOptIn` lets scheduled runs spend on the social scrapers; the
+   * scheduler fires nothing without it. Omit it to leave the saved value alone
+   * (the backend only updates fields that are sent).
+   */
+  options: { spendOptIn?: boolean } = {},
 ): Promise<SocialActivitySchedule> {
   const response = await apiFetch(scheduleUrl(clientId, projectId, 'social-activity'), {
     method: 'PUT',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ cadence }),
+    body: JSON.stringify({ cadence, ...options }),
   });
   return parseOrThrow<SocialActivitySchedule>(response);
 }

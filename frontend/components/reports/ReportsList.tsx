@@ -6,6 +6,7 @@ import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { PageHeader, MetaDot, PortalPage, StatusChip, Tile } from '@/components/portal/layout';
 import { formatDate, plural, relativeDate, type Tone } from '@/components/portal/tone';
 import type { ReportKind, ReportListItem, ReportStatus } from '@/types/report';
+import { ReportAdminRow } from '@/components/admin/preview/report-admin';
 
 export const REPORT_KIND_WORD: Record<ReportKind, string> = {
   DAY1: 'Starting-point report',
@@ -52,14 +53,20 @@ export function ReportsList({
       />
 
       {/* The newest report gets the most room: it's the one people come here for. */}
-      <ReportCard report={latest} featured index={1} onOpen={onOpen} />
+      <div className="flex flex-col gap-2">
+        <ReportCard report={latest} featured index={1} onOpen={onOpen} />
+        <ReportAdminRow report={latest} />
+      </div>
 
       {older.length > 0 ? (
         <div className="flex flex-col gap-3">
           <p className="g-eyebrow">Earlier reports</p>
           <div className="grid gap-4 md:grid-cols-2">
             {older.map((report, i) => (
-              <ReportCard key={report.id} report={report} index={i + 2} onOpen={onOpen} />
+              <div key={report.id} className="flex flex-col gap-2">
+                <ReportCard report={report} index={i + 2} onOpen={onOpen} />
+                <ReportAdminRow report={report} />
+              </div>
             ))}
           </div>
         </div>

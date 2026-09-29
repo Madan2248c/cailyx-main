@@ -1,7 +1,8 @@
 'use client';
 
 import { Component, type ReactNode } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { PortalPage, Tile } from '@/components/portal/layout';
+import { EmptyState } from '@/components/portal/states';
 
 interface Props {
   label: string;
@@ -25,18 +26,17 @@ export class SectionErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(): void {
-    // Swallowed intentionally — the fallback UI below reports the failure.
+    // Swallowed intentionally: the fallback UI below reports the failure.
   }
 
   render(): ReactNode {
     if (this.state.message !== null) {
       return (
-        <Card>
-          <CardContent className="flex flex-col gap-1 pt-6">
-            <p className="text-sm font-medium">{this.props.label} is unavailable in preview</p>
-            <p className="text-sm text-muted-foreground">{this.state.message}</p>
-          </CardContent>
-        </Card>
+        <PortalPage>
+          <Tile>
+            <EmptyState title={`${this.props.label} is unavailable in preview`} body={this.state.message} />
+          </Tile>
+        </PortalPage>
       );
     }
     return this.props.children;

@@ -17,6 +17,7 @@ import { groupLabel } from '@/types/remediation';
 import { ApprovalCard } from './ApprovalCard';
 import { FixRow } from './FixRow';
 import { PLAN_TABS } from './fix-meta';
+import { useProjectBase } from '@/components/portal/routes';
 
 const GROUP_PREVIEW = 6;
 
@@ -69,6 +70,7 @@ export function FixPlanTab({
   /** Admin preview: no actions, rows don't navigate. */
   readOnly?: boolean;
 }) {
+  const projectBase = useProjectBase(projectId);
   const [fixes, setFixes] = useState<FixSpec[] | null>(null);
   const [summary, setSummary] = useState<FixSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export function FixPlanTab({
   if (error) return <ErrorState message={error} />;
   if (!fixes || !summary) return <PortalLoading label="Loading your Fix Plan" />;
 
-  const base = `/client/projects/${projectId}/plan`;
+  const base = `${projectBase}/plan`;
   const decisions = fixes.filter((f) => f.status === 'AWAITING_DECISION');
   const active = fixes.filter((f) => f.status !== 'DISMISSED');
   const verified = active.filter((f) => f.status === 'VERIFIED').length;

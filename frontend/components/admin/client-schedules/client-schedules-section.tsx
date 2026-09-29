@@ -1,27 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+import { Notice } from '@/components/admin/admin-ui';
 import { ProjectScheduleBlock } from '@/components/admin/schedules/project-schedule-block';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  getSocialActivitySchedule,
-  getTechnicalAuditSchedule,
-  type SocialActivitySchedule,
-  type TechnicalAuditSchedule,
-} from '@/lib/schedules-api';
+import { useProjectSchedules } from '@/components/admin/schedules/use-project-schedules';
+import { InlineEmpty } from '@/components/portal/blocks';
 import type { Project } from '@/types/project';
 
-interface ProjectSchedules {
-  technical: TechnicalAuditSchedule | null;
-  social: SocialActivitySchedule | null;
-}
-
 /**
- * Per-client schedules section for the client-detail page.
- * Reuses the global schedules UI (ProjectScheduleBlock) and fetchers
- * (lib/schedules-api + self-loading DataForSEO card) so save/collect
- * behave exactly as on /admin/schedules.
+ * Per-client schedules for the client-detail page. It reuses the same tiles
+ * and fetchers as /admin/schedules, so a change here behaves identically there.
  */
 export function ClientSchedulesSection({
   accessToken,
@@ -32,79 +21,42 @@ export function ClientSchedulesSection({
   clientId: string;
   projects: Project[] | null;
 }) {
-  const [schedules, setSchedules] = useState<Record<string, ProjectSchedules>>({});
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    if (!projects || projects.length === 0) return;
-    try {
-      const entries = await Promise.all(
-        projects.map(async (project) => {
-          const [technical, social] = await Promise.all([
-            getTechnicalAuditSchedule(accessToken, clientId, project.id).catch(() => null),
-            getSocialActivitySchedule(accessToken, clientId, project.id).catch(() => null),
-          ]);
-          return [project.id, { technical, social }] as const;
-        }),
-      );
-      setSchedules(Object.fromEntries(entries));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load schedules');
-    }
-  }, [accessToken, clientId, projects]);
-
-  useEffect(() => {
-    if (!accessToken || !projects || projects.length === 0) return;
-    let cancelled = false;
-
-    Promise.all(
-      projects.map(async (project) => {
-        const [technical, social] = await Promise.all([
-          getTechnicalAuditSchedule(accessToken, clientId, project.id).catch(() => null),
-          getSocialActivitySchedule(accessToken, clientId, project.id).catch(() => null),
-        ]);
-        return [project.id, { technical, social }] as const;
-      }),
-    )
-      .then((entries) => {
-        if (!cancelled) setSchedules(Object.fromEntries(entries));
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load schedules');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, clientId, projects]);
+  const { schedules, error, refresh } = useProjectSchedules(accessToken, clientId, projects);
 
   return (
-    <section className="mt-6 flex flex-col gap-3 border-t border-border pt-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Schedules</h2>
-        <Link href="/admin/schedules" className="text-sm text-muted-foreground underline-offset-4 hover:underline">
-          View all schedules →
+    <section aria-labelledby="client-schedules-heading" className="mt-2 flex flex-col gap-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <p className="g-eyebrow">Schedules</p>
+          <h2 id="client-schedules-heading" className="text-lg font-semibold leading-snug">
+            What runs on its own
+          </h2>
+        </div>
+        <Link
+          href="/admin/schedules"
+          className="inline-flex items-center gap-1 rounded text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          All schedules <ArrowUpRight aria-hidden className="size-4" />
         </Link>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
 
       {projects === null ? (
-        <p className="text-sm text-muted-foreground">Loading schedules…</p>
+        <InlineEmpty>Loading schedules…</InlineEmpty>
       ) : projects.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-sm text-muted-foreground">No projects yet.</CardContent>
-        </Card>
+        <InlineEmpty>Schedules appear once this client has a project.</InlineEmpty>
       ) : (
-        projects.map((project) => (
+        projects.map((project, i) => (
           <ProjectScheduleBlock
             key={project.id}
+            index={i}
             accessToken={accessToken}
             clientId={clientId}
             project={project}
             technical={schedules[project.id]?.technical ?? null}
             social={schedules[project.id]?.social ?? null}
-            onChanged={refresh}
+            onChanged={() => void refresh()}
           />
         ))
       )}

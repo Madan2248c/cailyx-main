@@ -11,6 +11,7 @@ import { validationSchema } from './config/validation.schema.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { AeoAuditModule } from './modules/aeo-audit/aeo-audit.module.js';
 import { CompetitorsModule } from './modules/competitors/competitors.module.js';
+import { FeaturesModule } from './modules/features/features.module.js';
 import { EmailModule } from './modules/email/email.module.js';
 import { Day1PipelineModule } from './modules/day1-pipeline/day1-pipeline.module.js';
 import { DataforseoModule } from './modules/dataforseo/dataforseo.module.js';
@@ -59,6 +60,7 @@ export const observeEnabled = Boolean(process.env.OBSERVE_APP_KEY && process.env
     AeoAuditModule,
     GapAnalysisModule,
     CompetitorsModule,
+    FeaturesModule,
     ReportingModule,
     EmailModule,
     Day1PipelineModule,

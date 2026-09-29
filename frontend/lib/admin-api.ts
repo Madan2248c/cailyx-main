@@ -103,3 +103,16 @@ export async function collectDataforseoNow(
   });
   return parseOrThrow<DataforseoCollectResult>(response);
 }
+
+/** Re-enqueue a stalled or failed Day-1 pipeline (the backend rejects RUNNING and COMPLETE runs). */
+export async function retryDay1Pipeline(
+  accessToken: string,
+  clientId: string,
+  projectId: string,
+): Promise<{ id: string; status: string }> {
+  const response = await apiFetch(`/api/team/clients/${clientId}/projects/${projectId}/day1/retry`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+  return parseOrThrow<{ id: string; status: string }>(response);
+}

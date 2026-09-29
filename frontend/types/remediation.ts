@@ -22,7 +22,8 @@ export type AcceptanceCheck =
   | { kind: 'robots-declares-sitemap' }
   | { kind: 'json-ld-has'; url: string; type: 'Organization'; fields: string[] }
   | { kind: 'page-issue-absent'; url: string; issues: string[] }
-  | { kind: 'finding-absent'; module: string; findingRef: string };
+  | { kind: 'finding-absent'; module: string; findingRef: string }
+  | { kind: 'manual' };
 
 export interface VerifyResult {
   passed: boolean;
@@ -157,5 +158,7 @@ export function describeAcceptance(check: AcceptanceCheck): string {
       return 'The page no longer shows this issue.';
     case 'finding-absent':
       return 'The next audit no longer finds this problem.';
+    case 'manual':
+      return 'Your Rothenhall lead confirms the change is in place.';
   }
 }

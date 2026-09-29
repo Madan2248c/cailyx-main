@@ -3,17 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, FolderKanban, ListChecks, LoaderCircle, Share2, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderKanban, LoaderCircle } from 'lucide-react';
 import { AnimateIcon } from '@/components/animate-ui/icons/icon';
 import { Gauge } from '@/components/animate-ui/icons/gauge';
-import { Key } from '@/components/animate-ui/icons/key';
-import { LayoutDashboard } from '@/components/animate-ui/icons/layout-dashboard';
-import { Link as LinkIcon } from '@/components/animate-ui/icons/link';
 import { LogOut } from '@/components/animate-ui/icons/log-out';
-import { Search } from '@/components/animate-ui/icons/search';
-import { Settings } from '@/components/animate-ui/icons/settings';
-import { Sparkles } from '@/components/animate-ui/icons/sparkles';
-import { Users } from '@/components/animate-ui/icons/users';
 import { Highlight, HighlightItem } from '@/components/animate-ui/primitives/effects/highlight';
 import { CailyxLockup, RothenhallCredit } from '@/components/brand/brand';
 import { Button } from '@/components/portal/button';
@@ -21,64 +14,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { cn } from 'cn';
 import { useClientProject } from '@/components/client/use-client-project';
 import { useFixSummary } from '@/components/remediation/use-fix-summary';
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string; size?: number }>;
-  indent?: boolean;
-  /** Prefix match instead of exact (covers future sub-routes). */
-  prefix?: boolean;
-  /** Count of things waiting on the client (shown as a pill). */
-  badge?: number;
-}
-
-interface NavSection {
-  label: string | null;
-  items: NavItem[];
-  /** Renders the label as a collapsible bar hiding its items until expanded. */
-  collapsible?: boolean;
-}
-
-function projectNav(projectId: string, fixBadge = 0): NavSection[] {
-  const base = `/client/projects/${projectId}`;
-  return [
-    {
-      label: 'Workspace',
-      items: [
-        { label: 'Dashboard', href: base, icon: LayoutDashboard },
-        { label: 'Fix Plan', href: `${base}/plan`, icon: ListChecks, prefix: true, badge: fixBadge },
-        { label: 'Reports', href: `${base}/reports`, icon: FileText },
-      ],
-    },
-    {
-      label: 'Performance',
-      collapsible: true,
-      items: [
-        { label: 'Overview', href: `${base}/performance`, icon: Gauge },
-        { label: 'Technical health', href: `${base}/performance/technical`, icon: Wrench },
-        { label: 'Google search', href: `${base}/performance/visibility/organic`, icon: Search },
-        { label: 'AI visibility', href: `${base}/performance/visibility/ai`, icon: Sparkles },
-        { label: 'Social channels', href: `${base}/performance/social`, icon: Share2 },
-      ],
-    },
-    {
-      label: 'Compare',
-      items: [
-        { label: 'Competitors', href: `${base}/competitors`, icon: Users },
-        { label: 'Backlinks', href: `${base}/competitors/backlinks`, icon: LinkIcon, indent: true },
-        { label: 'Keywords', href: `${base}/keywords`, icon: Key },
-      ],
-    },
-    {
-      label: 'System',
-      items: [
-        { label: 'Settings', href: `${base}/settings`, icon: Settings },
-        { label: 'Team management', href: `${base}/team`, icon: Users },
-      ],
-    },
-  ];
-}
+import { projectNav, visibleNav, type NavItem, type NavSection } from '@/components/client/nav';
+import { useFeatures } from '@/components/portal/use-features';
 
 function isActive(pathname: string, item: NavItem): boolean {
   if (item.prefix) return pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -105,6 +42,7 @@ export function ClientSidebar() {
   const projectId = match?.[1];
   const fixSummary = useFixSummary(accessToken, user?.clientId ?? '', projectId);
   const fixBadge = fixSummary ? fixSummary.awaitingDecision + fixSummary.regressed : 0;
+  const { enabled } = useFeatures(accessToken, user?.clientId ?? null);
 
   // Collapsible Performance group: open on performance routes, otherwise
   // remembers the user's last choice per project. The project switch is
@@ -226,7 +164,7 @@ export function ClientSidebar() {
             transition={{ type: 'spring', stiffness: 420, damping: 38 }}
           >
             <div className="flex flex-col gap-4">
-              {projectNav(projectId, fixBadge).map((section, i) =>
+              {visibleNav(projectNav(`/client/projects/${projectId}`, fixBadge), enabled).map((section, i) =>
                 renderSection(section, i, `/client/projects/${projectId}/performance`),
               )}
             </div>

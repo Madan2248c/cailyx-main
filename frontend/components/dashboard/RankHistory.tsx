@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowUpRight, TrendingUp } from 'lucide-react';
 import { getSnapshot, listSnapshots, type DataforseoSnapshot, type SerpRankRow } from '@/lib/dataforseo-api';
+import { useProjectBase } from '@/components/portal/routes';
 
 interface TopMover {
   keyword: string;
@@ -59,6 +60,7 @@ export function RankHistory({
   clientId: string;
   projectId: string;
 }) {
+  const projectBase = useProjectBase(projectId);
   const [movers, setMovers] = useState<TopMover[] | null>(null);
   const [since, setSince] = useState<string | null>(null);
 
@@ -128,7 +130,7 @@ export function RankHistory({
   const climbers = movers.filter((m) => m.kind === 'climber').length;
 
   return (
-    <Link href={`/client/projects/${projectId}/competitors`} className="g-tile g-rise flex flex-col gap-3 p-5" style={{ '--i': 8 } as React.CSSProperties}>
+    <Link href={`${projectBase}/competitors`} className="g-tile g-rise flex flex-col gap-3 p-5" style={{ '--i': 8 } as React.CSSProperties}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">

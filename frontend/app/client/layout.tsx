@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import { ClientGate } from '@/components/client/ClientGate';
 import { ClientSidebar } from '@/components/client/ClientSidebar';
+import { FeatureGate } from '@/components/client/FeatureGate';
 import { PortalMotion } from '@/components/portal/motion';
 import { PageTransition } from '@/components/portal/reveal';
 
@@ -19,7 +20,9 @@ export default function ClientLayout({ children }: { children: ReactNode }) {
       </a>
         <ClientSidebar />
         <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col bg-canvas outline-none">
-          <PageTransition>{children}</PageTransition>
+          <PageTransition>
+            <FeatureGate>{children}</FeatureGate>
+          </PageTransition>
         </main>
       </div>
       </PortalMotion>

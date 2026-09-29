@@ -1,151 +1,114 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useCallback } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+import { Notice } from '@/components/admin/admin-ui';
+import { useLoad } from '@/components/admin/use-load';
 import { ProjectScheduleBlock } from '@/components/admin/schedules/project-schedule-block';
-import { Card, CardContent } from '@/components/ui/card';
+import { useProjectSchedules } from '@/components/admin/schedules/use-project-schedules';
+import { InlineEmpty, Section } from '@/components/portal/blocks';
+import { PageHeader, PortalPage, StatusChip } from '@/components/portal/layout';
+import { EmptyState, PortalLoading } from '@/components/portal/states';
+import { plural } from '@/components/portal/tone';
 import { useAuth } from '@/contexts/auth-context';
 import { listProjects } from '@/lib/projects-api';
-import {
-  getSocialActivitySchedule,
-  getTechnicalAuditSchedule,
-  type SocialActivitySchedule,
-  type TechnicalAuditSchedule,
-} from '@/lib/schedules-api';
 import { listClients } from '@/lib/team-api';
 import type { Project } from '@/types/project';
 import type { ClientSummary } from '@/types/team';
 
 interface ClientBlock {
   client: ClientSummary;
-  projects: Project[];
+  /** `null` when this client's projects could not be loaded. */
+  projects: Project[] | null;
 }
 
-interface ProjectSchedules {
-  technical: TechnicalAuditSchedule | null;
-  social: SocialActivitySchedule | null;
-}
-
-async function loadAll(accessToken: string): Promise<{
-  blocks: ClientBlock[];
-  schedules: Record<string, ProjectSchedules>;
-}> {
+async function loadBlocks(accessToken: string): Promise<ClientBlock[]> {
   const clients = await listClients(accessToken);
-  const blocks: ClientBlock[] = await Promise.all(
+  return Promise.all(
     clients.map(async (client) => ({
       client,
-      projects: await listProjects(accessToken, client.id).catch(() => []),
+      projects: await listProjects(accessToken, client.id).catch(() => null),
     })),
   );
-  const schedules: Record<string, ProjectSchedules> = {};
-  await Promise.all(
-    blocks.flatMap(({ client, projects }) =>
-      projects.map(async (project) => {
-        const [technical, social] = await Promise.all([
-          getTechnicalAuditSchedule(accessToken, client.id, project.id).catch(() => null),
-          getSocialActivitySchedule(accessToken, client.id, project.id).catch(() => null),
-        ]);
-        schedules[project.id] = { technical, social };
-      }),
-    ),
+}
+
+function ClientScheduleGroup({ accessToken, block }: { accessToken: string; block: ClientBlock }) {
+  const { client, projects } = block;
+  const { schedules, error, refresh } = useProjectSchedules(accessToken, client.id, projects);
+
+  return (
+    <section aria-label={client.name} className="flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <h2 className="text-lg font-semibold leading-snug">{client.name}</h2>
+        {client.status === 'SUSPENDED' ? <StatusChip tone="bad">Suspended</StatusChip> : null}
+        <Link
+          href={`/admin/clients/${client.id}`}
+          className="ml-auto inline-flex items-center gap-1 rounded text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Client page <ArrowUpRight aria-hidden className="size-4" />
+        </Link>
+      </div>
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      {projects === null ? (
+        <Notice tone="error">Couldn&apos;t load this client&apos;s projects. Refresh to try again.</Notice>
+      ) : projects.length === 0 ? (
+        <InlineEmpty>No projects yet.</InlineEmpty>
+      ) : (
+        projects.map((project, i) => (
+          <ProjectScheduleBlock
+            key={project.id}
+            index={i}
+            accessToken={accessToken}
+            clientId={client.id}
+            project={project}
+            technical={schedules[project.id]?.technical ?? null}
+            social={schedules[project.id]?.social ?? null}
+            onChanged={() => void refresh()}
+          />
+        ))
+      )}
+    </section>
   );
-  return { blocks, schedules };
 }
 
 export default function AdminSchedulesPage() {
-  const { user, accessToken, isLoading } = useAuth();
-  const router = useRouter();
-  const [blocks, setBlocks] = useState<ClientBlock[] | null>(null);
-  const [schedules, setSchedules] = useState<Record<string, ProjectSchedules>>({});
-  const [error, setError] = useState<string | null>(null);
+  const { accessToken } = useAuth();
+  const load = useCallback(() => loadBlocks(accessToken ?? ''), [accessToken]);
+  const { data: blocks, error, loading } = useLoad(accessToken ? load : null, 'Failed to load schedules');
 
-  const refresh = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      const data = await loadAll(accessToken);
-      setBlocks(data.blocks);
-      setSchedules(data.schedules);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load schedules');
-    }
-  }, [accessToken]);
+  if (blocks === null && loading) return <PortalLoading label="Loading schedules" />;
 
-  useEffect(() => {
-    if (!isLoading && (!user || user.role !== 'ADMIN')) {
-      router.replace('/dashboard');
-    }
-  }, [isLoading, user, router]);
-
-  useEffect(() => {
-    if (!accessToken) return;
-    let cancelled = false;
-
-    loadAll(accessToken)
-      .then((data) => {
-        if (!cancelled) {
-          setBlocks(data.blocks);
-          setSchedules(data.schedules);
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load schedules');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken]);
-
-  if (isLoading || !user || user.role !== 'ADMIN') {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      </div>
-    );
-  }
+  const projectCount = (blocks ?? []).reduce((n, b) => n + (b.projects?.length ?? 0), 0);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Schedules</h1>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Every cadence control that exists today, per client and project. Reporting and AEO have no
-        schedule endpoints yet. Those rows are marked as gaps, not schedules.
+    <PortalPage>
+      <PageHeader
+        eyebrow="Admin console"
+        title="Schedules"
+        summary={
+          projectCount === 0
+            ? 'Cadences appear here once a client has a project.'
+            : `${plural(projectCount, 'project')} across ${plural((blocks ?? []).length, 'client')}. Changes save the moment you make them.`
+        }
+      />
+
+      {error ? <Notice tone="error">{error}</Notice> : null}
+
+      <p className="max-w-3xl text-sm text-muted-foreground">
+        Technical audits, social activity and DataForSEO can run on a cadence. Social and DataForSEO cost money, so their
+        scheduled runs wait for your spend opt-in. Reports and AEO audits run on demand.
       </p>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {blocks !== null && blocks.length === 0 ? (
+        <Section eyebrow="Schedules">
+          <EmptyState title="No clients yet" body="Create a client and add a project, then set its cadence here." />
+        </Section>
+      ) : null}
 
-      {blocks === null ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
-      ) : blocks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No clients yet.</p>
-      ) : (
-        blocks.map(({ client, projects }) => (
-          <section key={client.id} className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold">{client.name}</h2>
-            {projects.length === 0 ? (
-              <Card>
-                <CardContent className="pt-6 text-sm text-muted-foreground">
-                  No projects yet.
-                </CardContent>
-              </Card>
-            ) : (
-              projects.map((project) => (
-                <ProjectScheduleBlock
-                  key={project.id}
-                  accessToken={accessToken ?? ''}
-                  clientId={client.id}
-                  project={project}
-                  technical={schedules[project.id]?.technical ?? null}
-                  social={schedules[project.id]?.social ?? null}
-                  onChanged={refresh}
-                />
-              ))
-            )}
-          </section>
-        ))
-      )}
-    </div>
+      {(blocks ?? []).map((block) => (
+        <ClientScheduleGroup key={block.client.id} accessToken={accessToken ?? ''} block={block} />
+      ))}
+    </PortalPage>
   );
 }

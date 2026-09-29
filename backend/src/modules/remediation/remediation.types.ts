@@ -106,7 +106,9 @@ export type AcceptanceCheck =
   | { kind: 'robots-declares-sitemap' }
   | { kind: 'json-ld-has'; url: string; type: 'Organization'; fields: string[] }
   | { kind: 'page-issue-absent'; url: string; issues: PageIssueCode[] }
-  | { kind: 'finding-absent'; module: FixSourceModule; findingRef: string };
+  | { kind: 'finding-absent'; module: FixSourceModule; findingRef: string }
+  /** A fix an admin added by hand: no machine check, a person confirms it is done. */
+  | { kind: 'manual' };
 
 /** Acceptance kinds a live verifier can check right now; the rest wait for a newer audit. */
 export const LIVE_ACCEPTANCE_KINDS: ReadonlyArray<AcceptanceCheck['kind']> = [

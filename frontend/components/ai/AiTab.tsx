@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsContents, TabsList, TabsTrigger } from '@/compon
 import { getAeoVerdict, listAeoAudits } from '@/lib/aeo-api';
 import type { AeoVerdict, Stance } from '@/types/aeo';
 import { STANCE_LABEL, SURFACE_LABEL } from '@/types/aeo';
+import { useProjectBase } from '@/components/portal/routes';
 
 const STANCE_ORDER: Stance[] = [
   'recommended_primary',
@@ -59,6 +60,7 @@ export function AiTab({
   projectId: string;
   projectName: string;
 }) {
+  const projectBase = useProjectBase(projectId);
   const [verdict, setVerdict] = useState<AeoVerdict | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [state, setState] = useState<'loading' | 'empty' | 'error' | 'ready'>('loading');
@@ -330,7 +332,7 @@ export function AiTab({
                 )}
                 {judged && judged.losingPrompts.length > 0 ? (
                   <Link
-                    href={`/client/projects/${projectId}/plan?focus=aeo-content`}
+                    href={`${projectBase}/plan?focus=aeo-content`}
                     className="mt-2 inline-flex w-fit items-center gap-1 text-sm font-medium underline-offset-4 hover:underline"
                   >
                     How to win these back <ArrowRight className="size-3.5" aria-hidden />

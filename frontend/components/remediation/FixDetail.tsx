@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CircleCheck, CircleX, ClipboardList, Download, FileCode, Clock, Lightbulb, Target, Wrench } from 'lucide-react';
 import { CopyButton } from '@/components/animate-ui/components/buttons/copy';
@@ -15,6 +16,7 @@ import { getFix, markFixApplied, verifyFix } from '@/lib/remediation-api';
 import type { FixEvent, FixSpec } from '@/types/remediation';
 import { describeAcceptance, groupLabel, STATUS_WORD } from '@/types/remediation';
 import { ApprovalCard } from './ApprovalCard';
+import { FixAdminBar } from '@/components/admin/preview/fix-admin';
 import { BadgeCheck } from '@/components/animate-ui/icons/badge-check';
 import { MagneticAction } from '@/components/portal/magnetic-action';
 import {
@@ -28,6 +30,7 @@ import {
   STATUS_TONE,
   targetLabel,
 } from './fix-meta';
+import { useProjectBase } from '@/components/portal/routes';
 
 export function FixDetail({
   accessToken,
@@ -42,6 +45,8 @@ export function FixDetail({
   fixId: string;
   canDecide: boolean;
 }) {
+  const projectBase = useProjectBase(projectId);
+  const router = useRouter();
   const [fix, setFix] = useState<FixSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,7 +67,7 @@ export function FixDetail({
   if (error) return <ErrorState message={error} />;
   if (!fix) return <PortalLoading label="Loading fix" />;
 
-  const planHref = `/client/projects/${projectId}/plan`;
+  const planHref = `${projectBase}/plan`;
   const facts = evidenceFacts(fix.evidence);
   const pages = evidencePages(fix.evidence);
 
@@ -87,6 +92,8 @@ export function FixDetail({
           </>
         }
       />
+
+      <FixAdminBar fix={fix} onChanged={(next) => (next ? setFix(next) : router.push(planHref))} />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {fix.status === 'AWAITING_DECISION' ? (
