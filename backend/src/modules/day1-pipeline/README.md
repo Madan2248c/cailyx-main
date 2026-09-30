@@ -18,7 +18,12 @@ audit is ready" email. Spec: `docs/analysis/day1-pipeline.md`.
 - Terminal semantics: `COMPLETE` = a DAY1 report was RELEASED (skipped
   stages are fine). `FAILED` = no report. **Only `reporting` is fatal** —
   every other stage failure is recorded in `stages` JSON and the pipeline
-  continues.
+  continues — except a non-credit AEO non-completion, which holds the
+  report/email for a retry (AEO is the Day-1 headline). **No usable Cloro
+  credit is the exception: AEO is recorded
+  `skipped: cloro-credits-unavailable…` and the pipeline continues to
+  reporting with the remaining data** (Reporting/GapAnalysis tolerate a
+  missing AEO source).
 - Retries resume: recorded completed/skipped stages are not re-triggered;
   resumable stages (queued runs, AEO audits) pick up where they left off.
   `GET`/`POST …/projects/:id/day1[/retry]` (admin) inspect and re-enqueue;
@@ -52,8 +57,9 @@ the app — the client report viewer is unbuilt frontend work.
 
 ## Testing
 
-- `services/day1-pipeline.service.spec.ts` (13 tests, mocked stages):
+- `services/day1-pipeline.service.spec.ts` (18 tests, mocked stages):
   start idempotency + queue-down, retry guards + legacy row creation,
   happy path to COMPLETE, failed-stage continuation, reporting-failure →
-  FAILED, query-chain skip propagation, ceiling skips, resume skips
-  recorded stages.
+  FAILED, query-chain skip propagation, ceiling skips, Cloro-credit skip
+  still completes (exhausted + missing-key) vs non-credit AEO failure
+  still holds, resume skips recorded stages.

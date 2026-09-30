@@ -15,7 +15,7 @@
  * @module day1-pipeline/services/day1-pipeline.service
  */
 
-import { ConflictException, Injectable, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import type { Queue } from 'bullmq';
@@ -31,6 +31,7 @@ import { RemediationSyncService } from '../../remediation/services/remediation-s
 import { ReportingService } from '../../reporting/services/reporting.service.js';
 import { TeamService } from '../../auth/services/team.service.js';
 import type { Surface } from '../../measurement/measurement.types.js';
+import { CloroClient } from '../../measurement/adapters/cloro.adapter.js';
 import {
   DAY1_JOB,
   DAY1_JOB_OPTIONS,
@@ -76,6 +77,49 @@ function withTimeout<T>(work: Promise<T>, ms: number, message: string): Promise<
   return Promise.race([work, timeout]).finally(() => clearTimeout(timer));
 }
 
+/**
+ * Skipped-reason prefix when AEO is bypassed because Cloro has no usable
+ * credit. The pipeline continues to reporting with remaining data instead
+ * of holding the Day-1 report (see runAeoAudit + the aeo-audit hold below).
+ */
+export const AEO_CLORO_SKIP_PREFIX = 'cloro-credits-unavailable';
+
+/** Substrings (lowercased) that identify a Cloro credit/key failure. */
+const CLORO_CREDIT_HINTS = [
+  'cloro',
+  'credit',
+  'insufficient-credits',
+  'remaining audit budget',
+  'all configured cloro keys failed',
+  'all configured',
+  'api key',
+  'cloro-api-error',
+  'cloro-disabled',
+  'cloro-task-failed',
+  'http 401',
+  'http 402',
+  'http 403',
+  ' 401',
+  ' 402',
+  ' 403',
+  '402',
+  'is not set. sign up at cloro',
+];
+
+/** Surface-run failureKinds that mean "no money left", never a code bug. */
+const CREDIT_FAILURE_KINDS = new Set(['insufficient-credits', 'audit-cost-cap']);
+
+function messageLooksLikeCreditFailure(message: string): boolean {
+  const lower = message.toLowerCase();
+  return CLORO_CREDIT_HINTS.some((hint) => lower.includes(hint));
+}
+
+/** A recorded AEO stage that was skipped purely for lack of Cloro credit. */
+function isCloroCreditSkip(record: Day1StageRecord | undefined): boolean {
+  if (!record || record.status !== 'skipped') return false;
+  return (record.skippedReason ?? '').startsWith(AEO_CLORO_SKIP_PREFIX);
+}
+
 @Injectable()
 export class Day1PipelineService {
   private readonly logger = new Logger(Day1PipelineService.name);
@@ -94,6 +138,7 @@ export class Day1PipelineService {
     private readonly reporting: ReportingService,
     private readonly team: TeamService,
     private readonly remediation: RemediationSyncService,
+    @Optional() private readonly cloro?: CloroClient,
   ) {}
 
   /**
@@ -217,7 +262,9 @@ export class Day1PipelineService {
         // The AEO audit is the headline of the Day-1 report. Without it, don't
         // release a report or tell the client it is ready: hold here so the run
         // shows as needing attention, and a retry resumes from this stage.
-        if (stage === 'aeo-audit' && state[stage]?.status !== 'completed') {
+        // Exception: no usable Cloro credit — skip AEO and continue with the
+        // remaining data (Reporting tolerates a missing AEO source).
+        if (stage === 'aeo-audit' && state[stage]?.status !== 'completed' && !isCloroCreditSkip(state[stage])) {
           const detail = state[stage]?.error ?? state[stage]?.skippedReason ?? state[stage]?.status;
           throw new Error(`AEO audit did not complete (${detail}). Report and client email held. Fix the cause, then retry the pipeline.`);
         }
@@ -391,19 +438,125 @@ export class Day1PipelineService {
         const existing = await this.aeoAudit.getAudit(clientId, recordedId);
         if (existing.status === 'completed') return { status: 'completed', runId: recordedId };
         // Resumable: run() only touches still-pending surface rows.
-        const resumed = await this.aeoAudit.run(clientId, recordedId);
-        return this.aeoResult(recordedId, resumed.status);
+        try {
+          const resumed = await this.aeoAudit.run(clientId, recordedId);
+          return this.aeoResult(recordedId, resumed.status);
+        } catch (err) {
+          const skip = await this.toCreditSkip(clientId, recordedId, err);
+          if (skip) return skip;
+          throw err;
+        }
       } catch (err) {
-        if (!(err instanceof NotFoundException)) throw err;
+        if (err instanceof NotFoundException) {
+          // Fall through to a fresh audit below.
+        } else {
+          const skip = await this.toCreditSkip(clientId, recordedId, err);
+          if (skip) return skip;
+          throw err;
+        }
       }
     }
-    const created = await this.aeoAudit.create(clientId, projectId, {
-      querySetId: querySet.id,
-      surfaces: this.day1Surfaces(),
-      markets: [...DAY1_MARKETS],
-    });
-    const result = await this.aeoAudit.run(clientId, created.id);
-    return this.aeoResult(created.id, result.status);
+    let createdId: string | null = null;
+    try {
+      const created = await this.aeoAudit.create(clientId, projectId, {
+        querySetId: querySet.id,
+        surfaces: this.day1Surfaces(),
+        markets: [...DAY1_MARKETS],
+      });
+      createdId = created.id;
+      const result = await this.aeoAudit.run(clientId, created.id);
+      return this.aeoResult(created.id, result.status);
+    } catch (err) {
+      const skip = await this.toCreditSkip(clientId, createdId, err);
+      if (skip) return skip;
+      throw err;
+    }
+  }
+
+  /**
+   * Maps an AEO failure to a credit skip when Cloro has no usable credit.
+   * Returns null when the failure is not credit-related (caller rethrows).
+   * The skip keeps the audit id when one exists so a retry can resume it
+   * once credit is topped up.
+   */
+  private async toCreditSkip(clientId: string, auditId: string | null, err: unknown): Promise<Day1StageRecord | null> {
+    const message = err instanceof Error ? err.message : String(err);
+    const hinted = messageLooksLikeCreditFailure(message);
+
+    let surfaceCredit = false;
+    let surfaceDetail: string | null = null;
+    if (auditId) {
+      try {
+        const audit = await this.aeoAudit.getAudit(clientId, auditId);
+        const runs = (audit?.surfaceRuns ?? []) as Array<{ status: string; failureKind: string | null; error: string | null }>;
+        if (runs.length > 0 && runs.every((r) => r.status === 'failed')) {
+          const kinds = runs.map((r) => r.failureKind ?? '');
+          if (kinds.length > 0 && kinds.every((k) => CREDIT_FAILURE_KINDS.has(k))) {
+            surfaceCredit = true;
+            surfaceDetail = `surface failureKinds: ${[...new Set(kinds)].join(', ')}`;
+          } else {
+            const blob = runs.map((r) => `${r.failureKind ?? ''} ${r.error ?? ''}`).join(' | ');
+            if (blob.trim().length > 0 && messageLooksLikeCreditFailure(blob)) {
+              surfaceCredit = true;
+              surfaceDetail = blob.slice(0, 300);
+            } else if (kinds.every((k) => k === 'measurement-failed' || k === 'exception')) {
+              // Measurement swallows the per-prompt Cloro error (failedRequests++,
+              // zero observations, null run error), so a zero-completion audit
+              // with only measurement/exception failures is most likely out of
+              // credit — confirm via the live balance below before skipping.
+              surfaceDetail = `unexplained zero-completion: ${[...new Set(kinds)].join(', ')}`;
+            }
+          }
+        }
+      } catch {
+        // Reading the audit must never turn a real failure into a skip by itself.
+      }
+    }
+
+    if (!hinted && !surfaceCredit) {
+      // No textual signal of a credit problem. Only skip when the live
+      // balance proves there is nothing to spend AND the audit produced
+      // zero completions (surfaceDetail set above or generic no-completion).
+      const balance = await this.cloroBalance();
+      if (balance.exhausted && (surfaceDetail !== null || message.toLowerCase().includes('no surface completed'))) {
+        return {
+          status: 'skipped',
+          skippedReason: `${AEO_CLORO_SKIP_PREFIX}: ${balance.detail}${surfaceDetail ? ` (${surfaceDetail})` : ''}`,
+          ...(auditId ? { runId: auditId } : {}),
+        };
+      }
+      return null;
+    }
+
+    // Textual credit signal — confirm with the balance when possible, but
+    // skip regardless: the audit itself already refused the work.
+    let suffix = '';
+    try {
+      const balance = await this.cloroBalance();
+      suffix = ` (cloro balance: ${balance.detail})`;
+    } catch {
+      // Balance check is best-effort only.
+    }
+    const detail = surfaceDetail ?? message.slice(0, 300);
+    return {
+      status: 'skipped',
+      skippedReason: `${AEO_CLORO_SKIP_PREFIX}: ${detail}${suffix}`,
+      ...(auditId ? { runId: auditId } : {}),
+    };
+  }
+
+  /** Live Cloro balance; missing keys / zero balance means exhausted. */
+  private async cloroBalance(): Promise<{ exhausted: boolean; detail: string }> {
+    if (!this.cloro) return { exhausted: false, detail: 'balance check unavailable (no Cloro client)' };
+    try {
+      const remaining = await this.cloro.getRemainingCredits();
+      if (!Number.isFinite(remaining) || remaining <= 0) {
+        return { exhausted: true, detail: `${String(remaining)} credits remaining` };
+      }
+      return { exhausted: false, detail: `${remaining} credits remaining` };
+    } catch (err) {
+      return { exhausted: true, detail: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    }
   }
 
   private aeoResult(auditId: string, status: string): Day1StageRecord {

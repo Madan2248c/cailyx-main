@@ -15,6 +15,7 @@ import { GapAnalysisService } from '../../gap-analysis/services/gap-analysis.ser
 import { ReportingService } from '../../reporting/services/reporting.service.js';
 import { TeamService } from '../../auth/services/team.service.js';
 import { RemediationSyncService } from '../../remediation/services/remediation-sync.service.js';
+import { CloroClient } from '../../measurement/adapters/cloro.adapter.js';
 import { DAY1_QUEUE } from '../queue/day1-pipeline.queue.js';
 import { Day1PipelineService } from './day1-pipeline.service.js';
 
@@ -63,6 +64,7 @@ describe('Day1PipelineService', () => {
   let reporting: { generate: ReturnType<typeof vi.fn>; list: ReturnType<typeof vi.fn> };
   let team: { sendDay1ReadyEmail: ReturnType<typeof vi.fn> };
   let remediation: { sync: ReturnType<typeof vi.fn> };
+  let cloro: { getRemainingCredits: ReturnType<typeof vi.fn> };
 
   function mockHappyStages() {
     discovery.startRun.mockResolvedValue({ id: 'd1' });
@@ -105,6 +107,7 @@ describe('Day1PipelineService', () => {
     reporting = { generate: vi.fn(), list: vi.fn() };
     team = { sendDay1ReadyEmail: vi.fn() };
     remediation = { sync: vi.fn().mockResolvedValue({ runId: 'rem1' }) };
+    cloro = { getRemainingCredits: vi.fn().mockResolvedValue(10_000) };
 
     const configService = {
       get: vi.fn((key: string, fallback?: unknown) => {
@@ -130,6 +133,7 @@ describe('Day1PipelineService', () => {
         { provide: ReportingService, useValue: reporting },
         { provide: TeamService, useValue: team },
         { provide: RemediationSyncService, useValue: remediation },
+        { provide: CloroClient, useValue: cloro },
       ],
     }).compile();
 
@@ -347,6 +351,65 @@ describe('Day1PipelineService', () => {
       expect(discovery.startRun).not.toHaveBeenCalled();
       expect(discovery.getRun).not.toHaveBeenCalled();
       expect(technicalAudit.startRun).toHaveBeenCalled();
+    });
+
+    it('skips AEO and still completes when Cloro credits are exhausted', async () => {
+      mockHappyStages();
+      aeoAudit.run.mockRejectedValueOnce(new Error('Pre-flight credit estimate exceeds remaining audit budget.'));
+      aeoAudit.getAudit.mockResolvedValue({
+        id: 'a1',
+        status: 'failed',
+        surfaceRuns: [{ status: 'failed', failureKind: 'insufficient-credits', error: 'Pre-flight credit estimate exceeds remaining audit budget.' }],
+      });
+      cloro.getRemainingCredits.mockResolvedValue(0);
+      prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow());
+      prisma.day1PipelineRun.update.mockImplementation((args: unknown) => Promise.resolve({ id: 'pipeline-1', ...(args as { data: Record<string, unknown> }).data }));
+
+      await service.executePipeline('pipeline-1');
+
+      expect(reporting.generate).toHaveBeenCalledWith('client-1', 'project-1', 'DAY1');
+      expect(team.sendDay1ReadyEmail).toHaveBeenCalled();
+      const updates = prisma.day1PipelineRun.update.mock.calls.map((c) => (c[0] as { data: Record<string, unknown> }).data);
+      const final = updates[updates.length - 1];
+      expect(final.status).toBe('COMPLETE');
+      const stages = final.stages as Record<string, { status: string; skippedReason?: string; runId?: string }>;
+      expect(stages['aeo-audit'].status).toBe('skipped');
+      expect(stages['aeo-audit'].skippedReason).toContain('cloro-credits-unavailable');
+    });
+
+    it('skips AEO and still completes when no Cloro key is configured', async () => {
+      mockHappyStages();
+      aeoAudit.run.mockRejectedValueOnce(new Error('CLORO_API_KEY is not set. Sign up at cloro.dev and add the key to run this surface.'));
+      aeoAudit.getAudit.mockResolvedValue({
+        id: 'a1',
+        status: 'failed',
+        surfaceRuns: [{ status: 'failed', failureKind: 'exception', error: 'CLORO_API_KEY is not set. Sign up at cloro.dev and add the key to run this surface.' }],
+      });
+      cloro.getRemainingCredits.mockRejectedValueOnce(new Error('CLORO_API_KEY is not set. Sign up at cloro.dev and add the key to run this surface.'));
+      prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow());
+      prisma.day1PipelineRun.update.mockImplementation((args: unknown) => Promise.resolve({ id: 'pipeline-1', ...(args as { data: Record<string, unknown> }).data }));
+
+      await service.executePipeline('pipeline-1');
+
+      expect(reporting.generate).toHaveBeenCalled();
+      const updates = prisma.day1PipelineRun.update.mock.calls.map((c) => (c[0] as { data: Record<string, unknown> }).data);
+      const final = updates[updates.length - 1];
+      expect(final.status).toBe('COMPLETE');
+      const stages = final.stages as Record<string, { status: string; skippedReason?: string }>;
+      expect(stages['aeo-audit'].skippedReason).toContain('cloro-credits-unavailable');
+    });
+
+    it('still holds the report when AEO fails for a non-credit reason', async () => {
+      mockHappyStages();
+      aeoAudit.run.mockRejectedValueOnce(new Error('db connection gone'));
+      aeoAudit.getAudit.mockResolvedValue({ id: 'a1', status: 'failed', surfaceRuns: [] });
+      cloro.getRemainingCredits.mockResolvedValue(10_000);
+      prisma.day1PipelineRun.findUnique.mockResolvedValue(buildRow());
+      prisma.day1PipelineRun.update.mockImplementation((args: unknown) => Promise.resolve({ id: 'pipeline-1', ...(args as { data: Record<string, unknown> }).data }));
+
+      await expect(service.executePipeline('pipeline-1')).rejects.toThrow(/AEO audit did not complete|db connection gone/);
+
+      expect(reporting.generate).not.toHaveBeenCalled();
     });
 
     it('returns null for an unknown pipeline row', async () => {

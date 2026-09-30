@@ -21,6 +21,7 @@ import { GapAnalysisModule } from '../gap-analysis/gap-analysis.module.js';
 import { RemediationModule } from '../remediation/remediation.module.js';
 import { ReportingModule } from '../reporting/reporting.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { MeasurementModule } from '../measurement/measurement.module.js';
 import { DAY1_QUEUE } from './queue/day1-pipeline.queue.js';
 import { Day1PipelineProcessor } from './queue/day1-pipeline.processor.js';
 import { Day1PipelineService } from './services/day1-pipeline.service.js';
@@ -33,6 +34,7 @@ import { Day1PipelineService } from './services/day1-pipeline.service.js';
     SocialActivityModule,
     QuerySetModule,
     AeoAuditModule,
+    MeasurementModule,
     CompetitorsModule,
     GapAnalysisModule,
     RemediationModule,
