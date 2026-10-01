@@ -1,0 +1,88 @@
+# Cailyx on the shared droplet (139.59.60.126) alongside the game.
+# Domain: cailyx.rothenhall.com (A record -> droplet IP; Caddy block lives in
+# the deadword repo's Caddyfile and terminates TLS for it).
+#
+# Images are built in CI and pushed to GHCR; the droplet only pulls.
+# Secrets live in /opt/cailyx/.env (git-ignored, survives `git reset --hard`).
+# Only Caddy (on the shared `proxy` network) reaches the frontend; the backend
+# and redis are reachable only inside this stack.
+name: cailyx
+
+services:
+  frontend:
+    build: ./frontend
+    image: ghcr.io/rothenhall/cailyx-frontend:latest
+    restart: unless-stopped
+    environment:
+      # Server-side only: browsers never call the API directly.
+      BACKEND_URL: http://backend:3001
+    expose:
+      - "3000"
+    networks: [internal, proxy]
+    depends_on:
+      backend:
+        condition: service_healthy
+    cpus: 0.5
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+
+  backend:
+    build: ./backend
+    image: ghcr.io/rothenhall/cailyx-backend:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      REDIS_URL: redis://redis:6379
+      FRONTEND_URL: https://cailyx.rothenhall.com
+      # Shared 2-vCPU box: crawl one page at a time instead of the default 6,
+      # so audits can't starve the game tick (or this API's own event loop).
+      TECHNICAL_AUDIT_PAGE_CRAWL_CONCURRENCY: "1"
+    expose:
+      - "3001"
+    networks: [internal]
+    depends_on:
+      redis:
+        condition: service_healthy
+    cpus: "1.0"
+    mem_limit: 1g
+    # /health is defined in the image (backend Dockerfile).
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    networks: [internal]
+    expose:
+      - "6379"
+    cpus: 0.25
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    logging: { driver: json-file, options: { max-size: 10m, max-file: "3" } }
+
+networks:
+  internal:
+    driver: bridge
+  # Shared with the game's Caddy (created once on the droplet). Caddy-only
+  # ingress: nothing else on the host joins this network.
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  redisdata:
